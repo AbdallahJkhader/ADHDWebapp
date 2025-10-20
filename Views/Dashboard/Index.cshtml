@@ -1,0 +1,827 @@
+@using ADHDWebApp.Models
+@{
+    Layout = null;
+
+    // Helper function to format file size
+    string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+    <link href="~/css/dashboard.css" rel="stylesheet" />
+
+</head>
+<body class="dashboard-page">
+
+    <!-- Focus Tools Offcanvas Panel -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="focusOffcanvas" aria-labelledby="focusOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 id="focusOffcanvasLabel">All Focus Tools</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="list-group small">
+                <li class="list-group-item d-flex align-items-center"><i class="bi bi-music-note-beamed me-2"></i>Focus Music</li>
+                <li class="list-group-item d-flex align-items-center"><i class="bi bi-brightness-high me-2"></i>Breathing Exercises</li>
+                <li class="list-group-item d-flex align-items-center"><i class="bi bi-puzzle me-2"></i>Mind Games</li>
+                <li class="list-group-item d-flex align-items-center"><i class="bi bi-stopwatch me-2"></i>Timer</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Study Tools Offcanvas Panel -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="toolsOffcanvas" aria-labelledby="toolsOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 id="toolsOffcanvasLabel">All Tools</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <ul class="list-group small">
+                <li class="list-group-item d-flex align-items-center"><i class="bi bi-highlighter me-2"></i>Annotation Tool</li>
+                <li class="list-group-item d-flex align-items-center"><i class="bi bi-translate me-2"></i>Translation</li>
+                <li class="list-group-item d-flex align-items-center"><i class="bi bi-graph-up me-2"></i>Progress Tracker</li>
+                <li class="list-group-item d-flex align-items-center"><i class="bi bi-calendar-check me-2"></i>Study Planner</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Notifications have been moved to the connections menu -->
+    <!-- Full Notifications Modal -->
+    <div class="modal fade" id="allNotificationsModal" tabindex="-1" aria-labelledby="allNotificationsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="allNotificationsModalLabel">All Notifications</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="all-notifications-list">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-bell-slash fs-1"></i>
+                        <p class="mt-2">No notifications yet.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <div class="top-nav">
+        <div class="left-nav d-flex align-items-center">
+            <nav class="main-nav">
+                <a href="#" class="nav-link active" data-section="summary">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Summary</span>
+                </a>
+                <a href="#" class="nav-link" data-section="workbook">
+                    <i class="bi bi-book"></i>
+                    <span>Workbook</span>
+                </a>
+                <a href="#" class="nav-link" data-section="quizzes">
+                    <i class="bi bi-patch-question"></i>
+                    <span>Quizzes</span>
+                </a>
+                <a href="#" class="nav-link" data-section="ai">
+                    <i class="bi bi-robot"></i>
+                    <span>AI Assistant</span>
+                </a>
+            </nav>
+        </div>
+        <div class="nav-divider"></div>
+        <div class="right-nav d-flex align-items-center">
+
+            <!-- Focus Dropdown (merged Relax + Timer, without Color Therapy) -->
+            <div class="user-dropdown me-3">
+                <button class="nav-btn" onclick="toggleDropdown('focus', event)">
+                    <i class="bi bi-bullseye"></i>
+                    <span>Focus</span>
+                </button>
+                <div class="dropdown-menu enhanced-dropdown" id="focus-dropdown">
+                    <div class="dropdown-header">
+                        <i class="bi bi-bullseye"></i>
+                        <span>Focus Tools</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+
+                    <!-- Relax items (without Color Therapy) -->
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-music-note-beamed"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Focus Music</div>
+                            <div class="activity-desc">Lofi, classical, nature sounds</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-brightness-high"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Breathing Exercises</div>
+                            <div class="activity-desc">4-7-8 technique, box breathing</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-puzzle"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Mind Games</div>
+                            <div class="activity-desc">Memory, puzzles, brain teasers</div>
+                        </div>
+                    </div>
+
+                    <!-- Timer inline panel trigger inside Focus (styled like other items) -->
+                    <div class="inline-panel-host">
+                        <div class="activity-item" onclick="toggleInlinePanel('focus-timer-panel', event)" style="cursor: pointer;">
+                            <div class="activity-icon">
+                                <i class="bi bi-stopwatch"></i>
+                            </div>
+                            <div class="activity-info">
+                                <div class="activity-title">Timer</div>
+                                <div class="activity-desc">Pomodoro and focus presets</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timer panel positioned relative to Focus dropdown (top-left) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus" id="focus-timer-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-stopwatch"></i>
+                            <span>Timer</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+
+                        <div class="timer-options px-3">
+                            <h6>Preset Timers:</h6>
+                            <div>
+                                <span class="timer-preset active" data-minutes="25">Pomodoro (25m)</span>
+                                <span class="timer-preset" data-minutes="15">Short Break (15m)</span>
+                                <span class="timer-preset" data-minutes="5">Quick Break (5m)</span>
+                                <span class="timer-preset" data-minutes="50">Deep Focus (50m)</span>
+                            </div>
+                        </div>
+
+                        <div class="dropdown-divider"></div>
+
+                        <div class="activity-item">
+                            <div class="progress-ring">
+                                <svg width="24" height="24">
+                                    <circle class="progress-circle" r="10" cx="12" cy="12" fill="transparent" stroke="#e3f2fd" stroke-width="3"></circle>
+                                    <circle class="progress-circle" r="10" cx="12" cy="12" fill="transparent" stroke="#00bcd4" stroke-width="3" stroke-dasharray="62.8" stroke-dashoffset="31.4"></circle>
+                                </svg>
+                            </div>
+                            <div class="activity-info">
+                                <div class="activity-title">Remaining Time</div>
+                                <div class="activity-desc">25:00</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="d-flex justify-content-around p-2">
+                            <button class="btn btn-sm btn-success"><i class="bi bi-play"></i> Start</button>
+                            <button class="btn btn-sm btn-danger"><i class="bi bi-pause"></i> Pause</button>
+                            <button class="btn btn-sm btn-secondary"><i class="bi bi-arrow-clockwise"></i> Reset</button>
+                        </div>
+                    </div>
+
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item text-center" data-bs-toggle="offcanvas" data-bs-target="#focusOffcanvas" onclick="return false;">All Focus Tools</a>
+                </div>
+            </div>
+            <!-- Files Dropdown -->
+            <div class="user-dropdown me-3">
+                <button class="nav-btn" onclick="toggleDropdown('files', event)">
+                    <i class="bi bi-folder"></i>
+                    <span>Files</span>
+                </button>
+                <div class="dropdown-menu enhanced-dropdown" id="files-dropdown">
+                    <div class="dropdown-header">
+                        <i class="bi bi-folder"></i>
+                        <span>File Management</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+
+                    <!-- Upload New (نفس ستايل الباقي) -->
+                    <div class="activity-item" onclick="document.getElementById('file-upload').click()" style="cursor: pointer;">
+                        <div class="activity-icon text-primary">
+                            <i class="bi bi-cloud-arrow-up"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Upload New</div>
+                            <div class="activity-desc">PDF, DOCX, TXT, Images</div>
+                            <div id="file-info" class="upload-info mt-2 text-muted"></div>
+                        </div>
+
+                        <!-- input file مخفي -->
+                        <form id="uploadForm" method="post" enctype="multipart/form-data"
+                              asp-controller="Dashboard" asp-action="UploadDocument">
+                            <input type="file" id="file-upload" name="file" class="d-none"
+                                   accept=".txt,.docx,.pdf,.png,.jpg,.jpeg"
+                                   onchange="document.getElementById('uploadForm').submit(); handleFileSelection(this)">
+                        </form>
+                    </div>
+
+                    <div class="activity-item" onclick="showMyFiles();" style="cursor: pointer;">
+                        <div class="activity-icon">
+                            <i class="bi bi-collection"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">My Files</div>
+                            <div class="activity-desc">12 files, 3 folders</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item" onclick="showRecentFiles();" style="cursor: pointer;">
+                        <div class="activity-icon">
+                            <i class="bi bi-stars"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Recent Files</div>
+                            <div class="activity-desc">lecture_notes.pdf, summary.docx</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-share"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Shared With Me</div>
+                            <div class="activity-desc">3 files from classmates</div>
+                        </div>
+                    </div>
+
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item text-center" onclick="showMyFiles(); return false;">Open File Manager</a>
+                </div>
+            </div>
+
+
+
+            <!-- Tools Dropdown -->
+            <div class="user-dropdown me-3">
+                <button class="nav-btn" onclick="toggleDropdown('tools')">
+                    <i class="bi bi-tools"></i>
+                    <span>Tools</span>
+                </button>
+                <div class="dropdown-menu enhanced-dropdown" id="tools-dropdown">
+                    <div class="dropdown-header">
+                        <i class="bi bi-tools"></i>
+                        <span>Study Tools</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-highlighter"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Annotation Tool</div>
+                            <div class="activity-desc">Highlight and annotate PDFs</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-translate"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Translation</div>
+                            <div class="activity-desc">Translate text to 40+ languages</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Progress Tracker</div>
+                            <div class="activity-desc">View your study analytics</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Study Planner</div>
+                            <div class="activity-desc">Schedule your sessions</div>
+                        </div>
+                    </div>
+
+                    <div class="dropdown-divider"></div>
+                    <a href="#" class="dropdown-item text-center" data-bs-toggle="offcanvas" data-bs-target="#toolsOffcanvas" onclick="return false;">All Tools</a>
+                </div>
+            </div>
+
+
+            <!-- User dropdown -->
+            <div class="user-dropdown">
+                <button class="nav-btn user-btn" onclick="toggleDropdown('user')">
+                    <i class="bi bi-person-circle"></i>
+                    <span>@ViewBag.FullName</span>
+                    <i class="bi bi-chevron-down ms-1"></i>
+                </button>
+                <div class="dropdown-menu enhanced-dropdown" id="user-dropdown">
+                    <div class="dropdown-header">
+                        <i class="bi bi-person-circle"></i>
+                        <span>@ViewBag.FullName</span>
+                    </div>
+                    <div class="dropdown-divider"></div>
+
+                    <div class="activity-item" onclick="toggleInlinePanel('profile-panel', event)" style="cursor: pointer;">
+                        <div class="activity-icon">
+                            <i class="bi bi-person"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Profile</div>
+                            <div class="activity-desc">View and edit your profile</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item" onclick="toggleInlinePanel('settings-panel', event)" style="cursor: pointer;">
+                        <div class="activity-icon">
+                            <i class="bi bi-gear"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Settings</div>
+                            <div class="activity-desc">Preferences and account settings</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item" onclick="openNetworkInlinePanel(event)" style="cursor: pointer;">
+                        <div class="activity-icon text-primary">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Network</div>
+                            <div class="activity-desc">Manage your connections and add new ones</div>
+                        </div>
+                    </div>
+
+                    <!-- Notifications Button -->
+                    <div class="activity-item" onclick="toggleNotificationsPanel(event)" style="cursor: pointer;">
+                        <div class="activity-icon text-warning">
+                            <i class="bi bi-bell"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Notifications</div>
+                            <div class="activity-desc">View your notifications</div>
+                        </div>
+                    </div>
+
+                    <!-- Notifications Panel -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="notifications-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-bell"></i>
+                            <span>Notifications</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="px-3 py-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Notifications</h6>
+                                <a href="#" class="small" onclick="event.preventDefault(); markAllAsRead()">Mark all as read</a>
+                            </div>
+                            <div id="notifications-list" class="notifications-list" style="max-height: 300px; overflow-y: auto;">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-bell-slash fs-1"></i>
+                                    <p class="text-muted mb-1">No notifications yet.</p>
+                                    <small class="text-muted">Upload your first file above</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Network Panel -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user network-panel" id="network-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-people"></i>
+                            <span>Network</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="px-3 py-2">
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <button id="network-tab-friends" type="button" class="btn btn-outline-secondary active">Friends</button>
+                                <button id="network-tab-classes" type="button" class="btn btn-outline-secondary">Classes</button>
+                            </div>
+
+                            <div id="network-friends-content">
+                                <div class="input-group input-group-sm mb-3 panel-section">
+                                    <span class="input-group-text">User ID</span>
+                                    <input type="number" class="form-control" id="network-add-input" placeholder="Enter user ID">
+                                    <button class="btn btn-primary" id="network-add-btn"><i class="bi bi-person-plus"></i></button>
+                                </div>
+                                <div id="network-add-feedback" class="small mb-2"></div>
+
+                                <div class="mb-3 panel-section">
+                                    <h6 class="mb-1 list-title">My Friends</h6>
+                                    <ul class="list-group list-group-flush" id="network-friends"></ul>
+                                </div>
+                                <div class="mb-3 panel-section">
+                                    <h6 class="mb-1 list-title">Incoming Requests</h6>
+                                    <ul class="list-group list-group-flush" id="network-incoming"></ul>
+                                </div>
+                                <div class="mb-0 panel-section">
+                                    <h6 class="mb-1 list-title">Outgoing Requests</h6>
+                                    <ul class="list-group list-group-flush" id="network-outgoing"></ul>
+                                </div>
+                            </div>
+
+                            <div id="network-classes-content" style="display:none;">
+                                <div class="input-group input-group-sm mb-3 panel-section">
+                                    <span class="input-group-text">Join Code</span>
+                                    <input type="text" class="form-control" id="classes-join-code" placeholder="Enter code">
+                                    <button class="btn btn-primary" id="classes-join-btn"><i class="bi bi-box-arrow-in-right"></i></button>
+                                </div>
+                                <div class="input-group input-group-sm mb-3 panel-section">
+                                    <span class="input-group-text">New Class</span>
+                                    <input type="text" class="form-control" id="classes-add-name" placeholder="Class name">
+                                    <button class="btn btn-secondary" id="classes-add-btn"><i class="bi bi-plus-circle"></i></button>
+                                </div>
+                                <div class="mb-0 panel-section">
+                                    <h6 class="mb-1 list-title">My Classes</h6>
+                                    <ul class="list-group list-group-flush" id="classes-list"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="profile-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-person"></i>
+                            <span>Profile</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="px-3 py-2">
+                            <div class="mb-2"><strong>@ViewBag.FullName</strong></div>
+                            <div class="text-muted small mb-3">User Profile</div>
+                            <div class="d-grid gap-2">
+                                <a href="#" class="btn btn-outline-secondary btn-sm text-start">Edit Profile</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="settings-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-gear"></i>
+                            <span>Settings</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="px-3 py-2">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="setting-darkmode">
+                                <label class="form-check-label" for="setting-darkmode">Dark Mode</label>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Language</label>
+                                <select class="form-select form-select-sm">
+                                    <option selected>English</option>
+                                    <option>Arabic</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dropdown-divider"></div>
+                    <a href="/Account/Logout" class="dropdown-item text-center">
+                        Logout <i class="bi bi-box-arrow-right ms-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="left-side">
+            <div class="doc-box">
+                <div class="left-content">
+                    <!-- Upload Container -->
+                    <div id="upload-container" class="text-center p-4" style="display: @((ViewBag.ShowLeftPanel == true || TempData["UploadedText"] != null) ? "none" : "flex")">
+                        <div class="welcome-section mb-3">
+                            <h5 class="mb-2">Welcome, @ViewBag.FullName</h5>
+                        </div>
+
+                        <div class="upload-options">
+                            <div class="upload-card mb-1" onclick="document.getElementById('file-upload').click()">
+                                <div class="upload-icon">
+                                    <i class="bi bi-file-text"></i>
+                                </div>
+                                <h5>Upload File</h5>
+                                <p class="text-muted small">PDF, DOCX, TXT, Images (PNG/JPG/JPEG/GIF)</p>
+                            </div>
+
+                            <div class="upload-card mb-1" onclick="showMyFiles()">
+                                <div class="upload-icon">
+                                    <i class="bi bi-folder"></i>
+                                </div>
+                                <h5>My Files</h5>
+                                <p class="text-muted small">Open your previously uploaded files</p>
+                            </div>
+
+                            <div class="upload-card mb-0" onclick="toggleTextInput()">
+                                <div class="upload-icon">
+                                    <i class="bi bi-pencil-square"></i>
+                                </div>
+                                <h5>Manual Input</h5>
+                                <p class="text-muted small">Type or paste your text</p>
+                            </div>
+                        </div>
+
+                        <form id="uploadForm" method="post" enctype="multipart/form-data" asp-controller="Dashboard" asp-action="UploadDocument">
+                            <input type="file" id="file-upload" name="file" class="d-none" accept=".txt,.docx,.pdf,.png,.jpg,.jpeg,.gif" onchange="handleFileSelection(this)">
+                            <div id="file-info" class="upload-info mt-4"></div>
+                        </form>
+                    </div>
+
+                    <!-- Uploaded Files Section - Small and Clean -->
+                    <div id="uploaded-files-section" class="mt-1" style="display: none">
+                        <div class="uploaded-files-container">
+                            <h6 class="files-section-title mb-2">
+                                <i class="bi bi-folder-open me-2"></i><span id="uploaded-files-title-text">Your Files</span>
+                            </h6>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="setLeftView('upload')">
+                                        <i class="bi bi-arrow-left"></i> Back
+                                    </button>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteSelectedFiles()">
+                                        <i class="bi bi-trash"></i> Delete Selected
+                                    </button>
+                                </div>
+                            </div>
+
+                            @if (ViewBag.UserFiles != null && ((List<UserFile>)ViewBag.UserFiles).Any())
+                            {
+                                <div class="files-grid">
+                                    @foreach (var file in (List<UserFile>)ViewBag.UserFiles)
+                                    {
+                                        <div class="file-card" onclick="openFile(@file.Id)" data-file-id="@file.Id">
+                                            <div class="form-check" style="position: absolute; top: 8px; left: 8px;">
+                                                <input class="form-check-input file-select-checkbox" type="checkbox" data-file-id="@file.Id" onclick="event.stopPropagation();" onchange="onFileCheckboxChange(this)">
+                                            </div>
+                                            <div class="file-icon-large">
+                                                @{
+                                                    var extension = System.IO.Path.GetExtension(file.FileName).ToLower();
+                                                    var iconClass = extension switch
+                                                    {
+                                                        ".pdf" => "bi-file-pdf text-danger",
+                                                        ".docx" => "bi-file-word text-primary",
+                                                        ".txt" => "bi-file-text text-secondary",
+                                                        ".jpg" or ".jpeg" or ".png" or ".gif" => "bi-file-image text-success",
+                                                        _ => "bi-file-earmark text-muted"
+                                                    };
+                                                }
+                                                <i class="bi @iconClass"></i>
+                                            </div>
+                                            <div class="file-name-card">@file.FileName</div>
+                                            <div class="file-meta-card">
+                                                <small class="text-muted">
+                                                    @{
+                                                        var sizeText = file.FileSize.HasValue ? FormatFileSize(file.FileSize.Value) : "Unknown size";
+                                                    }
+                                                    @sizeText
+                                                </small>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="no-files-message text-center py-3">
+                                    <i class="bi bi-folder-x text-muted mb-2" style="font-size: 2rem;"></i>
+                                    <p class="text-muted mb-1">No files uploaded yet</p>
+                                    <small class="text-muted">Upload your first file above</small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Manual Text Input -->
+                    <div id="manual-text" style="display: none;" class="p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="m-0">Manual Text Input</h5>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="toggleTextInput()">
+                                <i class="bi bi-x"></i> Cancel
+                            </button>
+                        </div>
+                        <textarea class="form-control mb-3" style="min-height: 200px"
+                                  placeholder="Type or paste your content here..."></textarea>
+                        <div class="text-end">
+                            <button class="btn btn-primary" onclick="submitManualText()">
+                                <i class="bi bi-send"></i> Submit Text
+                            </button>
+                        </div>
+                    </div>
+
+
+
+                    <!-- File Display Container -->
+                    <div id="file-display-container" style="display: @((ViewBag.ShowLeftPanel == true || TempData["UploadedText"] != null) ? "flex" : "none")" class="d-flex flex-column h-100 pt-2">
+                        <!-- Controls Bar -->
+                        <div class="controls-bar">
+                            <div class="d-flex gap-2 align-items-center">
+                                <!-- Text Alignment Controls -->
+                                <div class="btn-group btn-group-sm me-2" role="group">
+                                    <button type="button" class="btn btn-light active" onclick="setTextAlign('left')">
+                                        <i class="bi bi-text-left"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-light" onclick="setTextAlign('center')">
+                                        <i class="bi bi-text-center"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-light" onclick="setTextAlign('right')">
+                                        <i class="bi bi-text-right"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Dark Mode Toggle -->
+                                <button type="button" class="btn btn-light btn-sm action-btn" onclick="toggleDarkMode()">
+                                    <i class="bi bi-moon"></i>
+                                </button>
+
+                                <!-- File Actions -->
+                                <button class="btn btn-light btn-sm action-btn" onclick="downloadContent()" data-bs-toggle="tooltip" title="Download file">
+                                    <i class="bi bi-download"></i>
+                                </button>
+
+                                <button class="btn btn-light btn-sm action-btn" onclick="shareContent()" data-bs-toggle="tooltip" title="Share">
+                                    <i class="bi bi-share"></i>
+                                </button>
+
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-light btn-sm action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Text controls">
+                                        <i class="bi bi-sliders"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                                        <li class="dropdown-header">Text Settings</li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="adjustFontSize('increase')">
+                                                <i class="bi bi-zoom-in me-2"></i>Increase Font Size
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="adjustFontSize('decrease')">
+                                                <i class="bi bi-zoom-out me-2"></i>Decrease Font Size
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li class="dropdown-header">Layout</li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="toggleLineHeight()">
+                                                <i class="bi bi-text-spacing me-2"></i>Toggle Line Spacing
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="toggleReadingMode()">
+                                                <i class="bi bi-book me-2"></i>Reading Mode
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <button onclick="resetUpload()" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Back
+                                </button>
+
+                                <span class="filename-display ms-3">@(ViewBag.FileName ?? TempData["FileName"])</span>
+
+                                <!-- Word Count and Read Time -->
+                                <div class="ms-auto d-flex gap-3 align-items-center">
+                                    <div id="word-count" class="text-muted small">
+                                        <i class="bi bi-hash me-1"></i>0 words
+                                    </div>
+                                    <div id="read-time" class="text-muted small">
+                                        <i class="bi bi-clock me-1"></i>0 min read
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="divider my-2">
+
+                        <div class="document-content flex-grow-1 bg-white pt-2">
+                            <div id="content-wrapper">
+                                <div id="content-display" class="content-text mb-0">@(ViewBag.UploadedText ?? TempData["UploadedText"])</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+
+        <div class="right-side">
+            <div class="doc-box p-4">
+                <div id="section-content">
+                    <h4 class="mb-4"><strong>Summary</strong></h4>
+                    <p>This is where the summary will appear...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-navigation">
+        <button class="arrow-btn"><i class="bi bi-chevron-left"></i></button>
+        <button class="arrow-btn"><i class="bi bi-chevron-right"></i></button>
+    </div>
+
+    <!-- Add Network Modal -->
+    <div class="modal fade" id="addNetworkModal" tabindex="-1" aria-labelledby="addNetworkModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addNetworkModalLabel">Add Network</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-network-form">
+                        <div class="mb-3">
+                            <label for="addresseeIdInput" class="form-label">User ID</label>
+                            <input type="number" class="form-control" id="addresseeIdInput" placeholder="Enter user ID" required />
+                            <div class="form-text">Enter the numeric ID of the user you want to add.</div>
+                        </div>
+                        <div id="add-network-feedback" class="small"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="send-friend-request-btn" onclick="sendFriendRequest()">Send Request</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inline Add Network panel -->
+    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="network-add-panel" style="z-index: 1100;">
+        <div class="dropdown-header">
+            <i class="bi bi-people"></i>
+            <span>My Network</span>
+        </div>
+        <div class="dropdown-divider"></div>
+        <div class="px-3 py-2">
+            <div id="network-inline-loading" class="text-muted small mb-2" style="display:none;">Loading...</div>
+            <div id="network-inline-error" class="text-danger small mb-2" style="display:none;"></div>
+
+            <div class="mb-3">
+                <h6 class="mb-2">Friends</h6>
+                <ul class="list-group" id="network-inline-friends"></ul>
+            </div>
+            <div class="mb-3">
+                <h6 class="mb-2">Incoming Requests</h6>
+                <ul class="list-group" id="network-inline-incoming"></ul>
+            </div>
+            <div class="mb-3">
+                <h6 class="mb-2">Outgoing Requests</h6>
+                <ul class="list-group" id="network-inline-outgoing"></ul>
+            </div>
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleInlinePanel('network-viewall-panel', event)">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.DASHBOARD_CFG = {
+            getFileContentUrl: '@Url.Action("GetFileContent", "Dashboard")'
+        };
+    </script>
+    <!-- Load Bootstrap before app scripts to ensure bootstrap.Modal is available -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/dashboard.js"></script>
+</body>
+</html>
