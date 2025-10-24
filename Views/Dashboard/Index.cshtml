@@ -69,6 +69,8 @@
         </div>
     </div>
 
+    
+
     <!-- Notifications have been moved to the connections menu -->
     <!-- Full Notifications Modal -->
     <div class="modal fade" id="allNotificationsModal" tabindex="-1" aria-labelledby="allNotificationsModalLabel" aria-hidden="true">
@@ -83,6 +85,19 @@
                         <i class="bi bi-bell-slash fs-1"></i>
                         <p class="mt-2">No notifications yet.</p>
                     </div>
+
+                    <!-- Messages Panel -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="messages-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-chat-dots"></i>
+                            <span>Messages</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="px-3 py-2">
+                            <div class="small text-muted">Recent conversations</div>
+                            <ul class="list-group list-group-flush" id="messages-recent"></ul>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -94,24 +109,10 @@
     <!-- Top Navigation Bar -->
     <div class="top-nav">
         <div class="left-nav d-flex align-items-center">
-            <nav class="main-nav">
-                <a href="#" class="nav-link active" data-section="summary">
-                    <i class="bi bi-journal-text"></i>
-                    <span>Summary</span>
-                </a>
-                <a href="#" class="nav-link" data-section="workbook">
-                    <i class="bi bi-book"></i>
-                    <span>Workbook</span>
-                </a>
-                <a href="#" class="nav-link" data-section="quizzes">
-                    <i class="bi bi-patch-question"></i>
-                    <span>Quizzes</span>
-                </a>
-                <a href="#" class="nav-link" data-section="ai">
-                    <i class="bi bi-robot"></i>
-                    <span>AI Assistant</span>
-                </a>
-            </nav>
+            <button class="nav-btn" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">
+                <i class="bi bi-question-circle"></i>
+                <span>Help</span>
+            </button>
         </div>
         <div class="nav-divider"></div>
         <div class="right-nav d-flex align-items-center">
@@ -369,23 +370,14 @@
                         </div>
                     </div>
 
-                    <div class="activity-item" onclick="toggleInlinePanel('settings-panel', event)" style="cursor: pointer;">
-                        <div class="activity-icon">
-                            <i class="bi bi-gear"></i>
-                        </div>
-                        <div class="activity-info">
-                            <div class="activity-title">Settings</div>
-                            <div class="activity-desc">Preferences and account settings</div>
-                        </div>
-                    </div>
 
-                    <div class="activity-item" onclick="openNetworkInlinePanel(event)" style="cursor: pointer;">
+                    <div class="activity-item" onclick="openClassesInlinePanel(event)" style="cursor: pointer;">
                         <div class="activity-icon text-primary">
-                            <i class="bi bi-people"></i>
+                            <i class="bi bi-collection"></i>
                         </div>
                         <div class="activity-info">
-                            <div class="activity-title">Network</div>
-                            <div class="activity-desc">Manage your connections and add new ones</div>
+                            <div class="activity-title">Classes</div>
+                            <div class="activity-desc">Manage and join your classes</div>
                         </div>
                     </div>
 
@@ -397,6 +389,17 @@
                         <div class="activity-info">
                             <div class="activity-title">Notifications</div>
                             <div class="activity-desc">View your notifications</div>
+                        </div>
+                    </div>
+
+                    <!-- Messages Button -->
+                    <div class="activity-item" onclick="toggleInlinePanel('messages-panel', event)" style="cursor: pointer;">
+                        <div class="activity-icon text-info">
+                            <i class="bi bi-chat-dots"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Messages</div>
+                            <div class="activity-desc">View your messages</div>
                         </div>
                     </div>
 
@@ -423,41 +426,14 @@
                     </div>
 
                     <!-- Network Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user network-panel" id="network-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="classes-panel">
                         <div class="dropdown-header">
-                            <i class="bi bi-people"></i>
-                            <span>Network</span>
+                            <i class="bi bi-collection"></i>
+                            <span>Classes</span>
                         </div>
                         <div class="dropdown-divider"></div>
                         <div class="px-3 py-2">
-                            <div class="btn-group w-100 mb-3" role="group">
-                                <button id="network-tab-friends" type="button" class="btn btn-outline-secondary active">Friends</button>
-                                <button id="network-tab-classes" type="button" class="btn btn-outline-secondary">Classes</button>
-                            </div>
-
-                            <div id="network-friends-content">
-                                <div class="input-group input-group-sm mb-3 panel-section">
-                                    <span class="input-group-text">User ID</span>
-                                    <input type="number" class="form-control" id="network-add-input" placeholder="Enter user ID">
-                                    <button class="btn btn-primary" id="network-add-btn"><i class="bi bi-person-plus"></i></button>
-                                </div>
-                                <div id="network-add-feedback" class="small mb-2"></div>
-
-                                <div class="mb-3 panel-section">
-                                    <h6 class="mb-1 list-title">My Friends</h6>
-                                    <ul class="list-group list-group-flush" id="network-friends"></ul>
-                                </div>
-                                <div class="mb-3 panel-section">
-                                    <h6 class="mb-1 list-title">Incoming Requests</h6>
-                                    <ul class="list-group list-group-flush" id="network-incoming"></ul>
-                                </div>
-                                <div class="mb-0 panel-section">
-                                    <h6 class="mb-1 list-title">Outgoing Requests</h6>
-                                    <ul class="list-group list-group-flush" id="network-outgoing"></ul>
-                                </div>
-                            </div>
-
-                            <div id="network-classes-content" style="display:none;">
+                            <div id="network-classes-content">
                                 <div class="input-group input-group-sm mb-3 panel-section">
                                     <span class="input-group-text">Join Code</span>
                                     <input type="text" class="form-control" id="classes-join-code" placeholder="Enter code">
@@ -747,10 +723,44 @@
 
         <div class="right-side">
             <div class="doc-box p-4">
-                <div id="section-content">
-                    <h4 class="mb-4"><strong>Summary</strong></h4>
-                    <p>This is where the summary will appear...</p>
+                <div id="generate-wrapper" class="d-flex flex-column align-items-center justify-content-center mb-3" style="min-height: 70vh;">
+                    <div id="btn-generate-ai-helper" class="upload-card mb-3" style="cursor: pointer; width: 260px;">
+                        <div class="upload-icon">
+                            <i class="bi bi-folder"></i>
+                        </div>
+                        <h5>generate new AI helper</h5>
+                        <p class="text-muted small">Open to choose what to generate</p>
+                    </div>
+                    <div id="generate-options" class="w-100" style="max-width: 720px; display: none;">
+                        <div class="row w-100">
+                            <div class="col-12 col-sm-6 mb-3">
+                                <div class="upload-card text-center" id="gen-opt-summary" style="cursor:pointer;">
+                                    <div class="upload-icon"><i class="bi bi-journal-text"></i></div>
+                                    <h5>Generate new Summary</h5>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 mb-3">
+                                <div class="upload-card text-center" id="gen-opt-workbook" style="cursor:pointer;">
+                                    <div class="upload-icon"><i class="bi bi-book"></i></div>
+                                    <h5>Generate new Workbook</h5>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 mb-3">
+                                <div class="upload-card text-center" id="gen-opt-quizzes" style="cursor:pointer;">
+                                    <div class="upload-icon"><i class="bi bi-patch-question"></i></div>
+                                    <h5>Generate Quizzes</h5>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 mb-3">
+                                <div class="upload-card text-center" id="gen-opt-ai" style="cursor:pointer;">
+                                    <div class="upload-icon"><i class="bi bi-robot"></i></div>
+                                    <h5>Ask AI</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                <div id="section-content" class="mt-3"></div>
             </div>
         </div>
     </div>
@@ -758,6 +768,30 @@
     <div class="bottom-navigation">
         <button class="arrow-btn"><i class="bi bi-chevron-left"></i></button>
         <button class="arrow-btn"><i class="bi bi-chevron-right"></i></button>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="helpModalLabel">Help</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Use the right panel to generate new content:</p>
+                    <ul class="mb-0">
+                        <li>Generate new Summary</li>
+                        <li>Generate new Workbook</li>
+                        <li>Generate Quizzes</li>
+                        <li>Ask AI</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Add Network Modal -->

@@ -1,3 +1,52 @@
+// Generate AI helper card -> show options, then drive right panel menu
+document.addEventListener('DOMContentLoaded', () => {
+    const generateCard = document.getElementById('btn-generate-ai-helper');
+    const generateOptions = document.getElementById('generate-options');
+    const rightPanelMenu = document.getElementById('rightPanelMenu');
+    const sectionContent = document.getElementById('section-content');
+
+    const showOptions = () => {
+        if (generateCard) {
+            // Hide only the card so options (siblings) appear in-place
+            generateCard.style.display = 'none';
+        }
+        if (generateOptions) {
+            generateOptions.style.display = '';
+            generateOptions.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
+
+    if (generateCard) {
+        generateCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            showOptions();
+        });
+    }
+
+    const activateSection = (key) => {
+        // Open right panel menu if it exists as collapse
+        if (rightPanelMenu && !rightPanelMenu.classList.contains('show')) {
+            rightPanelMenu.classList.add('show');
+            rightPanelMenu.style.height = 'auto';
+        }
+        // Activate matching nav link
+        const target = document.querySelector(`.main-nav .nav-link[data-section="${key}"]`);
+        if (target) target.click();
+        // Fallback: update content directly
+        if (sectionContent && contentMap[key]) {
+            sectionContent.innerHTML = contentMap[key];
+        }
+    };
+
+    const optSummary = document.getElementById('gen-opt-summary');
+    const optWorkbook = document.getElementById('gen-opt-workbook');
+    const optQuizzes = document.getElementById('gen-opt-quizzes');
+    const optAi = document.getElementById('gen-opt-ai');
+    if (optSummary) optSummary.addEventListener('click', () => activateSection('summary'));
+    if (optWorkbook) optWorkbook.addEventListener('click', () => activateSection('workbook'));
+    if (optQuizzes) optQuizzes.addEventListener('click', () => activateSection('quizzes'));
+    if (optAi) optAi.addEventListener('click', () => activateSection('ai'));
+});
 /**
  * Dashboard configuration and utility functions
  */
@@ -330,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // Navigation functionality
-const navLinks = document.querySelectorAll('.left-nav .nav-link');
+const navLinks = document.querySelectorAll('.main-nav .nav-link');
 const sectionContent = document.getElementById('section-content');
 
 const contentMap = {
@@ -1059,179 +1108,18 @@ function debounce(func, wait) {
     };
 }
 
-// Global function invoked by button onclick
-function openNetworkInlinePanel(event) {
+// Global function invoked by button onclick for Classes only
+function openClassesInlinePanel(event) {
     try {
         if (event) {
             event.preventDefault();
             event.stopPropagation();
         }
-        toggleInlinePanel('network-panel', event);
+        toggleInlinePanel('classes-panel', event);
 
-        const panel = document.getElementById('network-panel');
+        const panel = document.getElementById('classes-panel');
         if (!panel) return;
 
-        const friendsEl = document.getElementById('network-friends');
-        const incomingEl = document.getElementById('network-incoming');
-        const outgoingEl = document.getElementById('network-outgoing');
-        if (friendsEl) friendsEl.innerHTML = '';
-        if (incomingEl) incomingEl.innerHTML = '';
-        if (outgoingEl) outgoingEl.innerHTML = '';
-
-        const refreshLists = () => {
-            Promise.all([
-                fetch('/Friends/Friends', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({ success: false, friends: [] })),
-                fetch('/Friends/Pending', { credentials: 'same-origin' }).then(r => r.json()).catch(() => ({ success: false, incoming: [], outgoing: [] })),
-            ]).then(([friendsRes, pendingRes]) => {
-                if (friendsEl) {
-                    if (friendsRes?.success && Array.isArray(friendsRes.friends)) {
-                        if (friendsRes.friends.length === 0) {
-                            friendsEl.innerHTML = '<li class="activity-item small text-muted"><i class="bi bi-people me-2"></i> No friends yet.</li>';
-                        } else {
-                            friendsRes.friends.forEach(u => {
-                                const roleValU = (u.role || '').toLowerCase();
-                                const roleLabel = roleValU === 'teacher' ? 'Teacher' : (roleValU === 'student' ? 'Student' : escapeHtml(u.role || ''));
-                                const li = document.createElement('li');
-                                li.className = 'activity-item d-flex justify-content-between align-items-center';
-                                const initials = (u.fullName || 'U').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
-                                li.innerHTML = `
-                                    <span class="d-inline-flex align-items-center gap-2 text-truncate">
-                                        <span class="avatar-initial">${initials}</span>
-                                        <span class="text-truncate">${escapeHtml(u.fullName || ('User #' + u.userId))} <span class="role-badge">(${roleLabel})</span></span>
-                                    </span>
-                                    <div class="dropdown item-actions">
-                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i class="bi bi-three-dots"></i>
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
-                                            <li><a class="dropdown-item" href="#" data-action="send-file" data-user-id="${u.userId}"><i class="bi bi-file-earmark-arrow-up me-2"></i>Send File</a></li>
-                                            <li><a class="dropdown-item" href="#" data-action="send-message" data-user-id="${u.userId}"><i class="bi bi-chat-dots me-2"></i>Send Message</a></li>
-                                            <li><hr class="dropdown-divider"></li>
-                                            <li><a class="dropdown-item text-danger" href="#" data-action="remove" data-user-id="${u.userId}"><i class="bi bi-person-dash me-2"></i>Remove Friend</a></li>
-                                        </ul>
-                                    </div>`;
-                                friendsEl.appendChild(li);
-                            });
-                        }
-                    } else {
-                        friendsEl.innerHTML = '<li class="list-group-item small text-danger">Failed to load friends.</li>';
-                    }
-                }
-
-                if (incomingEl) {
-                    if (pendingRes?.success && Array.isArray(pendingRes.incoming)) {
-                        if (pendingRes.incoming.length === 0) {
-                            incomingEl.innerHTML = '<li class="activity-item small text-muted"><i class="bi bi-inbox me-2"></i> No incoming requests.</li>';
-                        } else {
-                            pendingRes.incoming.forEach(r => {
-                                const roleValIn = (r.role || '').toLowerCase();
-                                const roleLabel = roleValIn === 'teacher' ? 'Teacher' : (roleValIn === 'student' ? 'Student' : escapeHtml(r.role || ''));
-                                const li = document.createElement('li');
-                                li.className = 'activity-item d-flex justify-content-between align-items-center';
-                                const initials = (r.fullName || 'U').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
-                                li.innerHTML = `<span class="d-inline-flex align-items-center gap-2 text-truncate"><span class="avatar-initial">${initials}</span><span class="text-truncate">${escapeHtml(r.fullName || ('User #' + r.userId))} <span class="role-badge">(${roleLabel})</span></span></span>
-                                    <div class="btn-group item-actions">
-                                        <button class="btn btn-sm btn-success" data-action="accept" data-id="${r.id}">Accept</button>
-                                        <button class="btn btn-sm btn-outline-secondary" data-action="reject" data-id="${r.id}">Reject</button>
-                                    </div>`;
-                                incomingEl.appendChild(li);
-                            });
-                        }
-                    } else {
-                        incomingEl.innerHTML = '<li class="list-group-item small text-danger">Failed to load incoming.</li>';
-                    }
-                }
-
-                if (outgoingEl) {
-                    if (pendingRes?.success && Array.isArray(pendingRes.outgoing)) {
-                        if (pendingRes.outgoing.length === 0) {
-                            outgoingEl.innerHTML = '<li class="activity-item small text-muted"><i class="bi bi-send me-2"></i> No outgoing requests.</li>';
-                        } else {
-                            pendingRes.outgoing.forEach(r => {
-                                const roleValOut = (r.role || '').toLowerCase();
-                                const roleLabel = roleValOut === 'teacher' ? 'Teacher' : (roleValOut === 'student' ? 'Student' : escapeHtml(r.role || ''));
-                                const li = document.createElement('li');
-                                li.className = 'activity-item d-flex justify-content-between align-items-center';
-                                const initials = (r.fullName || 'U').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
-                                li.innerHTML = `<span class="d-inline-flex align-items-center gap-2 text-truncate"><span class="avatar-initial">${initials}</span><span class="text-truncate">${escapeHtml(r.fullName || ('User #' + r.userId))} <span class="role-badge">(${roleLabel})</span></span></span>
-                                    <button class="btn btn-sm btn-outline-danger item-actions" data-action="cancel" data-id="${r.id}">Cancel</button>`;
-                                outgoingEl.appendChild(li);
-                            });
-                        }
-                    } else {
-                        outgoingEl.innerHTML = '<li class="list-group-item small text-danger">Failed to load outgoing.</li>';
-                    }
-                }
-
-                panel.querySelectorAll('[data-action]')?.forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const el = e.currentTarget;
-                        const action = el.getAttribute('data-action');
-                        try {
-                            el.disabled = true;
-                            if (action === 'accept' || action === 'reject' || action === 'cancel') {
-                                const id = parseInt(el.getAttribute('data-id'));
-                                const url = action === 'accept' ? '/Friends/Accept' : (action === 'reject' ? '/Friends/Reject' : '/Friends/Cancel');
-                                const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id }) });
-                                const data = await res.json();
-                                if (!data.success) throw new Error(data.error || 'Action failed');
-                            } else if (action === 'remove') {
-                                const userId = parseInt(el.getAttribute('data-user-id'));
-                                const res = await fetch('/Friends/Remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ userId }) });
-                                const data = await res.json();
-                                if (!data.success) throw new Error(data.error || 'Remove failed');
-                            } else if (action === 'send-file') {
-                                const userId = parseInt(el.getAttribute('data-user-id'));
-                                alert(`Send file to user ${userId} - Feature coming soon!`);
-                            } else if (action === 'send-message') {
-                                const userId = parseInt(el.getAttribute('data-user-id'));
-                                alert(`Send message to user ${userId} - Feature coming soon!`);
-                            }
-                            refreshLists();
-                        } catch (err) {
-                            console.error('Inline network action error:', err);
-                            el.disabled = false;
-                            alert(err?.message || 'Action failed');
-                        }
-                    });
-                });
-            }).catch(err => {
-                console.error('Network inline load error:', err);
-            });
-        };
-
-        const addBtn = document.getElementById('network-add-btn');
-        const addInput = document.getElementById('network-add-input');
-        const feedback = document.getElementById('network-add-feedback');
-        if (addBtn && addInput) {
-            addBtn.onclick = async (e) => {
-                e.preventDefault();
-                const val = (addInput.value || '').trim();
-                const id = parseInt(val, 10);
-                if (!val || Number.isNaN(id)) {
-                    if (feedback) { feedback.textContent = 'Enter a valid user ID'; feedback.className = 'small text-danger'; }
-                    return;
-                }
-                try {
-                    addBtn.disabled = true;
-                    const res = await fetch('/Friends/Send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ addresseeId: id }) });
-                    const data = await res.json();
-                    if (!data.success) throw new Error(data.error || 'Failed');
-                    if (feedback) { feedback.textContent = 'Request sent.'; feedback.className = 'small text-success'; }
-                    addInput.value = '';
-                    refreshLists();
-                } catch (err) {
-                    if (feedback) { feedback.textContent = err?.message || 'Failed to send request'; feedback.className = 'small text-danger'; }
-                } finally {
-                    addBtn.disabled = false;
-                }
-            };
-        }
-
-        const tabFriends = document.getElementById('network-tab-friends');
-        const tabClasses = document.getElementById('network-tab-classes');
-        const friendsContent = document.getElementById('network-friends-content');
-        const classesContent = document.getElementById('network-classes-content');
         const classesList = document.getElementById('classes-list');
         const joinBtn = document.getElementById('classes-join-btn');
         const joinInput = document.getElementById('classes-join-code');
@@ -1281,18 +1169,9 @@ function openNetworkInlinePanel(event) {
                 classesList.innerHTML = '<li class="list-group-item small text-danger">Failed to load classes.</li>';
             }
         };
-        const activateTab = (tab) => {
-            if (!tabFriends || !tabClasses || !friendsContent || !classesContent) return;
-            tabFriends.classList.toggle('active', tab === 'friends');
-            tabClasses.classList.toggle('active', tab === 'classes');
-            friendsContent.style.display = tab === 'friends' ? '' : 'none';
-            classesContent.style.display = tab === 'classes' ? '' : 'none';
-        };
-        if (tabFriends) tabFriends.onclick = (e) => { e.preventDefault(); activateTab('friends'); };
-        if (tabClasses) tabClasses.onclick = async (e) => { e.preventDefault(); activateTab('classes'); await loadClasses(); };
-        activateTab('friends');
 
-        refreshLists();
+        // initial load
+        loadClasses();
 
         if (joinBtn && joinInput) {
             joinBtn.onclick = async (e) => {
@@ -1307,7 +1186,7 @@ function openNetworkInlinePanel(event) {
                     joinInput.value = '';
                     await loadClasses();
                 } catch (err) {
-                    alert(err?.message || 'Failed to join');
+                    alert(err?.message || 'Failed to join class');
                 } finally {
                     joinBtn.disabled = false;
                 }
@@ -1333,7 +1212,9 @@ function openNetworkInlinePanel(event) {
                 }
             };
         }
-    } catch (e) { console.error('openNetworkInlinePanel (global) failed', e); }
+    } catch (e) {
+        console.error('openClassesInlinePanel error', e);
+    }
 }
 
 // Global function invoked by button onclick

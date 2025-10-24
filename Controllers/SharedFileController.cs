@@ -44,15 +44,6 @@ namespace ADHDWebApp.Controllers
                 if (file == null)
                     return Json(new { success = false, error = "File not found or not accessible" });
 
-                // Check if users are friends
-                var friendship = await _context.FriendRequests.FirstOrDefaultAsync(fr =>
-                    fr.Status == FriendRequestStatus.Accepted &&
-                    ((fr.RequesterId == senderId && fr.AddresseeId == recipientId) ||
-                     (fr.RequesterId == recipientId && fr.AddresseeId == senderId))
-                );
-
-                if (friendship == null)
-                    return Json(new { success = false, error = "You can only share files with friends" });
 
                 // Check if recipient exists
                 var recipient = await _context.Users.FirstOrDefaultAsync(u => u.Id == recipientId);

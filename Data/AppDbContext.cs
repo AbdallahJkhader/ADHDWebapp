@@ -10,7 +10,6 @@ namespace ADHDWebApp.Data
 
         public DbSet<User> Users { get; set; }
         public DbSet<UserFile> UserFiles { get; set; }
-        public DbSet<FriendRequest> FriendRequests { get; set; }
         public DbSet<SharedFile> SharedFiles { get; set; }
         public DbSet<Message> Messages { get; set; }
         public DbSet<Class> Classes { get; set; }
@@ -25,24 +24,7 @@ namespace ADHDWebApp.Data
                 .WithMany(u => u.Files)
                 .HasForeignKey(f => f.UserId);
 
-            // FriendRequest configuration
-            modelBuilder.Entity<FriendRequest>(entity =>
-            {
-                entity.HasOne(fr => fr.Requester)
-                      .WithMany()
-                      .HasForeignKey(fr => fr.RequesterId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(fr => fr.Addressee)
-                      .WithMany()
-                      .HasForeignKey(fr => fr.AddresseeId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                // Remove the unique constraint that was causing issues
-                // The application logic now handles duplicates properly
-                // entity.HasIndex(fr => new { fr.RequesterId, fr.AddresseeId })
-                //       .IsUnique();
-            });
+            
 
             // SharedFile configuration
             modelBuilder.Entity<SharedFile>(entity =>

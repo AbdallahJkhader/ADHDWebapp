@@ -37,15 +37,6 @@ namespace ADHDWebApp.Controllers
                 if (string.IsNullOrWhiteSpace(dto.Content))
                     return Json(new { success = false, error = "Message content cannot be empty" });
 
-                // Check if users are friends
-                var friendship = await _context.FriendRequests.FirstOrDefaultAsync(fr =>
-                    fr.Status == FriendRequestStatus.Accepted &&
-                    ((fr.RequesterId == senderId && fr.AddresseeId == recipientId) ||
-                     (fr.RequesterId == recipientId && fr.AddresseeId == senderId))
-                );
-
-                if (friendship == null)
-                    return Json(new { success = false, error = "You can only send messages to friends" });
 
                 // Check if recipient exists
                 var recipient = await _context.Users.FirstOrDefaultAsync(u => u.Id == recipientId);
@@ -89,15 +80,7 @@ namespace ADHDWebApp.Controllers
 
                 var otherUserId = withUserId.Value;
 
-                // Check if users are friends
-                var friendship = await _context.FriendRequests.FirstOrDefaultAsync(fr =>
-                    fr.Status == FriendRequestStatus.Accepted &&
-                    ((fr.RequesterId == userId && fr.AddresseeId == otherUserId) ||
-                     (fr.RequesterId == otherUserId && fr.AddresseeId == userId))
-                );
 
-                if (friendship == null)
-                    return Json(new { success = false, error = "You can only view messages with friends" });
 
                 var messages = await _context.Messages
                     .Where(m =>
