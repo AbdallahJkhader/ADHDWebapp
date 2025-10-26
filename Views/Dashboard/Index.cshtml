@@ -110,7 +110,7 @@
                     <i class="bi bi-bullseye"></i>
                     <span>Focus</span>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown" id="focus-dropdown">
+                <div class="dropdown-menu enhanced-dropdown text-start" id="focus-dropdown" dir="ltr" style="direction:ltr;">
                     <div class="dropdown-header">
                         <i class="bi bi-bullseye"></i>
                         <span>Focus Tools</span>
@@ -162,7 +162,7 @@
                     </div>
 
                     <!-- Timer panel positioned relative to Focus dropdown (top-left) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus" id="focus-timer-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start" id="focus-timer-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-stopwatch"></i>
                             <span>Timer</span>
@@ -202,7 +202,7 @@
                     </div>
 
                     <!-- Focus Music panel positioned relative to Focus dropdown (top-left) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus" id="focus-music-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start" id="focus-music-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-music-note-beamed"></i>
                             <span>Focus Music</span>
@@ -238,7 +238,7 @@
                     <i class="bi bi-folder"></i>
                     <span>Files</span>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown" id="files-dropdown">
+                <div class="dropdown-menu enhanced-dropdown text-start" id="files-dropdown" dir="ltr" style="direction:ltr;">
                     <div class="dropdown-header">
                         <i class="bi bi-folder"></i>
                         <span>File Management</span>
@@ -299,7 +299,7 @@
                     <i class="bi bi-tools"></i>
                     <span>Tools</span>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown" id="tools-dropdown">
+                <div class="dropdown-menu enhanced-dropdown text-start" id="tools-dropdown" dir="ltr" style="direction:ltr;">
                     <div class="dropdown-header">
                         <i class="bi bi-tools"></i>
                         <span>Study Tools</span>
@@ -308,11 +308,11 @@
 
                     <div class="activity-item">
                         <div class="activity-icon">
-                            <i class="bi bi-highlighter"></i>
+                            <i class="bi bi-calculator"></i>
                         </div>
                         <div class="activity-info">
-                            <div class="activity-title">Annotation Tool</div>
-                            <div class="activity-desc">Highlight and annotate PDFs</div>
+                            <div class="activity-title">Calculator</div>
+                            <div class="activity-desc">Quick arithmetic calculator</div>
                         </div>
                     </div>
                     <div class="activity-item">
@@ -365,7 +365,7 @@
                     <span>@ViewBag.FullName</span>
                     <i class="bi bi-chevron-down ms-1"></i>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown" id="user-dropdown" data-user-id="@ViewBag.UserId">
+                <div class="dropdown-menu enhanced-dropdown text-start" id="user-dropdown" data-user-id="@ViewBag.UserId" dir="ltr" style="direction:ltr;">
                     <div class="dropdown-header">
                         <i class="bi bi-person-circle"></i>
                         <span>@ViewBag.FullName</span>
@@ -416,7 +416,7 @@
                     </div>
 
                     <!-- Notifications Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="notifications-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="notifications-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-bell"></i>
                             <span>Notifications</span>
@@ -438,7 +438,7 @@
                     </div>
 
                     <!-- Messages Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="messages-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="messages-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-chat-dots"></i>
                             <span>Messages</span>
@@ -459,7 +459,7 @@
                     </div>
 
                     <!-- Network Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="classes-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="classes-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-collection"></i>
                             <span>Classes</span>
@@ -492,7 +492,7 @@
                     </div>
 
                     <!-- Class Details Panel (opens near user dropdown) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="class-details-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="class-details-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-people"></i>
                             <span>Class Details</span>
@@ -509,6 +509,9 @@
                                 <ul id="cls-students" class="list-group list-group-flush small"></ul>
                             </div>
                             <div class="mt-3 d-flex justify-content-end">
+                                <button type="button" id="delete-class-btn" class="btn btn-sm btn-danger me-2" style="display:none;">
+                                    <i class="bi bi-trash"></i> Leave and Delete Class
+                                </button>
                                 <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger" style="display:none;">
                                     <i class="bi bi-box-arrow-left"></i> Leave Class
                                 </button>
@@ -516,7 +519,7 @@
                         </div>
                     </div>
 
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="profile-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="profile-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-person"></i>
                             <span>Profile</span>
@@ -540,10 +543,16 @@
                                     <button type="submit" class="btn btn-secondary">Upload</button>
                                 </div>
                             </form>
+
+                            <div class="mt-3">
+                                <button type="button" id="delete-account-btn" class="btn btn-sm btn-outline-danger w-100">
+                                    <i class="bi bi-trash"></i> Delete Account
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="settings-panel">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="settings-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-gear"></i>
                             <span>Settings</span>
@@ -899,7 +908,7 @@
     </div>
 
     <!-- Inline Add Network panel -->
-    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="network-add-panel" style="z-index: 1100;">
+    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="network-add-panel" style="z-index: 1100; direction:ltr;" dir="ltr">
         <div class="dropdown-header">
             <i class="bi bi-people"></i>
             <span>My Network</span>

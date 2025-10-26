@@ -2,8 +2,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const generateCard = document.getElementById('btn-generate-ai-helper');
     const generateOptions = document.getElementById('generate-options');
-    const rightPanelMenu = document.getElementById('rightPanelMenu');
-    const sectionContent = document.getElementById('section-content');
 
     const showOptions = () => {
         if (generateCard) {
@@ -626,8 +624,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (resetBtn) resetBtn.addEventListener('click', (e) => { e.stopPropagation(); resetTimer(); });
 });
 
-// Navigation functionality
-const navLinks = document.querySelectorAll('.main-nav .nav-link');
+// Navigation/content mapping for right-side generator panel
 const sectionContent = document.getElementById('section-content');
 
 const contentMap = {
@@ -638,17 +635,22 @@ const contentMap = {
     ai: '<h5><strong>AI Assistant</strong></h5><p>Interact with the AI here.</p>'
 };
 
-navLinks.forEach(link => {
-    link.addEventListener('click', function (e) {
-        e.preventDefault();
+// No main-nav links in current view; right-panel cards call activateSection directly
 
-        navLinks.forEach(l => l.classList.remove('active'));
-        this.classList.add('active');
+// Allow right-panel buttons to switch section safely
+function activateSection(section) {
+    if (!sectionContent) return;
+    sectionContent.innerHTML = contentMap[section] || '';
+}
 
-        const section = this.getAttribute('data-section');
-        sectionContent.innerHTML = contentMap[section] || '';
-    });
-});
+// Minimal HTML escape used in Classes rendering
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
+}
+// Also expose globally in case of different scopes
+window.escapeHtml = window.escapeHtml || escapeHtml;
 
 function handleFileSelection(input) {
     const fileInfo = document.getElementById('file-info');
@@ -1120,6 +1122,38 @@ document.addEventListener('DOMContentLoaded', function () {
         dm.checked = !!(wrapper && wrapper.classList.contains('dark-mode'));
         dm.addEventListener('change', function () { toggleDarkMode(); });
     }
+
+    // Delete Account button handler
+    const delBtn = document.getElementById('delete-account-btn');
+    if (delBtn) {
+        delBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
+            try {
+                delBtn.disabled = true;
+                delBtn.textContent = 'Deleting...';
+                const res = await fetch('/Account/DeleteAccount', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                const ct = (res.headers.get('content-type') || '').toLowerCase();
+                const data = ct.includes('application/json') ? await res.json() : null;
+                if (!res.ok || !data || data.success !== true) {
+                    const msg = (data && data.error) ? data.error : `Failed (HTTP ${res.status})`;
+                    alert('Delete failed: ' + msg);
+                    return;
+                }
+                window.location.href = '/Account/EnterEmail';
+            } catch (err) {
+                alert('Delete failed: ' + (err?.message || 'Unknown error'));
+            } finally {
+                delBtn.disabled = false;
+                delBtn.textContent = 'Delete Account';
+            }
+        });
+    }
 });
 
 // ===== Network/Friend Request Functions =====
@@ -1135,6 +1169,8 @@ document.addEventListener('DOMContentLoaded', function () {
  * @param {boolean} config.enableSearch - Whether to enable user search (default: false)
  */
 function sendFriendRequest(config) {
+    // Allow calling with no args (as used by the modal button in Index.cshtml)
+    if (!config) { try { return sendFriendRequestModal(); } catch (_) { return; } }
     const input = document.getElementById(config.inputId);
     const feedback = document.getElementById(config.feedbackId);
     const button = document.getElementById(config.buttonId);
@@ -1247,130 +1283,6 @@ function sendFriendRequestInline() {
     });
 }
 
-/**
- * Initialize user search functionality for friend requests
- * @param {string} inputId - ID of the input element
- */
-function initializeUserSearch(inputId) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-
-    let searchTimeout;
-
-    input.addEventListener('input', function (e) {
-        const query = e.target.value.trim();
-        clearTimeout(searchTimeout);
-
-        if (query.length < 2) {
-            hideSearchResults();
-            return;
-        }
-
-        searchTimeout = setTimeout(async () => {
-            try {
-                const response = await fetch(`/Friends/SearchUsers?query=${encodeURIComponent(query)}`, {
-                    credentials: 'same-origin'
-                });
-                const data = await response.json();
-
-                if (data.success && data.users.length > 0) {
-                    showSearchResults(data.users, input);
-                } else {
-                    hideSearchResults();
-                }
-            } catch (err) {
-                console.error('Search error:', err);
-                hideSearchResults();
-            }
-        }, 300);
-    });
-}
-
-/**
- * Display search results for user selection
- * @param {Array} users - Array of user objects
- * @param {HTMLElement} input - Input element to attach results to
- */
-function showSearchResults(users, input) {
-    hideSearchResults(); // Remove any existing results
-
-    const resultsContainer = document.createElement('div');
-    resultsContainer.className = 'search-results-container';
-    resultsContainer.style.cssText = `
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        z-index: 1000;
-        max-height: 200px;
-        overflow-y: auto;
-    `;
-
-    users.forEach(user => {
-        const item = document.createElement('div');
-        item.className = 'search-result-item';
-        item.style.cssText = `
-            padding: 8px 12px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-        `;
-        item.innerHTML = `
-            <div><strong>${escapeHtml(user.fullName)}</strong></div>
-            <div class="text-muted small">${escapeHtml(user.email)}</div>
-        `;
-        item.addEventListener('click', () => {
-            input.value = user.id;
-            hideSearchResults();
-            input.focus();
-        });
-        resultsContainer.appendChild(item);
-    });
-
-    input.parentElement.appendChild(resultsContainer);
-    input.parentElement.classList.add('has-search-results');
-}
-
-/**
- * Hide all search result containers
- */
-function hideSearchResults() {
-    document.querySelectorAll('.search-results-container').forEach(el => el.remove());
-    document.querySelectorAll('.has-search-results').forEach(el => el.classList.remove('has-search-results'));
-}
-
-/**
- * HTML escape utility function
- * @param {string} text - Text to escape
- * @returns {string} Escaped text
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/**
- * Debounce utility function
- * @param {Function} func - Function to debounce
- * @param {number} wait - Wait time in milliseconds
- * @returns {Function} Debounced function
- */
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
 // Global function invoked by button onclick for Classes only
 function openClassesInlinePanel(event) {
     try {
@@ -1383,6 +1295,13 @@ function openClassesInlinePanel(event) {
         const panel = document.getElementById('classes-panel');
         if (!panel) return;
 
+        // Local safe esc util in case global escapeHtml isn't available for any reason
+        const esc = (window.escapeHtml) ? window.escapeHtml : (text => {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        });
+
         const classesList = document.getElementById('classes-list');
         const joinBtn = document.getElementById('classes-join-btn');
         const joinInput = document.getElementById('classes-join-code');
@@ -1394,7 +1313,12 @@ function openClassesInlinePanel(event) {
             classesList.innerHTML = '<li class="list-group-item small text-muted">Loading...</li>';
             try {
                 const res = await fetch('/Classes/My', { credentials: 'same-origin' });
+                const ct = (res.headers.get('content-type') || '').toLowerCase();
+                if (!ct.includes('application/json')) {
+                    throw new Error('Unexpected response (not JSON). Please login and try again.');
+                }
                 const data = await res.json();
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 if (!data.success) throw new Error(data.error || 'Failed to load classes');
                 if (!Array.isArray(data.classes) || data.classes.length === 0) {
                     classesList.innerHTML = '<li class="activity-item small text-muted"><i class="bi bi-collection me-2"></i> No classes yet.</li>';
@@ -1410,12 +1334,12 @@ function openClassesInlinePanel(event) {
                     li.setAttribute('title', 'Open class details');
                     li.innerHTML = `<div class="d-inline-flex align-items-center gap-2 text-truncate">
                         <div class="avatar-initial"><i class="bi bi-collection"></i></div>
-                        <div class="text-truncate"><div><strong>${escapeHtml(c.name)}</strong></div>
-                        <div class="small text-muted">Code: <span class="code-chip">${escapeHtml(c.code)}</span></div></div>
+                        <div class="text-truncate"><div><strong>${esc(c.name)}</strong></div>
+                        <div class="small text-muted">Code: <span class="code-chip">${esc(c.code)}</span></div></div>
                     </div>
                     <div class="item-actions">
                         <button class="btn btn-sm btn-primary me-1" data-action="view-class" data-id="${c.id}" title="View"><i class="bi bi-eye"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary" data-action="copy-code" data-code="${escapeHtml(c.code)}" title="Copy Code"><i class="bi bi-clipboard"></i></button>
+                        <button class="btn btn-sm btn-outline-secondary" data-action="copy-code" data-code="${esc(c.code)}" title="Copy Code"><i class="bi bi-clipboard"></i></button>
                     </div>`;
                     // Keyboard support: Enter opens details
                     li.addEventListener('keydown', (ev) => {
@@ -1499,17 +1423,17 @@ function openClassesInlinePanel(event) {
                                     });
                                 }
 
-                            // Show/Hide Leave button based on ownership
+                            // Show/Hide action buttons based on ownership
                             const leaveBtn = document.getElementById('leave-class-btn');
+                            const deleteBtn = document.getElementById('delete-class-btn');
                             try {
                                 const userDropdown = document.getElementById('user-dropdown');
                                 const currentUserId = parseInt(userDropdown?.getAttribute('data-user-id') || '', 10);
                                 const canCompare = !Number.isNaN(currentUserId) && currentUserId > 0;
                                 const isOwner = canCompare && teacher && (teacher.id === currentUserId);
+                                // Leave button for non-owners only
                                 if (leaveBtn) {
-                                    // Show by default, then hide if owner
-                                    leaveBtn.style.display = '';
-                                    if (!(klass?.id) || isOwner) leaveBtn.style.display = 'none';
+                                    leaveBtn.style.display = (!klass?.id || isOwner) ? 'none' : '';
                                     leaveBtn.onclick = async (ev) => {
                                         ev.preventDefault(); ev.stopPropagation();
                                         if (!klass?.id) return;
@@ -1535,6 +1459,34 @@ function openClassesInlinePanel(event) {
                                         }
                                     };
                                 }
+                                // Delete button for owner only
+                                if (deleteBtn) {
+                                    deleteBtn.style.display = (klass?.id && isOwner) ? '' : 'none';
+                                    deleteBtn.onclick = async (ev) => {
+                                        ev.preventDefault(); ev.stopPropagation();
+                                        if (!klass?.id) return;
+                                        if (!confirm('Delete this class? This will remove the class and all memberships.')) return;
+                                        try {
+                                            deleteBtn.disabled = true;
+                                            const res = await fetch('/Classes/Delete', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                credentials: 'same-origin',
+                                                body: JSON.stringify({ id: klass.id })
+                                            });
+                                            const resp = await res.json();
+                                            if (!resp.success) throw new Error(resp.error || 'Failed to delete class');
+                                            const detailsPanel = document.getElementById('class-details-panel');
+                                            if (detailsPanel) detailsPanel.classList.remove('show');
+                                            // Reopen classes panel and refresh list
+                                            toggleInlinePanel('classes-panel');
+                                        } catch (er) {
+                                            alert(er?.message || 'Failed to delete class');
+                                        } finally {
+                                            deleteBtn.disabled = false;
+                                        }
+                                    };
+                                }
                             } catch {}
                             }
                         } catch (err) {
@@ -1545,7 +1497,8 @@ function openClassesInlinePanel(event) {
                 });
             } catch (err) {
                 console.error('Load classes error', err);
-                classesList.innerHTML = '<li class="list-group-item small text-danger">Failed to load classes.</li>';
+                const msg = (err && err.message) ? err.message : 'Failed to load classes';
+                classesList.innerHTML = `<li class="list-group-item small text-danger">${msg}</li>`;
             }
         };
 
@@ -1833,83 +1786,16 @@ function formatTimeAgo(dateString) {
     return 'just now';
 }
 
-// Toggle Network panel
-function toggleNetworkPanel(event) {
-    event.stopPropagation();
-    const panel = document.getElementById('network-panel');
-    if (!panel) return;
-
-    // Toggle the panel
-    const isShowing = !panel.classList.contains('d-none');
-    
-    // Hide all other panels first
-    document.querySelectorAll('.dropdown-menu.enhanced-dropdown').forEach(menu => {
-        if (menu.id !== 'network-panel') {
-            menu.classList.add('d-none');
-        }
-    });
-
-    // Toggle current panel
-    if (isShowing) {
-        panel.classList.add('d-none');
-    } else {
-        panel.classList.remove('d-none');
-        positionPanel(panel, event);
-    }
-}
-
-// Position panel relative to the button
-function positionPanel(panel, event) {
-    if (!event) return;
-    
-    const buttonRect = event.currentTarget.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    // Position to the left of the button
-    panel.style.left = 'auto';
-    panel.style.right = (viewportWidth - buttonRect.left) + 'px';
-    
-    // Adjust vertical position to keep within viewport
-    if (buttonRect.top + panel.offsetHeight > viewportHeight) {
-        panel.style.top = 'auto';
-        panel.style.bottom = '0px';
-    } else {
-        panel.style.top = buttonRect.top + 'px';
-        panel.style.bottom = 'auto';
-    }
-}
-
-// Close panel when clicking outside
-document.addEventListener('click', function(event) {
-    const panel = document.getElementById('network-panel');
-    const button = document.querySelector('[onclick*="toggleNetworkPanel"]');
-    
-    if (panel && !panel.contains(event.target) && button && !button.contains(event.target)) {
-        panel.classList.add('d-none');
-    }
-});
-
-// Initialize on page load
+// Initialize notifications state on page load
 document.addEventListener('DOMContentLoaded', function () {
-    // Add click handler for Network button
-    const networkBtn = document.querySelector('[onclick*="toggleNetworkPanel"]');
-    if (networkBtn) {
-        networkBtn.addEventListener('click', toggleNetworkPanel);
-    }
-    
-    // Load any saved notifications from localStorage
     const savedNotifications = localStorage.getItem('notifications');
     if (savedNotifications) {
-        notifications = JSON.parse(savedNotifications);
+        try { notifications = JSON.parse(savedNotifications) || []; } catch { notifications = []; }
     }
-
     updateNotificationBadge();
     renderNotifications();
-
-    // Save notifications to localStorage when page unloads
     window.addEventListener('beforeunload', () => {
-        localStorage.setItem('notifications', JSON.stringify(notifications));
+        try { localStorage.setItem('notifications', JSON.stringify(notifications)); } catch {}
     });
 });
 

@@ -1,4 +1,4 @@
-﻿using ADHDWebApp.Models;
+using ADHDWebApp.Models;
 using ADHDWebApp.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
@@ -117,6 +117,59 @@ namespace ADHDWebApp.Controllers
         {
             HttpContext.Session.Clear();
             return RedirectToAction("EnterEmail", "Account");
+        }
+
+        [HttpPost]
+        public IActionResult DeleteAccount()
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+                var userId = sessionUserId.Value;
+
+                var user = _context.Users.FirstOrDefault(u => u.Id == userId);
+                if (user == null)
+                    return Json(new { success = false, error = "User not found" });
+
+                // Remove memberships where user is a member
+                var memberships = _context.ClassMemberships.Where(cm => cm.UserId == userId).ToList();
+                if (memberships.Count > 0) _context.ClassMemberships.RemoveRange(memberships);
+
+                // Remove classes owned by user (and their memberships)
+                var ownedClasses = _context.Classes.Where(c => c.OwnerId == userId).ToList();
+                if (ownedClasses.Count > 0)
+                {
+                    var ownedIds = ownedClasses.Select(c => c.Id).ToList();
+                    var ownedMemberships = _context.ClassMemberships.Where(cm => ownedIds.Contains(cm.ClassId)).ToList();
+                    if (ownedMemberships.Count > 0) _context.ClassMemberships.RemoveRange(ownedMemberships);
+                    _context.Classes.RemoveRange(ownedClasses);
+                }
+
+                // Remove shared files relations where user is sender or recipient
+                var shared = _context.SharedFiles.Where(sf => sf.SenderId == userId || sf.RecipientId == userId).ToList();
+                if (shared.Count > 0) _context.SharedFiles.RemoveRange(shared);
+
+                // Remove messages where user is sender or recipient
+                var messages = _context.Messages.Where(m => m.SenderId == userId || m.RecipientId == userId).ToList();
+                if (messages.Count > 0) _context.Messages.RemoveRange(messages);
+
+                // Remove user files
+                var files = _context.UserFiles.Where(f => f.UserId == userId).ToList();
+                if (files.Count > 0) _context.UserFiles.RemoveRange(files);
+
+                // Finally remove the user
+                _context.Users.Remove(user);
+                _context.SaveChanges();
+
+                HttpContext.Session.Clear();
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
         }
 
     }

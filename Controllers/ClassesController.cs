@@ -213,13 +213,24 @@ namespace ADHDWebApp.Controllers
                     return Json(new { success = false, error = "Not logged in" });
                 var userId = sessionUserId.Value;
 
-                var list = await _context.ClassMemberships
+                var memberClasses = await _context.ClassMemberships
                     .Where(m => m.UserId == userId)
                     .Include(m => m.Class)
                     .Select(m => new { id = m.ClassId, name = m.Class!.Name, code = m.Class.JoinCode, ownerId = m.Class.OwnerId })
                     .ToListAsync();
 
-                return Json(new { success = true, classes = list });
+                var ownedClasses = await _context.Classes
+                    .Where(c => c.OwnerId == userId)
+                    .Select(c => new { id = c.Id, name = c.Name, code = c.JoinCode, ownerId = c.OwnerId })
+                    .ToListAsync();
+
+                var combined = memberClasses
+                    .Concat(ownedClasses)
+                    .GroupBy(x => x.id)
+                    .Select(g => g.First())
+                    .ToList();
+
+                return Json(new { success = true, classes = combined });
             }
             catch (Exception ex)
             {
