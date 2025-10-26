@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ADHDWebApp.Models
 {
+
     public enum FriendRequestStatus
     {
         Pending = 0,

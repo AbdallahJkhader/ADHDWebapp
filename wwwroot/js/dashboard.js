@@ -185,7 +185,7 @@ function toggleInlinePanel(panelId, event) {
             const rect = owner.getBoundingClientRect();
             panel.style.position = 'fixed';
             panel.style.top = `${Math.max(8, rect.top)}px`;
-            const panelWidth = 360;
+            const panelWidth = 300;
             
             // For user menu, align the panel to the left of the menu
             if (panel.classList.contains('inline-left-from-user')) {
@@ -205,6 +205,7 @@ function toggleInlinePanel(panelId, event) {
             panel.style.zIndex = 2000;
             panel.style.maxHeight = '70vh';
             panel.style.overflow = 'auto';
+            panel.style.maxWidth = `${Math.min(520, window.innerWidth - 16)}px`;
             panel.style.minWidth = '';
         }
     } else {

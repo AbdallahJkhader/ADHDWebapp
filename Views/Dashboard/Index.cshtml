@@ -85,19 +85,6 @@
                         <i class="bi bi-bell-slash fs-1"></i>
                         <p class="mt-2">No notifications yet.</p>
                     </div>
-
-                    <!-- Messages Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="messages-panel">
-                        <div class="dropdown-header">
-                            <i class="bi bi-chat-dots"></i>
-                            <span>Messages</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="px-3 py-2">
-                            <div class="small text-muted">Recent conversations</div>
-                            <ul class="list-group list-group-flush" id="messages-recent"></ul>
-                        </div>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -422,6 +409,27 @@
                                     <small class="text-muted">Upload your first file above</small>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages Panel -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="messages-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-chat-dots"></i>
+                            <span>Messages</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="px-3 py-2">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Messages</h6>
+                                <a href="#" class="small" onclick="event.preventDefault();">New</a>
+                            </div>
+                            <ul class="list-group list-group-flush" id="messages-recent">
+                                <li class="list-group-item d-flex align-items-center text-muted">
+                                    <i class="bi bi-chat-left-text me-2"></i>
+                                    <span>No messages yet.</span>
+                                </li>
+                            </ul>
                         </div>
                     </div>
 
