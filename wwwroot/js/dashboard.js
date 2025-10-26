@@ -23,20 +23,267 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const activateSection = (key) => {
-        // Open right panel menu if it exists as collapse
-        if (rightPanelMenu && !rightPanelMenu.classList.contains('show')) {
-            rightPanelMenu.classList.add('show');
-            rightPanelMenu.style.height = 'auto';
+// ===== Focus Music =====
+    try {
+        const panel = document.getElementById('focus-music-panel');
+        if (!panel) return;
+
+        // Audio element singleton
+        if (!window.__focusMusicAudio) {
+            const audio = new Audio();
+            audio.crossOrigin = 'anonymous';
+            audio.loop = true;
+            audio.preload = 'none';
+            audio.volume = 0.6;
+            window.__focusMusicAudio = audio;
         }
-        // Activate matching nav link
-        const target = document.querySelector(`.main-nav .nav-link[data-section="${key}"]`);
-        if (target) target.click();
-        // Fallback: update content directly
-        if (sectionContent && contentMap[key]) {
-            sectionContent.innerHTML = contentMap[key];
+
+        const PRESETS = {
+            quran: {
+                name: 'Quran',
+                candidates: [
+                    '/sounds/quran.mp3','/sounds/quran.m4a','/sounds/quran.wav',
+                    '/audio/quran.mp3','/audio/quran.m4a','/audio/quran.wav'
+                ]
+            },
+            rain: {
+                name: 'Rain',
+                candidates: [
+                    '/sounds/rain.mp3','/sounds/rain.m4a','/sounds/rain.wav',
+                    '/audio/rain.mp3','/audio/rain.m4a','/audio/rain.wav'
+                ]
+            },
+            earth: {
+                name: 'Earth',
+                candidates: [
+                    '/sounds/earth.mp3','/sounds/earth.m4a','/sounds/earth.wav',
+                    '/audio/earth.mp3','/audio/earth.m4a','/audio/earth.wav'
+                ]
+            },
+            topone: {
+                name: 'Top One',
+                candidates: [
+                    '/sounds/topone.mp3','/sounds/topone.m4a','/sounds/topone.wav',
+                    '/audio/topone.mp3','/audio/topone.m4a','/audio/topone.wav',
+                    // handle filenames with space and case variations
+                    '/sounds/top%20one.mp3','/sounds/top%20one.m4a','/sounds/top%20one.wav',
+                    '/audio/top%20one.mp3','/audio/top%20one.m4a','/audio/top%20one.wav',
+                    '/sounds/Top%20One.mp3','/audio/Top%20One.mp3'
+                ]
+            }
+        };
+
+        let current = PRESETS.quran;
+        const audio = window.__focusMusicAudio;
+        const btnQuran = document.getElementById('music-preset-quran');
+        const btnRain = document.getElementById('music-preset-rain');
+        const btnEarth = document.getElementById('music-preset-earth');
+        const btnTopOne = document.getElementById('music-preset-topone');
+        const toggleBtn = document.getElementById('music-toggle');
+        const volumeInput = document.getElementById('music-volume');
+        const nowPlaying = document.getElementById('music-nowplaying');
+        // No local file selection (per requirements: users should not upload/select sounds)
+
+        function setStatus(text, isError = false) {
+            if (!nowPlaying) return;
+            nowPlaying.textContent = text;
+            const parent = nowPlaying.closest('.small');
+            if (parent) parent.classList.toggle('text-danger', !!isError);
         }
-    };
+
+        function updateNowPlaying() {
+            if (audio.src) setStatus(current.name, false); else setStatus('None', false);
+        }
+
+        function setToggleState(isPlaying) {
+            if (!toggleBtn) return;
+            if (isPlaying) {
+                toggleBtn.classList.remove('btn-success');
+                toggleBtn.classList.add('btn-danger');
+                toggleBtn.innerHTML = '<i class="bi bi-pause-fill"></i> Pause';
+            } else {
+                toggleBtn.classList.remove('btn-danger');
+                toggleBtn.classList.add('btn-success');
+                toggleBtn.innerHTML = '<i class="bi bi-play-fill"></i> Play';
+            }
+        }
+
+        function setActivePreset(btn) {
+            [btnQuran, btnRain, btnEarth, btnTopOne].forEach(b => b && b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        }
+
+        async function tryPlayCandidates(candidates) {
+            for (const url of (candidates || [])) {
+                try {
+                    audio.src = url;
+                    await audio.play();
+                    return true;
+                } catch (e) {
+                    // try next candidate
+                }
+            }
+            return false;
+        }
+
+        async function loadPreset(preset, btn, autoPlay = true) {
+            current = preset;
+            setActivePreset(btn);
+            const wasPlaying = !audio.paused;
+            setStatus('Loading...', false);
+            if (autoPlay || wasPlaying) {
+                const ok = await tryPlayCandidates(current.candidates || []);
+                if (ok) {
+                    setStatus(current.name, false);
+                    setToggleState(true);
+                } else {
+                    setStatus('Cannot play. Check sounds path/names.', true);
+                }
+            } else {
+                // Not auto-playing: just set first candidate as src for later play
+                const first = (current.candidates || [])[0];
+                if (first) audio.src = first;
+                updateNowPlaying();
+            }
+        }
+
+        if (btnQuran) btnQuran.addEventListener('click', () => loadPreset(PRESETS.quran, btnQuran, true));
+        if (btnRain) btnRain.addEventListener('click', () => loadPreset(PRESETS.rain, btnRain, true));
+        if (btnEarth) btnEarth.addEventListener('click', () => loadPreset(PRESETS.earth, btnEarth, true));
+        if (btnTopOne) btnTopOne.addEventListener('click', () => loadPreset(PRESETS.topone, btnTopOne, true));
+
+        if (toggleBtn) toggleBtn.addEventListener('click', async () => {
+            if (audio.paused) {
+                const ok = audio.src ? await audio.play().then(() => true).catch(() => false) : await tryPlayCandidates(current.candidates || []);
+                if (ok) {
+                    setToggleState(true);
+                    updateNowPlaying();
+                } else {
+                    setStatus('Cannot play. Check sounds path/names.', true);
+                }
+            } else {
+                audio.pause();
+                setToggleState(false);
+                updateNowPlaying();
+            }
+        });
+
+// ===== Classes: Open class details panel =====
+document.addEventListener('DOMContentLoaded', () => {
+    const classesList = document.getElementById('classes-list');
+    if (!classesList) return;
+
+    classesList.addEventListener('click', async (e) => {
+        const li = e.target.closest('[data-class-id], [data-id], li');
+        if (!li) return;
+        e.stopPropagation();
+        const idStr = li.getAttribute('data-class-id') || li.getAttribute('data-id');
+        const id = idStr ? parseInt(idStr) : NaN;
+        if (!id || Number.isNaN(id)) return;
+
+        const titleEl = document.getElementById('cls-title');
+        const codeEl = document.getElementById('cls-code');
+        const teacherEl = document.getElementById('cls-teacher');
+        const studentsUl = document.getElementById('cls-students');
+
+        if (teacherEl) teacherEl.textContent = 'Loading...';
+        if (studentsUl) studentsUl.innerHTML = '';
+
+        try {
+            const res = await fetch(`/Classes/Details?id=${id}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to load class');
+
+            const klass = data.Class || data.class;
+            const teacher = data.Teacher || data.teacher;
+            const studentsArr = data.Students || data.students;
+
+            if (titleEl) titleEl.textContent = klass?.name || 'Class';
+            if (codeEl) codeEl.textContent = klass?.code ? `(Code: ${klass.code})` : '';
+            if (teacherEl) teacherEl.textContent = teacher ? `${teacher.name} (${teacher.email})` : '—';
+            if (studentsUl) {
+                studentsUl.innerHTML = '';
+                const students = Array.isArray(studentsArr) ? studentsArr : [];
+                if (students.length === 0) {
+                    const liEmpty = document.createElement('li');
+                    liEmpty.className = 'list-group-item text-muted';
+                    liEmpty.textContent = 'No students yet';
+                    studentsUl.appendChild(liEmpty);
+                } else {
+                    students.forEach(s => {
+                        const liItem = document.createElement('li');
+                        liItem.className = 'list-group-item';
+                        liItem.textContent = `${s.name} (${s.email})`;
+                        studentsUl.appendChild(liItem);
+                    });
+                }
+            }
+
+            // Show/Hide Leave button based on ownership (delegated LI click path)
+            try {
+                const leaveBtn = document.getElementById('leave-class-btn');
+                const userDropdown = document.getElementById('user-dropdown');
+                const currentUserId = parseInt(userDropdown?.getAttribute('data-user-id') || '', 10);
+                const canCompare = !Number.isNaN(currentUserId) && currentUserId > 0;
+                const isOwner = canCompare && teacher && (teacher.id === currentUserId);
+                if (leaveBtn) {
+                    // Show by default, then hide if owner
+                    leaveBtn.style.display = '';
+                    const showLeave = !!klass?.id && (!isOwner);
+                    if (!showLeave) leaveBtn.style.display = 'none';
+                    leaveBtn.onclick = async (ev) => {
+                        ev.preventDefault(); ev.stopPropagation();
+                        if (!klass?.id) return;
+                        if (!confirm('Leave this class?')) return;
+                        try {
+                            leaveBtn.disabled = true;
+                            const res2 = await fetch('/Classes/Leave', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'same-origin',
+                                body: JSON.stringify({ id: klass.id })
+                            });
+                            const resp2 = await res2.json();
+                            if (!resp2.success) throw new Error(resp2.error || 'Failed to leave');
+                            const detailsPanel2 = document.getElementById('class-details-panel');
+                            if (detailsPanel2) detailsPanel2.classList.remove('show');
+                            toggleInlinePanel('classes-panel');
+                        } catch (err2) {
+                            alert(err2?.message || 'Failed to leave class');
+                        } finally {
+                            leaveBtn.disabled = false;
+                        }
+                    };
+                }
+            } catch {}
+
+            // Hide the My Classes panel before opening the class details
+            const myPanel = document.getElementById('classes-panel');
+            if (myPanel) myPanel.classList.remove('show');
+
+            // Ensure user dropdown stays open (owner for inline-left-from-user)
+            const userDropdown = document.getElementById('user-dropdown');
+            if (userDropdown && !userDropdown.classList.contains('show')) userDropdown.classList.add('show');
+
+            toggleInlinePanel('class-details-panel', e);
+        } catch (err) {
+            if (teacherEl) teacherEl.textContent = 'Error loading class';
+        }
+    });
+});
+
+        if (volumeInput) volumeInput.addEventListener('input', () => {
+            const v = parseFloat(volumeInput.value);
+            if (!Number.isNaN(v)) audio.volume = Math.min(1, Math.max(0, v));
+        });
+
+        // Initialize default UI
+        setActivePreset(btnQuran);
+        updateNowPlaying();
+        // Do not preload via network to preserve user gesture autoplay; src will be set when playing.
+    } catch (e) {
+        console.warn('Focus music init failed', e);
+    }
 
     const optSummary = document.getElementById('gen-opt-summary');
     const optWorkbook = document.getElementById('gen-opt-workbook');
@@ -405,27 +652,42 @@ navLinks.forEach(link => {
 
 function handleFileSelection(input) {
     const fileInfo = document.getElementById('file-info');
-    if (input.files.length > 0) {
-        const file = input.files[0];
-        const name = file.name.toLowerCase();
-        const isImage = (/\.(png|jpg|jpeg|gif)$/i).test(name) || (file.type && file.type.startsWith('image/'));
-        const icon = isImage ? 'image' : 'file-text';
-        const label = isImage ? 'Image' : 'Document';
+    const errorEl = document.getElementById('upload-inline-error');
+    if (errorEl) errorEl.textContent = '';
+
+    if (!input.files || input.files.length === 0) {
+        if (fileInfo) {
+            fileInfo.innerHTML = '';
+            fileInfo.classList.remove('show');
+        }
+        return false;
+    }
+
+    const file = input.files[0];
+    const name = (file.name || '').toLowerCase();
+    const allowedRe = /\.(txt|docx|pdf|png|jpg|jpeg|gif)$/i;
+    if (!allowedRe.test(name)) {
+        if (fileInfo) {
+            fileInfo.innerHTML = '';
+            fileInfo.classList.remove('show');
+        }
+        if (errorEl) errorEl.textContent = 'Unsupported file type. Allowed: PDF, DOCX, TXT, PNG, JPG, JPEG, GIF.';
+        return false;
+    }
+
+    const isImage = (/\.(png|jpg|jpeg|gif)$/i).test(name) || (file.type && file.type.startsWith('image/'));
+    const icon = isImage ? 'image' : 'file-text';
+    const label = isImage ? 'Image' : 'Document';
+    if (fileInfo) {
         fileInfo.innerHTML = `
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <i class="bi bi-${icon} me-2"></i>
-                            <strong>${file.name}</strong> (${formatFileSize(file.size)})
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            Process ${label}
-                        </button>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-${icon} me-2"></i>
+                        <strong>${file.name}</strong>
+                        <span class="text-muted ms-2">(${formatFileSize(file.size)})</span>
                     </div>`;
         fileInfo.classList.add('show');
-    } else {
-        fileInfo.innerHTML = '';
-        fileInfo.classList.remove('show');
     }
+    return true;
 }
 
 function formatFileSize(bytes) {
@@ -1142,14 +1404,23 @@ function openClassesInlinePanel(event) {
                 data.classes.forEach(c => {
                     const li = document.createElement('li');
                     li.className = 'activity-item d-flex justify-content-between align-items-center';
+                    li.setAttribute('data-class-id', c.id);
+                    li.style.cursor = 'pointer';
+                    li.tabIndex = 0;
+                    li.setAttribute('title', 'Open class details');
                     li.innerHTML = `<div class="d-inline-flex align-items-center gap-2 text-truncate">
-                        <div class="avatar-initial"><i class=\"bi bi-collection\"></i></div>
+                        <div class="avatar-initial"><i class="bi bi-collection"></i></div>
                         <div class="text-truncate"><div><strong>${escapeHtml(c.name)}</strong></div>
                         <div class="small text-muted">Code: <span class="code-chip">${escapeHtml(c.code)}</span></div></div>
                     </div>
                     <div class="item-actions">
+                        <button class="btn btn-sm btn-primary me-1" data-action="view-class" data-id="${c.id}" title="View"><i class="bi bi-eye"></i></button>
                         <button class="btn btn-sm btn-outline-secondary" data-action="copy-code" data-code="${escapeHtml(c.code)}" title="Copy Code"><i class="bi bi-clipboard"></i></button>
                     </div>`;
+                    // Keyboard support: Enter opens details
+                    li.addEventListener('keydown', (ev) => {
+                        if (ev.key === 'Enter') li.click();
+                    });
                     classesList.appendChild(li);
                 });
                 // bind copy buttons
@@ -1162,6 +1433,113 @@ function openClassesInlinePanel(event) {
                             setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1200);
                         } catch (_) {
                             alert('Failed to copy');
+                        }
+                    });
+                });
+                // Bind view-class buttons
+                classesList.querySelectorAll('[data-action="view-class"]').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const id = parseInt(btn.getAttribute('data-id'));
+                        if (!id) return;
+                        // Populate and open details panel using same logic as LI click
+                        const titleEl = document.getElementById('cls-title');
+                        const codeEl = document.getElementById('cls-code');
+                        const teacherEl = document.getElementById('cls-teacher');
+                        const studentsUl = document.getElementById('cls-students');
+                        if (teacherEl) teacherEl.textContent = 'Loading...';
+                        if (titleEl) titleEl.textContent = 'Class';
+                        if (codeEl) codeEl.textContent = '';
+                        if (studentsUl) studentsUl.innerHTML = '';
+                        // Hide classes panel, ensure user dropdown open, show details panel immediately
+                        const myPanel = document.getElementById('classes-panel');
+                        if (myPanel) myPanel.classList.remove('show');
+                        const userDropdown = document.getElementById('user-dropdown');
+                        if (userDropdown && !userDropdown.classList.contains('show')) userDropdown.classList.add('show');
+                        toggleInlinePanel('class-details-panel', e);
+                        // Fallback: if not visible, force show with basic positioning
+                        const detailsPanel = document.getElementById('class-details-panel');
+                        if (detailsPanel && !detailsPanel.classList.contains('show')) {
+                            detailsPanel.classList.add('show');
+                            const owner = document.getElementById('user-dropdown');
+                            const rect = owner ? owner.getBoundingClientRect() : { top: 56, right: window.innerWidth - 8 };
+                            detailsPanel.style.position = 'fixed';
+                            detailsPanel.style.top = `${Math.max(8, rect.top)}px`;
+                            detailsPanel.style.right = '8px';
+                            detailsPanel.style.left = 'auto';
+                            detailsPanel.style.zIndex = 2000;
+                            detailsPanel.style.maxHeight = '70vh';
+                            detailsPanel.style.overflow = 'auto';
+                        }
+                        try {
+                            const res = await fetch(`/Classes/Details?id=${id}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+                            const data = await res.json();
+                            if (!data.success) throw new Error(data.error || 'Failed to load class');
+                            const klass = data.Class || data.class;
+                            const teacher = data.Teacher || data.teacher;
+                            const studentsArr = data.Students || data.students;
+                            if (titleEl) titleEl.textContent = klass?.name || 'Class';
+                            if (codeEl) codeEl.textContent = klass?.code ? `(Code: ${klass.code})` : '';
+                            if (teacherEl) teacherEl.textContent = teacher ? `${teacher.name} (${teacher.email})` : '—';
+                            if (studentsUl) {
+                                studentsUl.innerHTML = '';
+                                const students = Array.isArray(studentsArr) ? studentsArr : [];
+                                if (students.length === 0) {
+                                    const liEmpty = document.createElement('li');
+                                    liEmpty.className = 'list-group-item text-muted';
+                                    liEmpty.textContent = 'No students yet';
+                                    studentsUl.appendChild(liEmpty);
+                                } else {
+                                    students.forEach(s => {
+                                        const liItem = document.createElement('li');
+                                        liItem.className = 'list-group-item';
+                                        liItem.textContent = `${s.name} (${s.email})`;
+                                        studentsUl.appendChild(liItem);
+                                    });
+                                }
+
+                            // Show/Hide Leave button based on ownership
+                            const leaveBtn = document.getElementById('leave-class-btn');
+                            try {
+                                const userDropdown = document.getElementById('user-dropdown');
+                                const currentUserId = parseInt(userDropdown?.getAttribute('data-user-id') || '', 10);
+                                const canCompare = !Number.isNaN(currentUserId) && currentUserId > 0;
+                                const isOwner = canCompare && teacher && (teacher.id === currentUserId);
+                                if (leaveBtn) {
+                                    // Show by default, then hide if owner
+                                    leaveBtn.style.display = '';
+                                    if (!(klass?.id) || isOwner) leaveBtn.style.display = 'none';
+                                    leaveBtn.onclick = async (ev) => {
+                                        ev.preventDefault(); ev.stopPropagation();
+                                        if (!klass?.id) return;
+                                        if (!confirm('Leave this class?')) return;
+                                        try {
+                                            leaveBtn.disabled = true;
+                                            const res = await fetch('/Classes/Leave', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                credentials: 'same-origin',
+                                                body: JSON.stringify({ id: klass.id })
+                                            });
+                                            const resp = await res.json();
+                                            if (!resp.success) throw new Error(resp.error || 'Failed to leave');
+                                            const detailsPanel = document.getElementById('class-details-panel');
+                                            if (detailsPanel) detailsPanel.classList.remove('show');
+                                            // Reopen classes panel and refresh list
+                                            toggleInlinePanel('classes-panel');
+                                        } catch (er) {
+                                            alert(er?.message || 'Failed to leave class');
+                                        } finally {
+                                            leaveBtn.disabled = false;
+                                        }
+                                    };
+                                }
+                            } catch {}
+                            }
+                        } catch (err) {
+                            if (teacherEl) teacherEl.textContent = 'Error loading class';
+                            // Keep panel open with error message
                         }
                     });
                 });

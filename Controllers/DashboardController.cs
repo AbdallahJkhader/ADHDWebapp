@@ -21,6 +21,65 @@ namespace ADHDWebApp.Controllers
             _context = context;
         }
 
+        [HttpPost]
+        public async Task<IActionResult> UploadAvatar(IFormFile avatar)
+        {
+            var userEmail = HttpContext.Session.GetString("UserEmail");
+            if (string.IsNullOrEmpty(userEmail))
+            {
+                TempData["Error"] = "Please log in to update your profile.";
+                return RedirectToAction("Login", "Account");
+            }
+
+            if (avatar == null || avatar.Length == 0)
+            {
+                TempData["Error"] = "No image uploaded.";
+                return RedirectToAction("Index");
+            }
+
+            var ext = Path.GetExtension(avatar.FileName).ToLowerInvariant();
+            var allowed = new HashSet<string> { ".png", ".jpg", ".jpeg", ".webp" };
+            if (!allowed.Contains(ext))
+            {
+                TempData["Error"] = "Unsupported image type. Allowed: PNG, JPG, JPEG, WEBP.";
+                return RedirectToAction("Index");
+            }
+
+            try
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                if (user == null)
+                {
+                    TempData["Error"] = "User not found.";
+                    return RedirectToAction("Index");
+                }
+
+                var avatarsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
+                if (!Directory.Exists(avatarsFolder)) Directory.CreateDirectory(avatarsFolder);
+
+                // Delete other formats for this user
+                foreach (var e in new[] { ".png", ".jpg", ".jpeg", ".webp" })
+                {
+                    var existing = Path.Combine(avatarsFolder, $"user_{user.Id}{e}");
+                    if (System.IO.File.Exists(existing)) System.IO.File.Delete(existing);
+                }
+
+                var targetPath = Path.Combine(avatarsFolder, $"user_{user.Id}{ext}");
+                using (var fs = new FileStream(targetPath, FileMode.Create))
+                {
+                    await avatar.CopyToAsync(fs);
+                }
+
+                TempData["Success"] = "Profile image updated.";
+                return RedirectToAction("Index");
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Error uploading image: {ex.Message}";
+                return RedirectToAction("Index");
+            }
+        }
+
         public async Task<IActionResult> IndexAsync()
         {
             try
@@ -66,6 +125,27 @@ namespace ADHDWebApp.Controllers
                 
                 ViewBag.UserFiles = userFiles; // Always set this
                 ViewBag.UserId = user?.Id ?? 0; // For debugging
+                ViewBag.Role = user?.Role;
+
+                // Resolve avatar URL if exists
+                string? avatarUrl = null;
+                if (user != null)
+                {
+                    var avatarsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
+                    if (!Directory.Exists(avatarsFolder)) Directory.CreateDirectory(avatarsFolder);
+                    var candidates = new[] { 
+                        Path.Combine(avatarsFolder, $"user_{user.Id}.png"),
+                        Path.Combine(avatarsFolder, $"user_{user.Id}.jpg"),
+                        Path.Combine(avatarsFolder, $"user_{user.Id}.jpeg"),
+                        Path.Combine(avatarsFolder, $"user_{user.Id}.webp")
+                    };
+                    var found = candidates.FirstOrDefault(System.IO.File.Exists);
+                    if (found != null)
+                    {
+                        avatarUrl = "/avatars/" + Path.GetFileName(found);
+                    }
+                }
+                ViewBag.AvatarUrl = avatarUrl;
 
                 return View();
             }
@@ -137,7 +217,15 @@ namespace ADHDWebApp.Controllers
 
             if (file == null || file.Length == 0)
             {
-                TempData["Error"] = "No file uploaded.";
+                TempData["InlineError"] = "No file uploaded.";
+                return RedirectToAction("Index");
+            }
+
+            var ext = Path.GetExtension(file.FileName).ToLower();
+            var allowed = new HashSet<string> { ".txt", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".gif" };
+            if (!allowed.Contains(ext))
+            {
+                TempData["InlineError"] = "Unsupported file type. Allowed: PDF, DOCX, TXT, PNG, JPG, JPEG, GIF.";
                 return RedirectToAction("Index");
             }
 
@@ -163,8 +251,7 @@ namespace ADHDWebApp.Controllers
 
                 if (existingFile != null)
                 {
-                    TempData["Error"] = "File already exists.";
-                    return RedirectToAction("Index");
+                    return RedirectToAction("ReadandDisplayFile", new { fileId = existingFile.Id });
                 }
 
                 // حفظ الملف على السيرفر
@@ -188,8 +275,7 @@ namespace ADHDWebApp.Controllers
                 _context.UserFiles.Add(userFile);
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = "File uploaded successfully.";
-                return RedirectToAction("Index");
+                return RedirectToAction("ReadandDisplayFile", new { fileId = userFile.Id });
             }
             catch (Exception ex)
             {

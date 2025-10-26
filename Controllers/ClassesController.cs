@@ -19,6 +19,105 @@ namespace ADHDWebApp.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> Leave([FromBody] LeaveClassDto dto)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+                var userId = sessionUserId.Value;
+
+                var cls = await _context.Classes.FirstOrDefaultAsync(c => c.Id == dto.Id);
+                if (cls == null)
+                    return Json(new { success = false, error = "Class not found" });
+
+                if (cls.OwnerId == userId)
+                    return Json(new { success = false, error = "Owner cannot leave their own class" });
+
+                var membership = await _context.ClassMemberships.FirstOrDefaultAsync(m => m.UserId == userId && m.ClassId == cls.Id);
+                if (membership == null)
+                    return Json(new { success = false, error = "You are not a member of this class" });
+
+                _context.ClassMemberships.Remove(membership);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Delete([FromBody] DeleteClassDto dto)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+                var userId = sessionUserId.Value;
+
+                var cls = await _context.Classes.FirstOrDefaultAsync(c => c.Id == dto.Id);
+                if (cls == null)
+                    return Json(new { success = false, error = "Class not found" });
+                if (cls.OwnerId != userId)
+                    return Json(new { success = false, error = "Only the class owner can delete this class" });
+
+                var memberships = _context.ClassMemberships.Where(m => m.ClassId == cls.Id);
+                _context.ClassMemberships.RemoveRange(memberships);
+                _context.Classes.Remove(cls);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Details(int id)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+
+                var cls = await _context.Classes.FirstOrDefaultAsync(c => c.Id == id);
+                if (cls == null)
+                    return Json(new { success = false, error = "Class not found" });
+
+                var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == cls.OwnerId);
+                var memberships = await _context.ClassMemberships
+                    .Where(m => m.ClassId == id)
+                    .Include(m => m.User)
+                    .ToListAsync();
+
+                var students = memberships
+                    .Where(m => m.UserId != cls.OwnerId)
+                    .Select(m => new { id = m.UserId, name = m.User!.FullName, email = m.User.Email })
+                    .ToList();
+
+                return Json(new
+                {
+                    success = true,
+                    Class = new { id = cls.Id, name = cls.Name, code = cls.JoinCode },
+                    Teacher = owner != null ? new { id = owner.Id, name = owner.FullName, email = owner.Email } : null,
+                    Students = students
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateClassDto dto)
         {
             try
@@ -27,6 +126,13 @@ namespace ADHDWebApp.Controllers
                 if (sessionUserId == null)
                     return Json(new { success = false, error = "Not logged in" });
                 var ownerId = sessionUserId.Value;
+
+                // Block students from creating classes
+                var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == ownerId);
+                if (owner == null)
+                    return Json(new { success = false, error = "User not found" });
+                if (string.Equals(owner.Role, "Student", StringComparison.OrdinalIgnoreCase))
+                    return Json(new { success = false, error = "Students are not allowed to create classes" });
 
                 var name = (dto?.Name ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(name))
@@ -130,5 +236,7 @@ namespace ADHDWebApp.Controllers
 
         public class CreateClassDto { public string Name { get; set; } = string.Empty; }
         public class JoinClassDto { public string Code { get; set; } = string.Empty; }
+        public class DeleteClassDto { public int Id { get; set; } }
+        public class LeaveClassDto { public int Id { get; set; } }
     }
 }

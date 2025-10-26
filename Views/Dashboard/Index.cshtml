@@ -118,7 +118,7 @@
                     <div class="dropdown-divider"></div>
 
                     <!-- Relax items (without Color Therapy) -->
-                    <div class="activity-item">
+                    <div class="activity-item" onclick="toggleInlinePanel('focus-music-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon">
                             <i class="bi bi-music-note-beamed"></i>
                         </div>
@@ -201,6 +201,33 @@
                         </div>
                     </div>
 
+                    <!-- Focus Music panel positioned relative to Focus dropdown (top-left) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus" id="focus-music-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-music-note-beamed"></i>
+                            <span>Focus Music</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="px-3 py-2">
+                            <div class="mb-2">
+                                <h6 class="mb-2">Presets</h6>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary" id="music-preset-quran">Quran</button>
+                                    <button type="button" class="btn btn-outline-primary" id="music-preset-rain">Rain</button>
+                                    <button type="button" class="btn btn-outline-primary" id="music-preset-earth">Earth</button>
+                                    <button type="button" class="btn btn-outline-primary" id="music-preset-topone">Top One</button>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                                <button type="button" class="btn btn-success btn-sm me-2" id="music-toggle"><i class="bi bi-play-fill"></i> Play</button>
+                                <div class="flex-grow-1">
+                                    <input type="range" class="form-range" id="music-volume" min="0" max="1" step="0.01" value="0.6">
+                                </div>
+                            </div>
+                            <div class="small text-muted">Now Playing: <span id="music-nowplaying">None</span></div>
+                        </div>
+                    </div>
+
                     <div class="dropdown-divider"></div>
                     <a href="#" class="dropdown-item text-center" data-bs-toggle="offcanvas" data-bs-target="#focusOffcanvas" onclick="return false;">All Focus Tools</a>
                 </div>
@@ -226,16 +253,7 @@
                         <div class="activity-info">
                             <div class="activity-title">Upload New</div>
                             <div class="activity-desc">PDF, DOCX, TXT, Images</div>
-                            <div id="file-info" class="upload-info mt-2 text-muted"></div>
                         </div>
-
-                        <!-- input file مخفي -->
-                        <form id="uploadForm" method="post" enctype="multipart/form-data"
-                              asp-controller="Dashboard" asp-action="UploadDocument">
-                            <input type="file" id="file-upload" name="file" class="d-none"
-                                   accept=".txt,.docx,.pdf,.png,.jpg,.jpeg"
-                                   onchange="document.getElementById('uploadForm').submit(); handleFileSelection(this)">
-                        </form>
                     </div>
 
                     <div class="activity-item" onclick="showMyFiles();" style="cursor: pointer;">
@@ -336,11 +354,18 @@
             <!-- User dropdown -->
             <div class="user-dropdown">
                 <button class="nav-btn user-btn" onclick="toggleDropdown('user')">
-                    <i class="bi bi-person-circle"></i>
+                    @if (!string.IsNullOrEmpty(ViewBag.AvatarUrl as string))
+                    {
+                        <img src="@ViewBag.AvatarUrl" alt="Avatar" class="rounded-circle me-1" style="width:24px;height:24px;object-fit:cover;" />
+                    }
+                    else
+                    {
+                        <i class="bi bi-person-circle me-1"></i>
+                    }
                     <span>@ViewBag.FullName</span>
                     <i class="bi bi-chevron-down ms-1"></i>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown" id="user-dropdown">
+                <div class="dropdown-menu enhanced-dropdown" id="user-dropdown" data-user-id="@ViewBag.UserId">
                     <div class="dropdown-header">
                         <i class="bi bi-person-circle"></i>
                         <span>@ViewBag.FullName</span>
@@ -442,20 +467,51 @@
                         <div class="dropdown-divider"></div>
                         <div class="px-3 py-2">
                             <div id="network-classes-content">
-                                <div class="input-group input-group-sm mb-3 panel-section">
-                                    <span class="input-group-text">Join Code</span>
-                                    <input type="text" class="form-control" id="classes-join-code" placeholder="Enter code">
-                                    <button class="btn btn-primary" id="classes-join-btn"><i class="bi bi-box-arrow-in-right"></i></button>
-                                </div>
-                                <div class="input-group input-group-sm mb-3 panel-section">
-                                    <span class="input-group-text">New Class</span>
-                                    <input type="text" class="form-control" id="classes-add-name" placeholder="Class name">
-                                    <button class="btn btn-secondary" id="classes-add-btn"><i class="bi bi-plus-circle"></i></button>
-                                </div>
+                                @if ((ViewBag.Role as string) != "Teacher")
+                                {
+                                    <div class="input-group input-group-sm mb-3 panel-section">
+                                        <span class="input-group-text">Join Code</span>
+                                        <input type="text" class="form-control" id="classes-join-code" placeholder="Enter code">
+                                        <button class="btn btn-primary" id="classes-join-btn"><i class="bi bi-box-arrow-in-right"></i></button>
+                                    </div>
+                                }
+                                @if ((ViewBag.Role as string) != "Student")
+                                {
+                                    <div class="input-group input-group-sm mb-3 panel-section">
+                                        <span class="input-group-text">New Class</span>
+                                        <input type="text" class="form-control" id="classes-add-name" placeholder="Class name">
+                                        <button class="btn btn-secondary" id="classes-add-btn"><i class="bi bi-plus-circle"></i></button>
+                                    </div>
+                                }
                                 <div class="mb-0 panel-section">
                                     <h6 class="mb-1 list-title">My Classes</h6>
                                     <ul class="list-group list-group-flush" id="classes-list"></ul>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Class Details Panel (opens near user dropdown) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user" id="class-details-panel">
+                        <div class="dropdown-header">
+                            <i class="bi bi-people"></i>
+                            <span>Class Details</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="px-3 py-2">
+                            <div class="mb-2"><strong id="cls-title">Class</strong> <small class="text-muted" id="cls-code"></small></div>
+                            <div class="mb-2">
+                                <h6 class="mb-1">Teacher</h6>
+                                <div id="cls-teacher" class="small text-muted">Loading...</div>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">Students</h6>
+                                <ul id="cls-students" class="list-group list-group-flush small"></ul>
+                            </div>
+                            <div class="mt-3 d-flex justify-content-end">
+                                <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger" style="display:none;">
+                                    <i class="bi bi-box-arrow-left"></i> Leave Class
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -467,11 +523,23 @@
                         </div>
                         <div class="dropdown-divider"></div>
                         <div class="px-3 py-2">
-                            <div class="mb-2"><strong>@ViewBag.FullName</strong></div>
-                            <div class="text-muted small mb-3">User Profile</div>
-                            <div class="d-grid gap-2">
-                                <a href="#" class="btn btn-outline-secondary btn-sm text-start">Edit Profile</a>
+                            <div class="d-flex align-items-center mb-3">
+                                @if (!string.IsNullOrEmpty(ViewBag.AvatarUrl as string))
+                                {
+                                    <img src="@ViewBag.AvatarUrl" alt="Avatar" class="rounded-circle me-2" style="width:40px;height:40px;object-fit:cover;" />
+                                }
+                                <div>
+                                    <div><strong>@ViewBag.FullName</strong></div>
+                                    <div class="text-muted small">Role: @ViewBag.Role · ID: @ViewBag.UserId</div>
+                                </div>
                             </div>
+
+                            <form method="post" enctype="multipart/form-data" asp-controller="Dashboard" asp-action="UploadAvatar" class="mb-2">
+                                <div class="input-group input-group-sm">
+                                    <input type="file" name="avatar" accept=".png,.jpg,.jpeg,.webp" class="form-control" />
+                                    <button type="submit" class="btn btn-secondary">Upload</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
 
@@ -541,8 +609,10 @@
                             </div>
                         </div>
 
+                        <div id="upload-inline-error" class="text-danger small mt-2">@TempData["InlineError"]</div>
+
                         <form id="uploadForm" method="post" enctype="multipart/form-data" asp-controller="Dashboard" asp-action="UploadDocument">
-                            <input type="file" id="file-upload" name="file" class="d-none" accept=".txt,.docx,.pdf,.png,.jpg,.jpeg,.gif" onchange="handleFileSelection(this)">
+                            <input type="file" id="file-upload" name="file" class="d-none" accept=".txt,.docx,.pdf,.png,.jpg,.jpeg,.gif" onchange="if (handleFileSelection(this)) document.getElementById('uploadForm').submit();">
                             <div id="file-info" class="upload-info mt-4"></div>
                         </form>
                     </div>
