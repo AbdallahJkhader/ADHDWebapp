@@ -495,26 +495,62 @@
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="class-details-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-people"></i>
-                            <span>Class Details</span>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <strong id="cls-title" class="cls-title">Class</strong>
+                                <small id="cls-code" class="text-muted code-chip"></small>
+                            </div>
                         </div>
                         <div class="dropdown-divider"></div>
-                        <div class="px-3 py-2">
-                            <div class="mb-2"><strong id="cls-title">Class</strong> <small class="text-muted" id="cls-code"></small></div>
-                            <div class="mb-2">
-                                <h6 class="mb-1">Teacher</h6>
-                                <div id="cls-teacher" class="small text-muted">Loading...</div>
+                        <div class="px-3 py-3 cls-panel-body">
+                            
+
+                            <div class="cls-tabs mb-3">
+                                <div class="tab-btns d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary tab-btn active" data-tab="info" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('info')">Information</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary tab-btn" data-tab="files" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('files')">Files</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary tab-btn" data-tab="options" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('options')">Options</button>
+                                </div>
                             </div>
-                            <div>
-                                <h6 class="mb-1">Students</h6>
-                                <ul id="cls-students" class="list-group list-group-flush small"></ul>
-                            </div>
-                            <div class="mt-3 d-flex justify-content-end">
-                                <button type="button" id="delete-class-btn" class="btn btn-sm btn-danger me-2" style="display:none;">
-                                    <i class="bi bi-trash"></i> Leave and Delete Class
-                                </button>
-                                <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger" style="display:none;">
-                                    <i class="bi bi-box-arrow-left"></i> Leave Class
-                                </button>
+
+                            <div class="cls-tabs-content">
+                                <!-- Information Tab -->
+                                <div class="cls-tab-pane active" id="cls-tab-info">
+                                    <div class="cls-section mb-3">
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2">Teacher</div>
+                                        <div class="cls-teacher-card d-flex align-items-start gap-2">
+                                            <div class="cls-teacher-avatar"><i class="bi bi-person-badge"></i></div>
+                                            <div id="cls-teacher" class="small text-muted flex-grow-1">Loading...</div>
+                                        </div>
+                                    </div>
+                                    <div class="cls-section">
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2">Students</div>
+                                        <ul id="cls-students" class="list-group list-group-flush small cls-students"></ul>
+                                    </div>
+                                </div>
+
+                                <!-- Files Tab -->
+                                <div class="cls-tab-pane d-none" id="cls-tab-files">
+                                    <div class="cls-section">
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2">Files</div>
+                                        <ul id="cls-files" class="list-group list-group-flush small"></ul>
+                                    </div>
+                                </div>
+
+                                <!-- Options Tab -->
+                                <div class="cls-tab-pane d-none" id="cls-tab-options">
+                                    <div class="cls-section mb-3">
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2">Options</div>
+                                        <div id="cls-options" class="small text-muted">Manage class preferences and actions.</div>
+                                    </div>
+                                    <div class="mt-2 d-flex justify-content-end gap-2">
+                                        <button type="button" id="delete-class-btn" class="btn btn-sm btn-danger" style="display:none;">
+                                            <i class="bi bi-trash"></i> Leave and Delete Class
+                                        </button>
+                                        <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger" style="display:none;">
+                                            <i class="bi bi-box-arrow-left"></i> Leave Class
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -537,18 +573,17 @@
                                 </div>
                             </div>
 
-                            <form method="post" enctype="multipart/form-data" asp-controller="Dashboard" asp-action="UploadAvatar" class="mb-2">
-                                <div class="input-group input-group-sm">
-                                    <input type="file" name="avatar" accept=".png,.jpg,.jpeg,.webp" class="form-control" />
-                                    <button type="submit" class="btn btn-secondary">Upload</button>
+                            <form method="post" enctype="multipart/form-data" asp-controller="Dashboard" asp-action="UploadAvatar" class="mb-0" id="avatar-form">
+                                <input type="file" name="avatar" accept=".png,.jpg,.jpeg,.webp" class="d-none" id="avatar-input" onchange="this.form.submit()" />
+                                <div class="mt-3 d-flex justify-content-end gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="avatar-upload-btn" onclick="document.getElementById('avatar-input').click()">
+                                        <i class="bi bi-upload"></i> Upload
+                                    </button>
+                                    <button type="button" id="delete-account-btn" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Delete Account
+                                    </button>
                                 </div>
                             </form>
-
-                            <div class="mt-3">
-                                <button type="button" id="delete-account-btn" class="btn btn-sm btn-outline-danger w-100">
-                                    <i class="bi bi-trash"></i> Delete Account
-                                </button>
-                            </div>
                         </div>
                     </div>
 

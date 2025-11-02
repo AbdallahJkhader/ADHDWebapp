@@ -24,7 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===== Focus Music =====
     try {
         const panel = document.getElementById('focus-music-panel');
-        if (!panel) return;
+        if (!panel) {
+            // Skip focus music init on pages without the panel, but continue other initializations
+        } else {
 
         // Audio element singleton
         if (!window.__focusMusicAudio) {
@@ -165,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateNowPlaying();
             }
         });
+        }
 
 // ===== Classes: Open class details panel =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -264,20 +267,65 @@ document.addEventListener('DOMContentLoaded', () => {
             if (userDropdown && !userDropdown.classList.contains('show')) userDropdown.classList.add('show');
 
             toggleInlinePanel('class-details-panel', e);
+            if (window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab('info');
         } catch (err) {
             if (teacherEl) teacherEl.textContent = 'Error loading class';
         }
     });
 });
 
-        if (volumeInput) volumeInput.addEventListener('input', () => {
+// ===== Class Details: Tabs handling (global init) =====
+(function initClassDetailsTabs() {
+    function setActiveTab(tab) {
+        const panel = document.getElementById('class-details-panel');
+        if (!panel) return;
+        const btns = panel.querySelectorAll('.tab-btn');
+        btns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tab));
+        const panes = {
+            info: panel.querySelector('#cls-tab-info'),
+            materials: panel.querySelector('#cls-tab-materials'),
+            options: panel.querySelector('#cls-tab-options')
+        };
+        Object.entries(panes).forEach(([key, el]) => {
+            if (!el) return;
+            const isActive = (key === tab);
+            el.classList.toggle('active', isActive);
+            if (isActive) el.classList.remove('d-none'); else el.classList.add('d-none');
+        });
+    }
+
+    // Expose globally immediately
+    window.__setClassDetailsActiveTab = setActiveTab;
+
+    // Delegate clicks from the panel if it exists at click time
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tab-btn');
+        if (!btn) return;
+        const panel = document.getElementById('class-details-panel');
+        if (!panel || !panel.contains(btn)) return;
+        const tab = btn.getAttribute('data-tab');
+        if (tab) setActiveTab(tab);
+    });
+})();
+
+// Fallback: in case delegation on panel misses, handle clicks globally
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    const panel = document.getElementById('class-details-panel');
+    if (!panel || !panel.contains(btn)) return;
+    const tab = btn.getAttribute('data-tab');
+    if (tab && window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab(tab);
+});
+
+        if (typeof volumeInput !== 'undefined' && volumeInput) volumeInput.addEventListener('input', () => {
             const v = parseFloat(volumeInput.value);
             if (!Number.isNaN(v)) audio.volume = Math.min(1, Math.max(0, v));
         });
 
-        // Initialize default UI
-        setActivePreset(btnQuran);
-        updateNowPlaying();
+        // Initialize default UI (only if focus music was initialized)
+        if (typeof setActivePreset === 'function' && typeof btnQuran !== 'undefined') setActivePreset(btnQuran);
+        if (typeof updateNowPlaying === 'function') updateNowPlaying();
         // Do not preload via network to preserve user gesture autoplay; src will be set when playing.
     } catch (e) {
         console.warn('Focus music init failed', e);
@@ -1382,6 +1430,7 @@ function openClassesInlinePanel(event) {
                         const userDropdown = document.getElementById('user-dropdown');
                         if (userDropdown && !userDropdown.classList.contains('show')) userDropdown.classList.add('show');
                         toggleInlinePanel('class-details-panel', e);
+                        if (window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab('info');
                         // Fallback: if not visible, force show with basic positioning
                         const detailsPanel = document.getElementById('class-details-panel');
                         if (detailsPanel && !detailsPanel.classList.contains('show')) {
