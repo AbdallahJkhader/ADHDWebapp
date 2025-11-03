@@ -53,21 +53,6 @@
         </div>
     </div>
 
-    <!-- Study Tools Offcanvas Panel -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="toolsOffcanvas" aria-labelledby="toolsOffcanvasLabel">
-        <div class="offcanvas-header">
-            <h5 id="toolsOffcanvasLabel">All Tools</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
-        <div class="offcanvas-body">
-            <ul class="list-group small">
-                <li class="list-group-item d-flex align-items-center"><i class="bi bi-highlighter me-2"></i>Annotation Tool</li>
-                <li class="list-group-item d-flex align-items-center"><i class="bi bi-translate me-2"></i>Translation</li>
-                <li class="list-group-item d-flex align-items-center"><i class="bi bi-graph-up me-2"></i>Progress Tracker</li>
-                <li class="list-group-item d-flex align-items-center"><i class="bi bi-calendar-check me-2"></i>Study Planner</li>
-            </ul>
-        </div>
-    </div>
 
     
 
@@ -306,7 +291,7 @@
                     </div>
                     <div class="dropdown-divider"></div>
 
-                    <div class="activity-item">
+                    <div class="activity-item" onclick="toggleInlinePanel('tools-calculator-panel', event, 'tools-dropdown')" style="cursor: pointer;">
                         <div class="activity-icon">
                             <i class="bi bi-calculator"></i>
                         </div>
@@ -325,7 +310,7 @@
                         </div>
                     </div>
 
-                    <div class="activity-item">
+                    <div class="activity-item" onclick="toggleInlinePanel('tools-progress-panel', event, 'tools-dropdown')" style="cursor: pointer;">
                         <div class="activity-icon">
                             <i class="bi bi-graph-up"></i>
                         </div>
@@ -345,8 +330,98 @@
                         </div>
                     </div>
 
-                    <div class="dropdown-divider"></div>
-                    <a href="#" class="dropdown-item text-center" data-bs-toggle="offcanvas" data-bs-target="#toolsOffcanvas" onclick="return false;">All Tools</a>
+                    
+                </div>
+            </div>
+
+            <!-- Calculator panel positioned relative to Tools dropdown (top-left) -->
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-calculator-panel" dir="ltr" style="direction:ltr;">
+                <div class="dropdown-header">
+                    <i class="bi bi-calculator"></i>
+                    <span>Calculator</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="px-3 py-2" style="width:300px;">
+                    <input type="text" id="calc-display" class="form-control form-control-sm mb-2 text-end" placeholder="0" readonly />
+                    <div class="btn-group w-100 mb-2" role="group">
+                        <button class="btn btn-sm btn-outline-secondary flex-fill" data-calc-action="clear">C</button>
+                        <button class="btn btn-sm btn-outline-secondary flex-fill" data-calc-action="back">←</button>
+                        <button class="btn btn-sm btn-outline-secondary flex-fill" data-calc-input="(">(</button>
+                        <button class="btn btn-sm btn-outline-secondary flex-fill" data-calc-input=")">)</button>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <div class="btn-group w-100" role="group">
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="7">7</button>
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="8">8</button>
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="9">9</button>
+                            <button class="btn btn-sm btn-outline-primary flex-fill" data-calc-input="/">÷</button>
+                        </div>
+                        <div class="btn-group w-100" role="group">
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="4">4</button>
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="5">5</button>
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="6">6</button>
+                            <button class="btn btn-sm btn-outline-primary flex-fill" data-calc-input="*">×</button>
+                        </div>
+                        <div class="btn-group w-100" role="group">
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="1">1</button>
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="2">2</button>
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="3">3</button>
+                            <button class="btn btn-sm btn-outline-primary flex-fill" data-calc-input="-">−</button>
+                        </div>
+                        <div class="btn-group w-100" role="group">
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="0">0</button>
+                            <button class="btn btn-sm btn-light flex-fill" data-calc-input=".">.</button>
+                            <button class="btn btn-sm btn-success flex-fill" data-calc-action="equals">=</button>
+                            <button class="btn btn-sm btn-outline-primary flex-fill" data-calc-input="+">+</button>
+                        </div>
+                    </div>
+                    <div class="small text-danger mt-2" id="calc-error" style="display:none;"></div>
+                </div>
+            </div>
+
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-progress-panel" dir="ltr" style="direction:ltr;">
+                <div class="dropdown-header">
+                    <i class="bi bi-graph-up"></i>
+                    <span>Progress Tracker</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="px-3 py-2" style="width:300px;">
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-globe2"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Weekly Browsing Time</div>
+                            <div class="activity-desc">0h 0m this week</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-bar-chart"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Streak</div>
+                            <div class="activity-desc">0 days</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-book"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Subjects Studied</div>
+                            <div class="activity-desc">0 subjects</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="bi bi-stopwatch"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Weakly Focus Minutes</div>
+                            <div class="activity-desc">0 min</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -445,16 +520,25 @@
                         </div>
                         <div class="dropdown-divider"></div>
                         <div class="px-3 py-2">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="mb-0">Messages</h6>
-                                <a href="#" class="small" onclick="event.preventDefault();">New</a>
+                            <div class="mb-2 d-flex align-items-center gap-2">
+                                <label class="small mb-0">Class</label>
+                                <select id="chat-class-select" class="form-select form-select-sm" style="max-width: 220px;"></select>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="chat-refresh-btn"><i class="bi bi-arrow-clockwise"></i></button>
                             </div>
-                            <ul class="list-group list-group-flush" id="messages-recent">
-                                <li class="list-group-item d-flex align-items-center text-muted">
-                                    <i class="bi bi-chat-left-text me-2"></i>
-                                    <span>No messages yet.</span>
-                                </li>
-                            </ul>
+
+                            <div id="chat-area" class="border rounded p-2 bg-light" style="max-height: 260px; overflow-y: auto;">
+                                <div class="text-center text-muted py-4" id="chat-empty">
+                                    <i class="bi bi-chat-left-text fs-1"></i>
+                                    <p class="mt-2 mb-0">Select a class to start chatting</p>
+                                </div>
+                                <ul class="list-group list-group-flush" id="class-chat-list" style="display:none;"></ul>
+                            </div>
+
+                            <div class="mt-2 d-flex align-items-center gap-2">
+                                <input type="text" class="form-control form-control-sm" id="chat-input" placeholder="Type a message..." />
+                                <button type="button" class="btn btn-sm btn-primary" id="chat-send-btn"><i class="bi bi-send"></i></button>
+                            </div>
+                            <div class="small text-danger mt-1" id="chat-error" style="display:none;"></div>
                         </div>
                     </div>
 
@@ -532,6 +616,17 @@
                                 <div class="cls-tab-pane d-none" id="cls-tab-files">
                                     <div class="cls-section">
                                         <div class="cls-section-title small text-uppercase text-muted mb-2">Files</div>
+
+                                        <div id="cls-files-upload" class="mb-2" style="display:none;">
+                                            <div class="input-group input-group-sm">
+                                                <input type="file" class="form-control" id="cls-file-upload" />
+                                                <button class="btn btn-primary" type="button" id="cls-upload-btn">
+                                                    <i class="bi bi-cloud-arrow-up"></i> Upload
+                                                </button>
+                                            </div>
+                                            <div class="text-danger small mt-1" id="cls-files-error" style="display:none;"></div>
+                                        </div>
+
                                         <ul id="cls-files" class="list-group list-group-flush small"></ul>
                                     </div>
                                 </div>

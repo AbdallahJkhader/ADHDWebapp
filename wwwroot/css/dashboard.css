@@ -1350,16 +1350,15 @@ html, body {
     animation: fadeIn 0.2s ease-out;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-5px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.dropdown-menu.inline-left-from-focus,
+.dropdown-menu.inline-left-from-user,
+.dropdown-menu.inline-left-from-network,
+.dropdown-menu.inline-left-from-tools {
+    right: auto !important;
+    margin: 0 !important;
+    top: auto; /* JS sets fixed top */
+    left: auto; /* JS sets fixed left */
+    z-index: 2000; /* ensure above dropdown */
 }
 
 .dropdown-menu.show {

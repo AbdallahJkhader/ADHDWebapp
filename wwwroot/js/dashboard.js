@@ -169,6 +169,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         }
 
+        // Ensure try block is balanced so the script parses correctly
+        } catch (e) { /* ignore init errors for pages without panel */ }
+
+    });
+
 // ===== Classes: Open class details panel =====
 document.addEventListener('DOMContentLoaded', () => {
     const classesList = document.getElementById('classes-list');
@@ -258,6 +263,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch {}
 
+            // Prepare Files tab (show upload for owner, load files list)
+            try {
+                const filesUl = document.getElementById('cls-files');
+                if (filesUl) filesUl.innerHTML = '';
+                window.__currentClassId = klass?.id || null;
+                const userDropdown2 = document.getElementById('user-dropdown');
+                const currentUserId2 = parseInt(userDropdown2?.getAttribute('data-user-id') || '', 10);
+                const isOwner2 = !!klass?.id && !Number.isNaN(currentUserId2) && teacher && (teacher.id === currentUserId2);
+                const uploadWrap = document.getElementById('cls-files-upload');
+                if (uploadWrap) uploadWrap.style.display = isOwner2 ? '' : 'none';
+                if (typeof setupClassUpload === 'function') setupClassUpload(isOwner2);
+                if (klass?.id && typeof loadClassFiles === 'function') await loadClassFiles(klass.id);
+            } catch {}
+
             // Hide the My Classes panel before opening the class details
             const myPanel = document.getElementById('classes-panel');
             if (myPanel) myPanel.classList.remove('show');
@@ -283,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === tab));
         const panes = {
             info: panel.querySelector('#cls-tab-info'),
-            materials: panel.querySelector('#cls-tab-materials'),
+            files: panel.querySelector('#cls-tab-files'),
             options: panel.querySelector('#cls-tab-options')
         };
         Object.entries(panes).forEach(([key, el]) => {
@@ -316,29 +335,6 @@ document.addEventListener('click', (e) => {
     if (!panel || !panel.contains(btn)) return;
     const tab = btn.getAttribute('data-tab');
     if (tab && window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab(tab);
-});
-
-        if (typeof volumeInput !== 'undefined' && volumeInput) volumeInput.addEventListener('input', () => {
-            const v = parseFloat(volumeInput.value);
-            if (!Number.isNaN(v)) audio.volume = Math.min(1, Math.max(0, v));
-        });
-
-        // Initialize default UI (only if focus music was initialized)
-        if (typeof setActivePreset === 'function' && typeof btnQuran !== 'undefined') setActivePreset(btnQuran);
-        if (typeof updateNowPlaying === 'function') updateNowPlaying();
-        // Do not preload via network to preserve user gesture autoplay; src will be set when playing.
-    } catch (e) {
-        console.warn('Focus music init failed', e);
-    }
-
-    const optSummary = document.getElementById('gen-opt-summary');
-    const optWorkbook = document.getElementById('gen-opt-workbook');
-    const optQuizzes = document.getElementById('gen-opt-quizzes');
-    const optAi = document.getElementById('gen-opt-ai');
-    if (optSummary) optSummary.addEventListener('click', () => activateSection('summary'));
-    if (optWorkbook) optWorkbook.addEventListener('click', () => activateSection('workbook'));
-    if (optQuizzes) optQuizzes.addEventListener('click', () => activateSection('quizzes'));
-    if (optAi) optAi.addEventListener('click', () => activateSection('ai'));
 });
 /**
  * Dashboard configuration and utility functions
@@ -446,13 +442,20 @@ function toggleDropdown(id, evt) {
 });
 
 // Toggle an inline panel inside a dropdown (e.g., Timer inside Focus)
-function toggleInlinePanel(panelId, event) {
+function toggleInlinePanel(panelId, event, ownerHint) {
     if (event) event.stopPropagation();
+    // Guard: when opening calculator, ensure Focus dropdown is closed before any positioning
+    if (panelId === 'tools-calculator-panel') {
+        const focusDd0 = document.getElementById('focus-dropdown');
+        if (focusDd0) focusDd0.classList.remove('show');
+        // Close any inline panels tied to Focus
+        document.querySelectorAll('.dropdown-menu.inline-left-from-focus.show').forEach(p => p.classList.remove('show'));
+    }
     const panel = document.getElementById(panelId);
     if (!panel) return;
 
-    // Close other inline panels (both focus and network types)
-    document.querySelectorAll('.dropdown-menu.inline-left.show, .dropdown-menu.inline-left-from-focus.show, .dropdown-menu.inline-left-from-network.show, .dropdown-menu.inline-left-from-user.show')
+    // Close other inline panels (focus, tools, network, user)
+    document.querySelectorAll('.dropdown-menu.inline-left.show, .dropdown-menu.inline-left-from-focus.show, .dropdown-menu.inline-left-from-tools.show, .dropdown-menu.inline-left-from-network.show, .dropdown-menu.inline-left-from-user.show')
         .forEach(p => { if (p.id !== panelId) p.classList.remove('show'); });
 
     const willShow = !panel.classList.contains('show');
@@ -460,38 +463,47 @@ function toggleInlinePanel(panelId, event) {
 
     // If showing, position panel relative to its owning dropdown within viewport
     if (willShow && panel.classList.contains('show')) {
-        // Determine owner dropdown by panel type
-        let ownerId;
-        if (panel.classList.contains('inline-left-from-network')) {
-            ownerId = 'network-notifications-dropdown';
-        } else if (panel.classList.contains('inline-left-from-user')) {
+        // Determine owner dropdown robustly (do NOT default to Focus)
+        let ownerId = ownerHint || null;
+        // Explicit bindings by ID prefix or class
+        if (!ownerId && (panelId === 'tools-calculator-panel' || panelId.startsWith('tools-') || panel.classList.contains('inline-left-from-tools'))) {
+            ownerId = 'tools-dropdown';
+        } else if (!ownerId && (panel.classList.contains('inline-left-from-user') || panelId.startsWith('profile') || panelId.startsWith('classes') || panelId.startsWith('messages') || panelId.startsWith('notifications'))) {
             ownerId = 'user-dropdown';
-        } else {
+        } else if (!ownerId && (panel.classList.contains('inline-left-from-network') || panelId.startsWith('network-'))) {
+            ownerId = 'network-notifications-dropdown';
+        } else if (!ownerId && (panel.classList.contains('inline-left-from-focus') || panelId.startsWith('focus-'))) {
             ownerId = 'focus-dropdown';
         }
         
-        const owner = document.getElementById(ownerId);
+        const owner = ownerId ? document.getElementById(ownerId) : null;
         if (owner) {
+            // Close any other top-level dropdowns except the owner to avoid conflicts
+            document.querySelectorAll('.dropdown-menu.show').forEach(dd => {
+                if (dd.id !== ownerId && dd !== panel) dd.classList.remove('show');
+            });
             // Ensure the owner dropdown stays open
             if (!owner.classList.contains('show')) owner.classList.add('show');
 
-            const rect = owner.getBoundingClientRect();
-            panel.style.position = 'fixed';
-            panel.style.top = `${Math.max(8, rect.top)}px`;
-            const panelWidth = 300;
-            
-            // For user menu, align the panel to the left of the menu
-            if (panel.classList.contains('inline-left-from-user')) {
-                const left = Math.max(8, rect.left - 360 - 8); // Position to the left of the user menu
-                panel.style.left = `${left}px`;
-                panel.style.right = 'auto';
-            } else {
-                // For other panels, align to the left
-                const desiredLeft = rect.left - panelWidth - 8; // to the left of dropdown
-                const left = Math.max(8, Math.min(desiredLeft, window.innerWidth - panelWidth - 8));
-                panel.style.left = `${left}px`;
-                panel.style.right = 'auto';
+            // Explicitly ensure Focus is closed when opening calculator
+            if (panelId === 'tools-calculator-panel') {
+                const focusDd = document.getElementById('focus-dropdown');
+                if (focusDd) focusDd.classList.remove('show');
             }
+
+            // Anchor to the owner dropdown rectangle (same behavior as profile panel)
+            const anchorRect = owner.getBoundingClientRect();
+            panel.style.position = 'fixed';
+            const panelWidth = 300;
+            const GAP_X = 20; // horizontal gap from owner dropdown
+            const GAP_Y = 12; // vertical gap from owner dropdown
+            const SCREEN_MARGIN = 8; // min distance from viewport edges
+            panel.style.top = `${Math.max(SCREEN_MARGIN, anchorRect.top + GAP_Y)}px`;
+            
+            const desiredLeft = anchorRect.left - panelWidth - GAP_X;
+            const left = Math.max(SCREEN_MARGIN, Math.min(desiredLeft, window.innerWidth - panelWidth - SCREEN_MARGIN));
+            panel.style.left = `${left}px`;
+            panel.style.right = 'auto';
             
             panel.style.width = `${panelWidth}px`;
             panel.style.transform = 'none';
@@ -699,6 +711,93 @@ function escapeHtml(text) {
 }
 // Also expose globally in case of different scopes
 window.escapeHtml = window.escapeHtml || escapeHtml;
+
+// Load files for a class and render list
+async function loadClassFiles(classId) {
+    try {
+        const filesUl = document.getElementById('cls-files');
+        if (filesUl) filesUl.innerHTML = '';
+        const res = await fetch(`/Classes/Files?classId=${encodeURIComponent(classId)}`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to load files');
+        const files = Array.isArray(data.files) ? data.files : [];
+        if (!filesUl) return;
+        if (files.length === 0) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item text-muted';
+            li.textContent = 'No files yet';
+            filesUl.appendChild(li);
+            return;
+        }
+        files.forEach(f => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            const name = document.createElement('a');
+            name.href = f.url;
+            name.target = '_blank';
+            name.rel = 'noopener';
+            name.textContent = f.name || 'File';
+            const meta = document.createElement('small');
+            const sizeTxt = (typeof f.size === 'number' && f.size >= 0) ? `, ${formatFileSize(f.size)}` : '';
+            meta.className = 'text-muted';
+            meta.textContent = `${(new Date(f.uploadedAt)).toLocaleString()}${sizeTxt}`;
+            li.appendChild(name);
+            li.appendChild(meta);
+            filesUl.appendChild(li);
+        });
+    } catch (e) {
+        const errEl = document.getElementById('cls-files-error');
+        if (errEl) {
+            errEl.style.display = '';
+            errEl.textContent = e?.message || 'Error loading files';
+        } else {
+            alert(e?.message || 'Error loading files');
+        }
+    }
+}
+
+// Setup upload button and input; only active for owner
+function setupClassUpload(isOwner) {
+    const uploadBtn = document.getElementById('cls-upload-btn');
+    const fileInput = document.getElementById('cls-file-upload');
+    const errEl = document.getElementById('cls-files-error');
+    if (!uploadBtn || !fileInput) return;
+    if (!isOwner) {
+        uploadBtn.onclick = null;
+        if (errEl) errEl.style.display = 'none';
+        return;
+    }
+    uploadBtn.onclick = async (ev) => {
+        ev.preventDefault();
+        if (!window.__currentClassId) return;
+        if (!fileInput.files || fileInput.files.length === 0) {
+            if (errEl) { errEl.style.display = ''; errEl.textContent = 'Please choose a file first.'; }
+            return;
+        }
+        const f = fileInput.files[0];
+        const allowedRe = /(\.txt|\.docx|\.pdf|\.png|\.jpg|\.jpeg|\.gif)$/i;
+        if (!allowedRe.test(f.name)) {
+            if (errEl) { errEl.style.display = ''; errEl.textContent = 'Unsupported file type.'; }
+            return;
+        }
+        const fd = new FormData();
+        fd.append('file', f);
+        fd.append('classId', String(window.__currentClassId));
+        try {
+            uploadBtn.disabled = true;
+            const res = await fetch('/Classes/UploadFile', { method: 'POST', body: fd, credentials: 'same-origin' });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Upload failed');
+            fileInput.value = '';
+            if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+            await loadClassFiles(window.__currentClassId);
+        } catch (e) {
+            if (errEl) { errEl.style.display = ''; errEl.textContent = e?.message || 'Upload failed'; }
+        } finally {
+            uploadBtn.disabled = false;
+        }
+    };
+}
 
 function handleFileSelection(input) {
     const fileInfo = document.getElementById('file-info');
@@ -1472,6 +1571,20 @@ function openClassesInlinePanel(event) {
                                     });
                                 }
 
+                            // Prepare Files tab (mirror logic from list item handler)
+                            try {
+                                const filesUl = document.getElementById('cls-files');
+                                if (filesUl) filesUl.innerHTML = '';
+                                window.__currentClassId = klass?.id || null;
+                                const userDropdown2 = document.getElementById('user-dropdown');
+                                const currentUserId2 = parseInt(userDropdown2?.getAttribute('data-user-id') || '', 10);
+                                const isOwner2 = !!klass?.id && !Number.isNaN(currentUserId2) && teacher && (teacher.id === currentUserId2);
+                                const uploadWrap = document.getElementById('cls-files-upload');
+                                if (uploadWrap) uploadWrap.style.display = isOwner2 ? '' : 'none';
+                                if (typeof setupClassUpload === 'function') setupClassUpload(isOwner2);
+                                if (klass?.id && typeof loadClassFiles === 'function') await loadClassFiles(klass.id);
+                            } catch {}
+
                             // Show/Hide action buttons based on ownership
                             const leaveBtn = document.getElementById('leave-class-btn');
                             const deleteBtn = document.getElementById('delete-class-btn');
@@ -1712,6 +1825,254 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     if (sendBtn) sendBtn.addEventListener('click', handler);
+});
+
+// ===== Class-based Chat (Messages panel) =====
+document.addEventListener('DOMContentLoaded', function () {
+    const classSelect = document.getElementById('chat-class-select');
+    const chatList = document.getElementById('class-chat-list');
+    const chatEmpty = document.getElementById('chat-empty');
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    const chatErr = document.getElementById('chat-error');
+    const chatRefreshBtn = document.getElementById('chat-refresh-btn');
+    if (!classSelect || !chatList || !chatEmpty || !chatInput || !chatSendBtn) return;
+
+    let lastMsgId = 0;
+    let currentClassId = 0;
+
+    async function loadMyClassesIntoSelect() {
+        try {
+            const res = await fetch('/Classes/My', { credentials: 'same-origin' });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to load classes');
+            classSelect.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select class';
+            classSelect.appendChild(placeholder);
+            (data.classes || []).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.name} (${c.code})`;
+                classSelect.appendChild(opt);
+            });
+        } catch (e) {
+            if (chatErr) { chatErr.style.display = ''; chatErr.textContent = e?.message || 'Failed to load classes'; }
+        }
+    }
+
+    function renderMessages(msgs) {
+        if (!Array.isArray(msgs) || msgs.length === 0) return;
+        chatEmpty.style.display = 'none';
+        chatList.style.display = '';
+        msgs.forEach(m => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item py-2';
+            li.innerHTML = `<div class="d-flex justify-content-between">
+                <div><strong>${escapeHtml(m.senderName || 'User')}:</strong> ${escapeHtml(m.content || '')}</div>
+                <small class="text-muted">${new Date(m.sentAt).toLocaleTimeString()}</small>
+            </div>`;
+            chatList.appendChild(li);
+            lastMsgId = Math.max(lastMsgId, m.id || 0);
+        });
+        // scroll to bottom
+        const area = document.getElementById('chat-area');
+        if (area) area.scrollTop = area.scrollHeight;
+    }
+
+    async function loadMessages(initial = false) {
+        if (!currentClassId) return;
+        try {
+            const url = initial ? `/Classes/Chat?classId=${currentClassId}` : `/Classes/Chat?classId=${currentClassId}&afterId=${lastMsgId}`;
+            const res = await fetch(url, { credentials: 'same-origin' });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to load chat');
+            if (initial) {
+                chatList.innerHTML = '';
+                lastMsgId = 0;
+            }
+            renderMessages(data.messages || []);
+            if (chatErr) { chatErr.style.display = 'none'; chatErr.textContent = ''; }
+        } catch (e) {
+            if (chatErr) { chatErr.style.display = ''; chatErr.textContent = e?.message || 'Failed to load chat'; }
+        }
+    }
+
+    async function sendMessage() {
+        if (!currentClassId) return;
+        const content = (chatInput.value || '').trim();
+        if (!content) return;
+        try {
+            chatSendBtn.disabled = true;
+            const res = await fetch('/Classes/SendChat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ classId: currentClassId, content })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Send failed');
+            chatInput.value = '';
+            await loadMessages();
+        } catch (e) {
+            if (chatErr) { chatErr.style.display = ''; chatErr.textContent = e?.message || 'Failed to send'; }
+        } finally {
+            chatSendBtn.disabled = false;
+        }
+    }
+
+    classSelect.addEventListener('change', async () => {
+        currentClassId = parseInt(classSelect.value || '0', 10) || 0;
+        chatList.innerHTML = '';
+        lastMsgId = 0;
+        if (!currentClassId) {
+            chatEmpty.style.display = '';
+            chatList.style.display = 'none';
+            return;
+        }
+        await loadMessages(true);
+    });
+
+    if (chatRefreshBtn) chatRefreshBtn.addEventListener('click', () => loadMessages(true));
+    chatSendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+    // Initialize classes list when messages panel can be used
+    loadMyClassesIntoSelect();
+});
+
+// ===== Tools: Calculator =====
+document.addEventListener('DOMContentLoaded', function () {
+    const panel = document.getElementById('tools-calculator-panel');
+    const display = document.getElementById('calc-display');
+    const errEl = document.getElementById('calc-error');
+    if (!panel || !display) return;
+
+    let expr = '';
+
+    function setError(msg) {
+        if (!errEl) return;
+        if (msg) { errEl.style.display = ''; errEl.textContent = msg; }
+        else { errEl.style.display = 'none'; errEl.textContent = ''; }
+    }
+
+    function updateDisplay() { display.value = expr || '0'; }
+
+    function appendInput(ch) {
+        setError('');
+        if (typeof ch !== 'string') return;
+        // allow digits, operators, dot, parentheses
+        if (!/^[0-9+\-*/().]$/.test(ch)) return;
+        // avoid duplicate operators (except minus for negative numbers after '(' or start)
+        const last = expr.slice(-1);
+        const isOp = /[+\-*/]/.test(ch);
+        const lastIsOp = /[+\-*/]/.test(last);
+        if (isOp && (expr.length === 0 && ch !== '-' || (lastIsOp && !(ch === '-' && (last === '(' || lastIsOp))))) {
+            // replace last operator with new (except allowing negative numbers)
+            if (lastIsOp && ch !== '-') expr = expr.slice(0, -1) + ch; else return;
+        } else {
+            expr += ch;
+        }
+        updateDisplay();
+    }
+
+    function clearAll() { expr = ''; updateDisplay(); setError(''); }
+    function backspace() { expr = expr.slice(0, -1); updateDisplay(); }
+
+    function tokenize(s) {
+        const tokens = [];
+        let i = 0;
+        while (i < s.length) {
+            const c = s[i];
+            if (c === ' ') { i++; continue; }
+            if (/[0-9.]/.test(c)) {
+                let num = c; i++;
+                while (i < s.length && /[0-9.]/.test(s[i])) { num += s[i++]; }
+                if (/^\d*\.\d*\.$/.test(num) || (num.split('.').length - 1) > 1) throw new Error('Invalid number');
+                if (num === '.') throw new Error('Invalid number');
+                tokens.push({ t: 'num', v: parseFloat(num) });
+                continue;
+            }
+            if (/[+\-*/()]/.test(c)) { tokens.push({ t: 'op', v: c }); i++; continue; }
+            throw new Error('Invalid character');
+        }
+        return tokens;
+    }
+
+    function toRPN(tokens) {
+        const out = [], ops = [];
+        const prec = { '+': 1, '-': 1, '*': 2, '/': 2 };
+        for (let i = 0; i < tokens.length; i++) {
+            const tk = tokens[i];
+            if (tk.t === 'num') out.push(tk);
+            else {
+                const v = tk.v;
+                if (v === '(') ops.push(tk);
+                else if (v === ')') {
+                    while (ops.length && ops[ops.length - 1].v !== '(') out.push(ops.pop());
+                    if (!ops.length) throw new Error('Mismatched parentheses');
+                    ops.pop();
+                } else {
+                    while (ops.length && ops[ops.length - 1].v in prec && prec[ops[ops.length - 1].v] >= prec[v]) {
+                        out.push(ops.pop());
+                    }
+                    ops.push(tk);
+                }
+            }
+        }
+        while (ops.length) {
+            const o = ops.pop();
+            if (o.v === '(' || o.v === ')') throw new Error('Mismatched parentheses');
+            out.push(o);
+        }
+        return out;
+    }
+
+    function evalRPN(rpn) {
+        const st = [];
+        for (const tk of rpn) {
+            if (tk.t === 'num') st.push(tk.v);
+            else {
+                const b = st.pop(); const a = st.pop();
+                if (a === undefined || b === undefined) throw new Error('Syntax error');
+                switch (tk.v) {
+                    case '+': st.push(a + b); break;
+                    case '-': st.push(a - b); break;
+                    case '*': st.push(a * b); break;
+                    case '/': if (b === 0) throw new Error('Division by zero'); st.push(a / b); break;
+                    default: throw new Error('Invalid operator');
+                }
+            }
+        }
+        if (st.length !== 1) throw new Error('Syntax error');
+        return st[0];
+    }
+
+    function evaluate() {
+        try {
+            setError('');
+            if (!expr) return;
+            const tokens = tokenize(expr);
+            const rpn = toRPN(tokens);
+            const result = evalRPN(rpn);
+            expr = (Number.isFinite(result) ? result : 0).toString();
+            updateDisplay();
+        } catch (e) {
+            setError(e?.message || 'Invalid expression');
+        }
+    }
+
+    panel.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const input = btn.getAttribute('data-calc-input');
+        const action = btn.getAttribute('data-calc-action');
+        if (input) appendInput(input);
+        else if (action === 'clear') clearAll();
+        else if (action === 'back') backspace();
+        else if (action === 'equals') evaluate();
+    });
 });
 
 // Initialize notifications

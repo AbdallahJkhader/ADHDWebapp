@@ -6,6 +6,7 @@ using ADHDWebApp.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IO;
 
 namespace ADHDWebApp.Controllers
 {
@@ -110,6 +111,96 @@ namespace ADHDWebApp.Controllers
                     Teacher = owner != null ? new { id = owner.Id, name = owner.FullName, email = owner.Email } : null,
                     Students = students
                 });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Files(int classId)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+
+                var cls = await _context.Classes.FirstOrDefaultAsync(c => c.Id == classId);
+                if (cls == null)
+                    return Json(new { success = false, error = "Class not found" });
+
+                var files = await _context.ClassFiles
+                    .Where(f => f.ClassId == classId)
+                    .OrderByDescending(f => f.UploadedAt)
+                    .Select(f => new
+                    {
+                        id = f.Id,
+                        name = f.FileName,
+                        url = f.FilePath,
+                        size = f.FileSize,
+                        contentType = f.ContentType,
+                        uploadedAt = f.UploadedAt,
+                        uploaderId = f.UploaderId
+                    })
+                    .ToListAsync();
+
+                return Json(new { success = true, files });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [RequestSizeLimit(50_000_000)]
+        public async Task<IActionResult> UploadFile(IFormFile file, int classId)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+                var userId = sessionUserId.Value;
+
+                var cls = await _context.Classes.FirstOrDefaultAsync(c => c.Id == classId);
+                if (cls == null)
+                    return Json(new { success = false, error = "Class not found" });
+                if (cls.OwnerId != userId)
+                    return Json(new { success = false, error = "Only the class owner can upload files" });
+
+                if (file == null || file.Length == 0)
+                    return Json(new { success = false, error = "No file uploaded" });
+
+                var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "classes", classId.ToString());
+                if (!Directory.Exists(uploadsRoot)) Directory.CreateDirectory(uploadsRoot);
+
+                var safeName = Path.GetFileName(file.FileName);
+                var uniqueName = $"{Guid.NewGuid().ToString("N").Substring(0,8)}_{safeName}";
+                var savePath = Path.Combine(uploadsRoot, uniqueName);
+                using (var stream = new FileStream(savePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                var relativePath = $"/uploads/classes/{classId}/{uniqueName}";
+
+                var entity = new ClassFile
+                {
+                    ClassId = classId,
+                    UploaderId = userId,
+                    FileName = safeName,
+                    FilePath = relativePath,
+                    ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    FileSize = file.Length,
+                    UploadedAt = DateTime.UtcNow
+                };
+                _context.ClassFiles.Add(entity);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, id = entity.Id, name = entity.FileName, url = entity.FilePath });
             }
             catch (Exception ex)
             {
@@ -249,5 +340,99 @@ namespace ADHDWebApp.Controllers
         public class JoinClassDto { public string Code { get; set; } = string.Empty; }
         public class DeleteClassDto { public int Id { get; set; } }
         public class LeaveClassDto { public int Id { get; set; } }
+
+        // ===== Class Chat Endpoints =====
+        [HttpGet]
+        public async Task<IActionResult> Chat(int classId, int? afterId)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+                var userId = sessionUserId.Value;
+
+                var cls = await _context.Classes.FirstOrDefaultAsync(c => c.Id == classId);
+                if (cls == null)
+                    return Json(new { success = false, error = "Class not found" });
+
+                // Membership or ownership required
+                var isMember = await _context.ClassMemberships.AnyAsync(m => m.UserId == userId && m.ClassId == classId) || cls.OwnerId == userId;
+                if (!isMember)
+                    return Json(new { success = false, error = "You are not a member of this class" });
+
+                var query = _context.ClassChatMessages
+                    .Where(m => m.ClassId == classId)
+                    .Include(m => m.Sender)
+                    .OrderBy(m => m.Id)
+                    .AsQueryable();
+
+                if (afterId.HasValue && afterId.Value > 0)
+                {
+                    query = query.Where(m => m.Id > afterId.Value);
+                }
+
+                var msgs = await query
+                    .Take(200)
+                    .Select(m => new {
+                        id = m.Id,
+                        senderId = m.SenderId,
+                        senderName = m.Sender.FullName,
+                        content = m.Content,
+                        sentAt = m.SentAt
+                    })
+                    .ToListAsync();
+
+                return Json(new { success = true, messages = msgs });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        public class SendClassChatDto { public int ClassId { get; set; } public string Content { get; set; } = string.Empty; }
+
+        [HttpPost]
+        public async Task<IActionResult> SendChat([FromBody] SendClassChatDto dto)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+                var userId = sessionUserId.Value;
+
+                var cls = await _context.Classes.FirstOrDefaultAsync(c => c.Id == dto.ClassId);
+                if (cls == null)
+                    return Json(new { success = false, error = "Class not found" });
+
+                // Membership or ownership required
+                var isMember = await _context.ClassMemberships.AnyAsync(m => m.UserId == userId && m.ClassId == dto.ClassId) || cls.OwnerId == userId;
+                if (!isMember)
+                    return Json(new { success = false, error = "You are not a member of this class" });
+
+                var content = (dto.Content ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(content))
+                    return Json(new { success = false, error = "Message cannot be empty" });
+
+                var msg = new ClassChatMessage
+                {
+                    ClassId = dto.ClassId,
+                    SenderId = userId,
+                    Content = content,
+                    SentAt = DateTime.UtcNow
+                };
+
+                _context.ClassChatMessages.Add(msg);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, id = msg.Id, sentAt = msg.SentAt });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
     }
 }

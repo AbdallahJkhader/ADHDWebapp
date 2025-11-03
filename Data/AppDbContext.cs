@@ -14,6 +14,8 @@ namespace ADHDWebApp.Data
         public DbSet<Message> Messages { get; set; }
         public DbSet<Class> Classes { get; set; }
         public DbSet<ClassMembership> ClassMemberships { get; set; }
+        public DbSet<ClassFile> ClassFiles { get; set; }
+        public DbSet<ClassChatMessage> ClassChatMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -83,6 +85,34 @@ namespace ADHDWebApp.Data
                       .WithMany(c => c.Members)
                       .HasForeignKey(cm => cm.ClassId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ClassFile configuration
+            modelBuilder.Entity<ClassFile>(entity =>
+            {
+                entity.HasOne(cf => cf.Class)
+                      .WithMany()
+                      .HasForeignKey(cf => cf.ClassId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(cf => cf.Uploader)
+                      .WithMany()
+                      .HasForeignKey(cf => cf.UploaderId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // ClassChatMessage configuration
+            modelBuilder.Entity<ClassChatMessage>(entity =>
+            {
+                entity.HasOne(m => m.Class)
+                      .WithMany()
+                      .HasForeignKey(m => m.ClassId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(m => m.Sender)
+                      .WithMany()
+                      .HasForeignKey(m => m.SenderId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }
