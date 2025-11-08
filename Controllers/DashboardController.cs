@@ -314,7 +314,6 @@ namespace ADHDWebApp.Controllers
                 case ".txt":
                     using (var reader = new StreamReader(fullPath))
                         contentText = await reader.ReadToEndAsync();
-                    displayType = "text";
                     break;
 
                 case ".pdf": 

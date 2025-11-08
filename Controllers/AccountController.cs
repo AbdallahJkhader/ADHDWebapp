@@ -33,8 +33,10 @@ namespace ADHDWebApp.Controllers
             }
             else
             {
+                TempData["OpenSignup"] = "true";
+                // Optionally carry email if needed later
                 TempData["UserEmail"] = email;
-                return RedirectToAction("Register");
+                return RedirectToAction("EnterEmail");
             }
         }
 
@@ -79,21 +81,22 @@ namespace ADHDWebApp.Controllers
 
         public IActionResult Register()
         {
-            string? email = TempData["UserEmail"] as string;
-            ViewBag.Email = email;
-            return View();
+            // No separate Register page; redirect to EnterEmail with Sign Up tab open
+            if (TempData["OpenSignup"] == null)
+                TempData["OpenSignup"] = "true";
+            return RedirectToAction("EnterEmail");
         }
 
         [HttpPost]
-        public IActionResult Register(string email, string password, string fullName, DateTime dateOfBirth, string role, bool? hasADHD)
+        public IActionResult Register(string email, string password, string fullName, DateTime dateOfBirth, string role, bool? hasADHD, string? gender)
         {
             var existingUser = _context.Users.FirstOrDefault(u => u.Email == email);
 
             if (existingUser != null)
             {
-                ViewBag.Error = "This email is exist please try another one.";
-                ViewBag.Email = email;
-                return View();
+                TempData["OpenSignup"] = "true";
+                TempData["InlineSignupError"] = "This email is exist please try another one.";
+                return RedirectToAction("EnterEmail");
             }
 
             var newUser = new User
@@ -103,7 +106,8 @@ namespace ADHDWebApp.Controllers
                 FullName = fullName,
                 DateOfBirth = dateOfBirth,
                 Role = role,
-                HasADHD = role == "Student" ? hasADHD : null
+                HasADHD = role == "Student" ? hasADHD : null,
+                Gender = gender
             };
 
             _context.Users.Add(newUser);

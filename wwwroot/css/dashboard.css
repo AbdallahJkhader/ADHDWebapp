@@ -406,6 +406,11 @@ html, body {
     flex-direction: column;
 }
 
+/* Add comfortable inner padding around manual input area in left pane */
+.left-side #manual-text {
+    padding: 12px !important;
+}
+
     #manual-text textarea {
         flex: 1;
         resize: none;
@@ -420,6 +425,11 @@ html, body {
     height: 100%;
     display: flex;
     flex-direction: column;
+}
+
+/* Add a bit of top spacing when a file is opened */
+.left-side #file-display-container {
+    padding-top: 12px !important;
 }
 
 .document-content {
@@ -814,6 +824,11 @@ html, body {
     border: none;
     color: inherit;
     cursor: pointer;
+}
+
+/* Remove default Bootstrap caret for specific toggles */
+.dropdown-toggle.no-caret::after {
+    display: none !important;
 }
 
 .dropdown-menu {
@@ -1448,6 +1463,25 @@ html, body {
 
 /* Do not override icons inside buttons (they should follow button text color) */
 #user-dropdown .btn i {
+    color: inherit !important;
+}
+
+/* Study Tools dropdown: force icons to use site palette (match user dropdown) */
+#tools-dropdown .dropdown-header i,
+#tools-dropdown .activity-item .activity-icon,
+#tools-dropdown .activity-item .activity-icon i,
+#tools-dropdown .dropdown-item i,
+#tools-dropdown .enhanced-dropdown .dropdown-header i {
+    color: var(--color-secondary) !important;
+}
+
+/* Broad fallback to catch any remaining icons inside the tools dropdown */
+#tools-dropdown i {
+    color: var(--color-secondary) !important;
+}
+
+/* Do not override icons inside buttons in tools dropdown */
+#tools-dropdown .btn i {
     color: inherit !important;
 }
 

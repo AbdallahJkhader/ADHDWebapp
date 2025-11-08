@@ -1,4 +1,4 @@
-namespace ADHDWebapp.Models
+namespace ADHDWebApp.Models
 {
     public class ErrorViewModel
     {

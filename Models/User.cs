@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
@@ -23,6 +23,8 @@ namespace ADHDWebApp.Models
         public required string Role { get; set; }
 
         public bool? HasADHD { get; set; }
+
+        public string? Gender { get; set; }
 
         
         public virtual ICollection<UserFile> Files { get; set; } = new List<UserFile>();

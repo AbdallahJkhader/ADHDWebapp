@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using ADHDWebapp.Models;
+using ADHDWebApp.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ADHDWebapp.Controllers
+namespace ADHDWebApp.Controllers
 {
     public class HomeController : Controller
     {

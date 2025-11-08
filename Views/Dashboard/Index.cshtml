@@ -388,15 +388,6 @@
                 <div class="px-3 py-2" style="width:300px;">
                     <div class="activity-item">
                         <div class="activity-icon">
-                            <i class="bi bi-globe2"></i>
-                        </div>
-                        <div class="activity-info">
-                            <div class="activity-title">Weekly Browsing Time</div>
-                            <div class="activity-desc">0h 0m this week</div>
-                        </div>
-                    </div>
-                    <div class="activity-item">
-                        <div class="activity-icon">
                             <i class="bi bi-bar-chart"></i>
                         </div>
                         <div class="activity-info">
@@ -406,10 +397,19 @@
                     </div>
                     <div class="activity-item">
                         <div class="activity-icon">
+                            <i class="bi bi-globe2"></i>
+                        </div>
+                        <div class="activity-info">
+                            <div class="activity-title">Weekly Browsing Time</div>
+                            <div class="activity-desc">0h 0m this week</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">
                             <i class="bi bi-book"></i>
                         </div>
                         <div class="activity-info">
-                            <div class="activity-title">Subjects Studied</div>
+                            <div class="activity-title">Weekly Subjects Studied</div>
                             <div class="activity-desc">0 subjects</div>
                         </div>
                     </div>
@@ -418,7 +418,7 @@
                             <i class="bi bi-stopwatch"></i>
                         </div>
                         <div class="activity-info">
-                            <div class="activity-title">Weakly Focus Minutes</div>
+                            <div class="activity-title">Weekly Focus Minutes</div>
                             <div class="activity-desc">0 min</div>
                         </div>
                     </div>
@@ -626,7 +626,6 @@
                                             </div>
                                             <div class="text-danger small mt-1" id="cls-files-error" style="display:none;"></div>
                                         </div>
-
                                         <ul id="cls-files" class="list-group list-group-flush small"></ul>
                                     </div>
                                 </div>
@@ -635,15 +634,20 @@
                                 <div class="cls-tab-pane d-none" id="cls-tab-options">
                                     <div class="cls-section mb-3">
                                         <div class="cls-section-title small text-uppercase text-muted mb-2">Options</div>
-                                        <div id="cls-options" class="small text-muted">Manage class preferences and actions.</div>
-                                    </div>
-                                    <div class="mt-2 d-flex justify-content-end gap-2">
-                                        <button type="button" id="delete-class-btn" class="btn btn-sm btn-danger" style="display:none;">
-                                            <i class="bi bi-trash"></i> Leave and Delete Class
-                                        </button>
-                                        <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger" style="display:none;">
-                                            <i class="bi bi-box-arrow-left"></i> Leave Class
-                                        </button>
+                                        <div class="mt-2 d-flex flex-column align-items-stretch gap-2">
+                                            @if ((ViewBag.Role as string) == "Teacher")
+                                            {
+                                                <button type="button" id="remove-student-btn" class="btn btn-sm btn-outline-primary w-100">
+                                                    <i class="bi bi-person-dash"></i> Remove Student
+                                                </button>
+                                            }
+                                            <button type="button" id="delete-class-btn" class="btn btn-sm btn-danger w-100" style="display:none;">
+                                                <i class="bi bi-trash"></i> Leave and Delete Class
+                                            </button>
+                                            <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger w-100" style="display:none;">
+                                                <i class="bi bi-box-arrow-left"></i> Leave Class
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -846,36 +850,23 @@
                         <!-- Controls Bar -->
                         <div class="controls-bar">
                             <div class="d-flex gap-2 align-items-center">
+                                <!-- Back button moved to the far left -->
+                                <button onclick="resetUpload()" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Back
+                                </button>
+
                                 <!-- Text Alignment Controls -->
-                                <div class="btn-group btn-group-sm me-2" role="group">
-                                    <button type="button" class="btn btn-light active" onclick="setTextAlign('left')">
-                                        <i class="bi bi-text-left"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-light" onclick="setTextAlign('center')">
-                                        <i class="bi bi-text-center"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-light" onclick="setTextAlign('right')">
-                                        <i class="bi bi-text-right"></i>
-                                    </button>
-                                </div>
+                                
 
                                 <!-- Dark Mode Toggle -->
-                                <button type="button" class="btn btn-light btn-sm action-btn" onclick="toggleDarkMode()">
-                                    <i class="bi bi-moon"></i>
-                                </button>
-
-                                <!-- File Actions -->
-                                <button class="btn btn-light btn-sm action-btn" onclick="downloadContent()" data-bs-toggle="tooltip" title="Download file">
-                                    <i class="bi bi-download"></i>
-                                </button>
-
-                                <button class="btn btn-light btn-sm action-btn" onclick="shareContent()" data-bs-toggle="tooltip" title="Share">
-                                    <i class="bi bi-share"></i>
+                                <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
+                                    <i class="bi bi-eye-slash"></i>
                                 </button>
 
                                 <div class="dropdown d-inline-block">
-                                    <button class="btn btn-light btn-sm action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Text controls">
-                                        <i class="bi bi-sliders"></i>
+                                    <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
+                                        <i class="bi bi-sliders me-1"></i><span class="d-none d-sm-inline">Options</span>
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
                                         <li class="dropdown-header">Text Settings</li>
@@ -890,6 +881,23 @@
                                             </button>
                                         </li>
                                         <li><hr class="dropdown-divider"></li>
+                                        <li class="dropdown-header">Alignment</li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="setTextAlign('left')">
+                                                <i class="bi bi-text-left me-2"></i>Align Left
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="setTextAlign('center')">
+                                                <i class="bi bi-text-center me-2"></i>Align Center
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="setTextAlign('right')">
+                                                <i class="bi bi-text-right me-2"></i>Align Right
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
                                         <li class="dropdown-header">Layout</li>
                                         <li>
                                             <button class="dropdown-item" onclick="toggleLineHeight()">
@@ -901,15 +909,24 @@
                                                 <i class="bi bi-book me-2"></i>Reading Mode
                                             </button>
                                         </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li class="dropdown-header">File Actions</li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="downloadContent()">
+                                                <i class="bi bi-download me-2"></i>Download
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="shareContent()">
+                                                <i class="bi bi-share me-2"></i>Share
+                                            </button>
+                                        </li>
                                     </ul>
                                 </div>
 
-                                <button onclick="resetUpload()" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back
-                                </button>
-
-                                <span class="filename-display ms-3">@(ViewBag.FileName ?? TempData["FileName"])</span>
+                                <div class="flex-grow-1 text-center">
+                                    <span class="filename-display fw-medium">@(ViewBag.FileName ?? TempData["FileName"])</span>
+                                </div>
 
                                 <!-- Word Count and Read Time -->
                                 <div class="ms-auto d-flex gap-3 align-items-center">
@@ -943,9 +960,9 @@
                 <div id="generate-wrapper" class="d-flex flex-column align-items-center justify-content-center mb-3" style="min-height: 70vh;">
                     <div id="btn-generate-ai-helper" class="upload-card mb-3" style="cursor: pointer; width: 260px;">
                         <div class="upload-icon">
-                            <i class="bi bi-folder"></i>
+                            <i class="bi bi-mortarboard"></i>
                         </div>
-                        <h5>generate new AI helper</h5>
+                        <h5>Add Helper Study Tool</h5>
                         <p class="text-muted small">Open to choose what to generate</p>
                     </div>
                     <div id="generate-options" class="w-100" style="max-width: 720px; display: none;">
@@ -953,25 +970,25 @@
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-summary" style="cursor:pointer;">
                                     <div class="upload-icon"><i class="bi bi-journal-text"></i></div>
-                                    <h5>Generate new Summary</h5>
+                                    <h5>Summary</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-workbook" style="cursor:pointer;">
                                     <div class="upload-icon"><i class="bi bi-book"></i></div>
-                                    <h5>Generate new Workbook</h5>
+                                    <h5>Workbook</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-quizzes" style="cursor:pointer;">
                                     <div class="upload-icon"><i class="bi bi-patch-question"></i></div>
-                                    <h5>Generate Quizzes</h5>
+                                    <h5>Quizzes</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-ai" style="cursor:pointer;">
-                                    <div class="upload-icon"><i class="bi bi-robot"></i></div>
-                                    <h5>Ask AI</h5>
+                                    <div class="upload-icon"><i class="bi bi-youtube"></i></div>
+                                    <h5>Add YouTube Video</h5>
                                 </div>
                             </div>
                         </div>
@@ -999,7 +1016,7 @@
                     <p class="mb-2">Use the right panel to generate new content:</p>
                     <ul class="mb-0">
                         <li>Generate new Summary</li>
-                        <li>Generate new Workbook</li>
+                        <li>Workbook</li>
                         <li>Generate Quizzes</li>
                         <li>Ask AI</li>
                     </ul>

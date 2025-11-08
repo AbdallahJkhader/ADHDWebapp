@@ -21,6 +21,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // When clicking Summary in the right panel, open the left viewer UI
+    const summaryCard = document.getElementById('gen-opt-summary');
+    if (summaryCard) {
+        summaryCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (typeof setLeftView === 'function') setLeftView('viewer');
+            const fnSpan = document.querySelector('.filename-display');
+            if (fnSpan) fnSpan.textContent = 'Summary.txt';
+            const contentEl = document.getElementById('content-display');
+            if (contentEl) contentEl.textContent = 'This is your summary preview...';
+        });
+    }
+
 // ===== Focus Music =====
     try {
         const panel = document.getElementById('focus-music-panel');
