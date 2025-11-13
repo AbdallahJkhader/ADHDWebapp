@@ -57,7 +57,6 @@ namespace ADHDWebApp.Controllers
                 var avatarsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
                 if (!Directory.Exists(avatarsFolder)) Directory.CreateDirectory(avatarsFolder);
 
-                // Delete other formats for this user
                 foreach (var e in new[] { ".png", ".jpg", ".jpeg", ".webp" })
                 {
                     var existing = Path.Combine(avatarsFolder, $"user_{user.Id}{e}");
@@ -87,14 +86,12 @@ namespace ADHDWebApp.Controllers
                 var userEmail = HttpContext.Session.GetString("UserEmail");
                 var fullName = HttpContext.Session.GetString("FullName");
 
-                // تحقق من تسجيل الدخول
                 if (string.IsNullOrEmpty(userEmail) || string.IsNullOrEmpty(fullName))
                 {
                     TempData["Error"] = "Please log in to access the dashboard.";
                     return RedirectToAction("Login", "Account");
                 }
 
-                // نقل بيانات TempData للـ ViewBag إذا موجودة
                 if (TempData["UploadedText"] != null)
                 {
                     ViewBag.ShowLeftPanel = true;
@@ -103,7 +100,6 @@ namespace ADHDWebApp.Controllers
                     ViewBag.FileId = TempData["FileId"];
                 }
                 
-                // Check if we should show left panel from file selection
                 if (TempData["ShowLeftPanel"] != null)
                 {
                     ViewBag.ShowLeftPanel = TempData["ShowLeftPanel"].ToString() == "true";
@@ -123,11 +119,10 @@ namespace ADHDWebApp.Controllers
                         .ToListAsync();
                 }
                 
-                ViewBag.UserFiles = userFiles; // Always set this
-                ViewBag.UserId = user?.Id ?? 0; // For debugging
+                ViewBag.UserFiles = userFiles;
+                ViewBag.UserId = user?.Id ?? 0;
                 ViewBag.Role = user?.Role;
 
-                // Resolve avatar URL if exists
                 string? avatarUrl = null;
                 if (user != null)
                 {
@@ -173,7 +168,6 @@ namespace ADHDWebApp.Controllers
                 if (user == null)
                     return Json(new { success = false, error = "User not found" });
 
-                // Fetch files that belong to this user and are in the selected IDs
                 var files = await _context.UserFiles
                     .Where(f => f.UserId == user.Id && ids.Contains(f.Id))
                     .ToListAsync();
@@ -191,7 +185,6 @@ namespace ADHDWebApp.Controllers
                     }
                     catch (Exception)
                     {
-                        // continue with others; we can report partial failures if needed
                     }
                 }
 

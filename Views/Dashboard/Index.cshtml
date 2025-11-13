@@ -2,7 +2,6 @@
 @{
     Layout = null;
 
-    // Helper function to format file size
     string FormatFileSize(long bytes)
     {
         string[] sizes = { "B", "KB", "MB", "GB" };
@@ -37,27 +36,7 @@
 </head>
 <body class="dashboard-page">
 
-    <!-- Focus Tools Offcanvas Panel -->
-    <div class="offcanvas offcanvas-end" tabindex="-1" id="focusOffcanvas" aria-labelledby="focusOffcanvasLabel">
-        <div class="offcanvas-header">
-            <h5 id="focusOffcanvasLabel">All Focus Tools</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-        </div>
-        <div class="offcanvas-body">
-            <ul class="list-group small">
-                <li class="list-group-item d-flex align-items-center"><i class="bi bi-music-note-beamed me-2"></i>Focus Music</li>
-                <li class="list-group-item d-flex align-items-center"><i class="bi bi-brightness-high me-2"></i>Breathing Exercises</li>
-                <li class="list-group-item d-flex align-items-center"><i class="bi bi-puzzle me-2"></i>Mind Games</li>
-                <li class="list-group-item d-flex align-items-center"><i class="bi bi-stopwatch me-2"></i>Timer</li>
-            </ul>
-        </div>
-    </div>
 
-
-    
-
-    <!-- Notifications have been moved to the connections menu -->
-    <!-- Full Notifications Modal -->
     <div class="modal fade" id="allNotificationsModal" tabindex="-1" aria-labelledby="allNotificationsModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-scrollable">
             <div class="modal-content">
@@ -78,7 +57,6 @@
         </div>
     </div>
 
-    <!-- Top Navigation Bar -->
     <div class="top-nav">
         <div class="left-nav d-flex align-items-center">
             <button class="nav-btn" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">
@@ -89,7 +67,6 @@
         <div class="nav-divider"></div>
         <div class="right-nav d-flex align-items-center">
 
-            <!-- Focus Dropdown (merged Relax + Timer, without Color Therapy) -->
             <div class="user-dropdown me-3">
                 <button class="nav-btn" onclick="toggleDropdown('focus', event)">
                     <i class="bi bi-bullseye"></i>
@@ -102,7 +79,6 @@
                     </div>
                     <div class="dropdown-divider"></div>
 
-                    <!-- Relax items (without Color Therapy) -->
                     <div class="activity-item" onclick="toggleInlinePanel('focus-music-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon">
                             <i class="bi bi-music-note-beamed"></i>
@@ -133,7 +109,6 @@
                         </div>
                     </div>
 
-                    <!-- Timer inline panel trigger inside Focus (styled like other items) -->
                     <div class="inline-panel-host">
                         <div class="activity-item" onclick="toggleInlinePanel('focus-timer-panel', event)" style="cursor: pointer;">
                             <div class="activity-icon">
@@ -212,9 +187,6 @@
                             <div class="small text-muted">Now Playing: <span id="music-nowplaying">None</span></div>
                         </div>
                     </div>
-
-                    <div class="dropdown-divider"></div>
-                    <a href="#" class="dropdown-item text-center" data-bs-toggle="offcanvas" data-bs-target="#focusOffcanvas" onclick="return false;">All Focus Tools</a>
                 </div>
             </div>
             <!-- Files Dropdown -->
@@ -270,9 +242,6 @@
                             <div class="activity-desc">3 files from classmates</div>
                         </div>
                     </div>
-
-                    <div class="dropdown-divider"></div>
-                    <a href="#" class="dropdown-item text-center" onclick="showMyFiles(); return false;">Open File Manager</a>
                 </div>
             </div>
 
@@ -956,8 +925,9 @@
 
 
         <div class="right-side">
-            <div class="doc-box p-4">
-                <div id="generate-wrapper" class="d-flex flex-column align-items-center justify-content-center mb-3" style="min-height: 70vh;">
+            <div class="doc-box">
+                <div class="left-content">
+                    <div id="generate-wrapper" class="d-flex flex-column align-items-center justify-content-center" style="min-height: 70vh; display: flex;">
                     <div id="btn-generate-ai-helper" class="upload-card mb-3" style="cursor: pointer; width: 260px;">
                         <div class="upload-icon">
                             <i class="bi bi-mortarboard"></i>
@@ -968,7 +938,7 @@
                     <div id="generate-options" class="w-100" style="max-width: 720px; display: none;">
                         <div class="row w-100">
                             <div class="col-12 col-sm-6 mb-3">
-                                <div class="upload-card text-center" id="gen-opt-summary" style="cursor:pointer;">
+                                <div class="upload-card text-center" id="gen-opt-summary" style="cursor:pointer;" onclick="window.openSummaryRight && window.openSummaryRight(); return false;">
                                     <div class="upload-icon"><i class="bi bi-journal-text"></i></div>
                                     <h5>Summary</h5>
                                 </div>
@@ -994,7 +964,103 @@
                         </div>
                     </div>
                 </div>
-                <div id="section-content" class="mt-3"></div>
+
+                    <div id="summary-display-container" style="display: none;" class="h-100 pt-2">
+                        <div class="controls-bar">
+                            <div class="d-flex gap-2 align-items-center">
+                                <button onclick="window.backFromSummaryRight && window.backFromSummaryRight(); return false;" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Back
+                                </button>
+
+                                <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
+                                    <i class="bi bi-eye-slash"></i>
+                                </button>
+
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
+                                        <i class="bi bi-sliders me-1"></i><span class="d-none d-sm-inline">Options</span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                                        <li class="dropdown-header">Text Settings</li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="adjustFontSize('increase')">
+                                                <i class="bi bi-zoom-in me-2"></i>Increase Font Size
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="adjustFontSize('decrease')">
+                                                <i class="bi bi-zoom-out me-2"></i>Decrease Font Size
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li class="dropdown-header">Alignment</li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="setTextAlign('left')">
+                                                <i class="bi bi-text-left me-2"></i>Align Left
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="setTextAlign('center')">
+                                                <i class="bi bi-text-center me-2"></i>Align Center
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="setTextAlign('right')">
+                                                <i class="bi bi-text-right me-2"></i>Align Right
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li class="dropdown-header">Layout</li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="toggleLineHeight()">
+                                                <i class="bi bi-text-spacing me-2"></i>Toggle Line Spacing
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="toggleReadingMode()">
+                                                <i class="bi bi-book me-2"></i>Reading Mode
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li class="dropdown-header">File Actions</li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="downloadContent()">
+                                                <i class="bi bi-download me-2"></i>Download
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" onclick="shareContent()">
+                                                <i class="bi bi-share me-2"></i>Share
+                                            </button>
+                                        </li>
+                                    </ul>
+            </div>
+
+                                <div class="flex-grow-1 text-center">
+                                    <span id="summary-filename-display" class="filename-display fw-medium">Summary</span>
+                                </div>
+
+                                <div class="ms-auto d-flex gap-3 align-items-center">
+                                    <div id="summary-word-count" class="text-muted small">
+                                        <i class="bi bi-hash me-1"></i>0 words
+                                    </div>
+                                    <div id="summary-read-time" class="text-muted small">
+                                        <i class="bi bi-clock me-1"></i>0 min read
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="divider my-2">
+
+                        <div class="document-content flex-grow-1 bg-white pt-2">
+                            <div id="summary-content-wrapper">
+                                <div id="summary-content-display" class="content-text mb-0"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

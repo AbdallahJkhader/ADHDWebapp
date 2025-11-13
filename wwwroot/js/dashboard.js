@@ -1,11 +1,17 @@
-// Generate AI helper card -> show options, then drive right panel menu
 document.addEventListener('DOMContentLoaded', () => {
     const generateCard = document.getElementById('btn-generate-ai-helper');
     const generateOptions = document.getElementById('generate-options');
+    // Ensure initial right-pane state: hide summary, show Add Helper card, hide options
+    try {
+        const summaryContainerInit = document.getElementById('summary-display-container');
+        if (summaryContainerInit) summaryContainerInit.style.display = 'none';
+        const generateWrapperInit = document.getElementById('generate-wrapper');
+        if (generateWrapperInit) generateWrapperInit.style.display = 'flex';
+        if (generateOptions) generateOptions.style.display = 'none';
+    } catch {}
 
     const showOptions = () => {
         if (generateCard) {
-            // Hide only the card so options (siblings) appear in-place
             generateCard.style.display = 'none';
         }
         if (generateOptions) {
@@ -21,28 +27,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // When clicking Summary in the right panel, open the left viewer UI
     const summaryCard = document.getElementById('gen-opt-summary');
     if (summaryCard) {
         summaryCard.addEventListener('click', (e) => {
             e.preventDefault();
-            if (typeof setLeftView === 'function') setLeftView('viewer');
-            const fnSpan = document.querySelector('.filename-display');
-            if (fnSpan) fnSpan.textContent = 'Summary.txt';
-            const contentEl = document.getElementById('content-display');
-            if (contentEl) contentEl.textContent = 'This is your summary preview...';
+            if (window.openSummaryRight) window.openSummaryRight();
         });
     }
 
-// ===== Focus Music =====
     try {
         const panel = document.getElementById('focus-music-panel');
         if (!panel) {
-            // Skip focus music init on pages without the panel, but continue other initializations
         } else {
-
-        // Audio element singleton
-        if (!window.__focusMusicAudio) {
+            if (!window.__focusMusicAudio) {
             const audio = new Audio();
             audio.crossOrigin = 'anonymous';
             audio.loop = true;
@@ -78,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 candidates: [
                     '/sounds/topone.mp3','/sounds/topone.m4a','/sounds/topone.wav',
                     '/audio/topone.mp3','/audio/topone.m4a','/audio/topone.wav',
-                    // handle filenames with space and case variations
                     '/sounds/top%20one.mp3','/sounds/top%20one.m4a','/sounds/top%20one.wav',
                     '/audio/top%20one.mp3','/audio/top%20one.m4a','/audio/top%20one.wav',
                     '/sounds/Top%20One.mp3','/audio/Top%20One.mp3'
@@ -95,8 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const toggleBtn = document.getElementById('music-toggle');
         const volumeInput = document.getElementById('music-volume');
         const nowPlaying = document.getElementById('music-nowplaying');
-        // No local file selection (per requirements: users should not upload/select sounds)
-
         function setStatus(text, isError = false) {
             if (!nowPlaying) return;
             nowPlaying.textContent = text;
@@ -183,11 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Ensure try block is balanced so the script parses correctly
-        } catch (e) { /* ignore init errors for pages without panel */ }
+        } catch (e) {}
 
     });
 
-// ===== Classes: Open class details panel =====
 document.addEventListener('DOMContentLoaded', () => {
     const classesList = document.getElementById('classes-list');
     if (!classesList) return;
@@ -306,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// ===== Class Details: Tabs handling (global init) =====
 (function initClassDetailsTabs() {
     function setActiveTab(tab) {
         const panel = document.getElementById('class-details-panel');
@@ -340,7 +332,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 })();
 
-// Fallback: in case delegation on panel misses, handle clicks globally
 document.addEventListener('click', (e) => {
     const btn = e.target.closest('.tab-btn');
     if (!btn) return;
@@ -349,33 +340,10 @@ document.addEventListener('click', (e) => {
     const tab = btn.getAttribute('data-tab');
     if (tab && window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab(tab);
 });
-/**
- * Dashboard configuration and utility functions
- */
-
-/**
- * Application configuration object
- * @type {Object}
- */
 const DASHBOARD_CFG = window.DASHBOARD_CFG || {};
-
-/**
- * Set of selected file IDs for batch operations
- * @type {Set<number>}
- */
 const SELECTED_FILE_IDS = new Set();
+const DROPDOWN_ANCHORS = {};
 
-/**
- * Dropdown positioning anchors for restoration when hiding
- * @type {Object}
- */
-const DROPDOWN_ANCHORS = {}; // key: `${id}-dropdown` => parentElement
-
-/**
- * Toggles dropdown visibility with smart positioning
- * @param {string} id - The dropdown ID to toggle
- * @param {Event} evt - The triggering event for positioning
- */
 function toggleDropdown(id, evt) {
     if (evt) evt.stopPropagation();
     const dropdown = document.getElementById(`${id}-dropdown`);
@@ -433,7 +401,6 @@ function toggleDropdown(id, evt) {
     }
 }
 
-// Reposition any open dropdowns on resize/scroll
 ['resize', 'scroll'].forEach(evtName => {
     window.addEventListener(evtName, () => {
         document.querySelectorAll('.dropdown-menu.show').forEach(dropdown => {
@@ -716,7 +683,6 @@ function activateSection(section) {
     sectionContent.innerHTML = contentMap[section] || '';
 }
 
-// Minimal HTML escape used in Classes rendering
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text == null ? '' : String(text);
@@ -769,7 +735,6 @@ async function loadClassFiles(classId) {
     }
 }
 
-// Setup upload button and input; only active for owner
 function setupClassUpload(isOwner) {
     const uploadBtn = document.getElementById('cls-upload-btn');
     const fileInput = document.getElementById('cls-file-upload');
@@ -955,41 +920,79 @@ let isDarkMode = false;
 let isReadingMode = false;
 
 function adjustFontSize(action) {
-    const contentText = document.querySelector('.content-text');
-    if (action === 'increase' && currentFontSize < 1.5) {
-        currentFontSize += 0.1;
-    } else if (action === 'decrease' && currentFontSize > 0.8) {
-        currentFontSize -= 0.1;
+    const summaryContainer = document.getElementById('summary-display-container');
+    const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+    const contentText = isSummaryActive 
+        ? document.getElementById('summary-content-display')
+        : document.querySelector('.content-text');
+    
+    if (contentText) {
+        if (action === 'increase' && currentFontSize < 1.5) {
+            currentFontSize += 0.1;
+        } else if (action === 'decrease' && currentFontSize > 0.8) {
+            currentFontSize -= 0.1;
+        }
+        contentText.style.fontSize = `${currentFontSize}rem`;
     }
-    contentText.style.fontSize = `${currentFontSize}rem`;
 }
 
 function toggleLineHeight() {
-    const contentText = document.querySelector('.content-text');
-    currentLineHeight = currentLineHeight === 1.8 ? 2.2 : 1.8;
-    contentText.style.lineHeight = currentLineHeight;
+    const summaryContainer = document.getElementById('summary-display-container');
+    const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+    const contentText = isSummaryActive 
+        ? document.getElementById('summary-content-display')
+        : document.querySelector('.content-text');
+    
+    if (contentText) {
+        currentLineHeight = currentLineHeight === 1.8 ? 2.2 : 1.8;
+        contentText.style.lineHeight = currentLineHeight;
+    }
 }
 
 function updateWordCount() {
     const contentDisplay = document.getElementById('content-display');
+    const summaryContentDisplay = document.getElementById('summary-content-display');
     const wordCountElement = document.getElementById('word-count');
-    if (contentDisplay && wordCountElement) {
-        const text = contentDisplay.textContent || '';
+    const summaryWordCountElement = document.getElementById('summary-word-count');
+    
+    const summaryContainer = document.getElementById('summary-display-container');
+    const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+    
+    const activeContent = isSummaryActive ? summaryContentDisplay : contentDisplay;
+    const activeWordCount = isSummaryActive ? summaryWordCountElement : wordCountElement;
+    
+    if (activeContent && activeWordCount) {
+        const text = activeContent.textContent || '';
         const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
 
-        // Animate the word count
-        const currentCount = parseInt(wordCountElement.textContent.split(' ')[0]) || 0;
+        const currentCount = parseInt(activeWordCount.textContent.split(' ')[0]) || 0;
         animateNumber(currentCount, wordCount, (count) => {
-            wordCountElement.innerHTML = `<i class="bi bi-hash me-1"></i>${count} words`;
+            activeWordCount.innerHTML = `<i class="bi bi-hash me-1"></i>${count} words`;
         });
-        updateReadTime(wordCount);
+        
+        const readTimeElement = isSummaryActive 
+            ? document.getElementById('summary-read-time')
+            : document.getElementById('read-time');
+        
+        if (readTimeElement) {
+            const minutes = Math.ceil(wordCount / 200);
+            readTimeElement.innerHTML = `<i class="bi bi-clock me-1"></i>${minutes} min read`;
+        }
     }
 }
 
 function updateReadTime(wordCount) {
-    const readTimeElement = document.getElementById('read-time');
-    const minutes = Math.ceil(wordCount / 200);
-    readTimeElement.innerHTML = `<i class="bi bi-clock me-1"></i>${minutes} min read`;
+    const summaryContainer = document.getElementById('summary-display-container');
+    const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+    
+    const readTimeElement = isSummaryActive 
+        ? document.getElementById('summary-read-time')
+        : document.getElementById('read-time');
+    
+    if (readTimeElement) {
+        const minutes = Math.ceil(wordCount / 200);
+        readTimeElement.innerHTML = `<i class="bi bi-clock me-1"></i>${minutes} min read`;
+    }
 }
 
 function animateNumber(start, end, callback) {
@@ -1012,46 +1015,87 @@ function animateNumber(start, end, callback) {
 }
 
 function downloadContent() {
-    const content = document.getElementById('content-display').textContent;
-    const fileNameDisplay = document.querySelector('.filename-display');
-    const filename = fileNameDisplay ? fileNameDisplay.textContent : 'document.txt';
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    const summaryContainer = document.getElementById('summary-display-container');
+    const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+    const contentDisplay = isSummaryActive 
+        ? document.getElementById('summary-content-display')
+        : document.getElementById('content-display');
+    const fileNameDisplay = isSummaryActive
+        ? document.getElementById('summary-filename-display')
+        : document.querySelector('.filename-display');
+    
+    if (contentDisplay) {
+        const content = contentDisplay.textContent;
+        const filename = fileNameDisplay ? fileNameDisplay.textContent : 'document.txt';
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
 }
 
 function shareContent() {
     if (navigator.share) {
-        const fileNameDisplay = document.querySelector('.filename-display');
-        const filename = fileNameDisplay ? fileNameDisplay.textContent : 'Document';
-        navigator.share({
-            title: filename,
-            text: document.getElementById('content-display').textContent,
-        }).catch(console.error);
+        const summaryContainer = document.getElementById('summary-display-container');
+        const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+        const contentDisplay = isSummaryActive 
+            ? document.getElementById('summary-content-display')
+            : document.getElementById('content-display');
+        const fileNameDisplay = isSummaryActive
+            ? document.getElementById('summary-filename-display')
+            : document.querySelector('.filename-display');
+        
+        if (contentDisplay) {
+            const filename = fileNameDisplay ? fileNameDisplay.textContent : 'Document';
+            navigator.share({
+                title: filename,
+                text: contentDisplay.textContent,
+            }).catch(console.error);
+        }
     }
 }
 
 function toggleDarkMode() {
-    const contentWrapper = document.getElementById('content-wrapper');
-    isDarkMode = !isDarkMode;
-    contentWrapper.classList.toggle('dark-mode');
+    const summaryContainer = document.getElementById('summary-display-container');
+    const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+    const contentWrapper = isSummaryActive
+        ? document.getElementById('summary-content-wrapper')
+        : document.getElementById('content-wrapper');
+    
+    if (contentWrapper) {
+        isDarkMode = !isDarkMode;
+        contentWrapper.classList.toggle('dark-mode');
+    }
 }
 
 function toggleReadingMode() {
-    const contentDisplay = document.getElementById('content-display');
+    const summaryContainer = document.getElementById('summary-display-container');
+    const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+    const contentDisplay = isSummaryActive
+        ? document.getElementById('summary-content-display')
+        : document.getElementById('content-display');
+    
+    if (!contentDisplay) return;
+    
     isReadingMode = !isReadingMode;
     contentDisplay.classList.toggle('reading-mode');
 }
 
 function setTextAlign(alignment) {
-    const contentDisplay = document.getElementById('content-display');
-    if (contentDisplay) contentDisplay.style.textAlign = alignment;
+    const summaryContainer = document.getElementById('summary-display-container');
+    const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
+    const contentDisplay = isSummaryActive
+        ? document.getElementById('summary-content-display')
+        : document.getElementById('content-display');
+    
+    if (contentDisplay) {
+        contentDisplay.style.textAlign = alignment;
+    }
 
     // Update active state of alignment buttons
     document.querySelectorAll('.controls-bar .btn-group:first-child .btn').forEach(btn => {
@@ -1167,7 +1211,6 @@ function addRecentFile(id, name) {
     saveRecentFiles(list);
 }
 
-// Show only recent files in the left list
 function showRecentFiles() {
     setLeftView('files');
     const uploadedSection = document.getElementById('uploaded-files-section');
@@ -2222,5 +2265,48 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-// Example: Add a test notification
-// addNotification('New Message', 'You have a new message from John', 'info');
+window.openSummaryRight = window.openSummaryRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const summaryContainer = document.getElementById('summary-display-container');
+    
+    if (!summaryContainer) return;
+    
+    if (generateWrapper) generateWrapper.style.display = 'none';
+    if (generateOptions) generateOptions.style.display = 'none';
+    
+    summaryContainer.style.display = 'flex';
+    
+    const rightPane = summaryContainer.closest('.right-side');
+    if (rightPane) {
+        rightPane.scrollTop = 0;
+        summaryContainer.scrollTop = 0;
+        requestAnimationFrame(() => {
+            rightPane.scrollTop = 0;
+            summaryContainer.scrollTop = 0;
+        });
+    }
+    
+    const summaryContent = document.getElementById('summary-content-display');
+    if (summaryContent) {
+        summaryContent.innerHTML = '';
+    }
+    
+    if (typeof updateWordCount === 'function') {
+        updateWordCount();
+    }
+};
+
+window.backFromSummaryRight = window.backFromSummaryRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const summaryContainer = document.getElementById('summary-display-container');
+    
+    if (summaryContainer) summaryContainer.style.display = 'none';
+    if (generateWrapper) generateWrapper.style.display = 'flex';
+    if (generateOptions) generateOptions.style.display = '';
+    
+    if (generateWrapper || generateOptions) {
+        (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};

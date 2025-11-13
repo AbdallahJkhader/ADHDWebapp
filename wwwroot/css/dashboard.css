@@ -6,8 +6,9 @@
     padding: 10px;
 }
 
-/* Utility fallback: ensure d-none hides elements even without Bootstrap */
-.d-none { display: none !important; }
+.d-none {
+    display: none !important;
+}
 
 #classes-panel .list-title {
     font-size: 0.9rem;
@@ -51,7 +52,6 @@
     font-size: 0.75rem;
 }
 
-
 #class-details-panel .dropdown-header {
     background: var(--color-background-light);
 }
@@ -80,7 +80,6 @@
     gap: 0.4rem;
 }
 
-/* Enhanced Class Details panel visuals */
 #class-details-panel .cls-panel-body {
     background: var(--color-white);
 }
@@ -129,7 +128,6 @@
     overflow: auto;
 }
 
-/* Class details tabs */
 #class-details-panel .cls-tabs .tab-btn {
     border-color: var(--color-secondary);
     color: var(--color-secondary);
@@ -149,9 +147,13 @@
     padding-top: 10px;
 }
 
-/* Tab panes default hidden; show when active */
-#class-details-panel .cls-tab-pane { display: none; }
-#class-details-panel .cls-tab-pane.active { display: block; }
+#class-details-panel .cls-tab-pane {
+    display: none;
+}
+
+#class-details-panel .cls-tab-pane.active {
+    display: block;
+}
 
 .top-nav .nav-btn {
     display: inline-flex;
@@ -183,19 +185,18 @@
     }
 
 :root {
-    
-    --color-primary: #0f172a; /* slate-900 */
-    --color-secondary: #00838f; /* slightly darker turquoise */
-    --color-accent: #ef4444; /* modern red */
-    --color-text: #0f172a; /* deep neutral */
-    --color-text-light: #64748b; /* slate-500 */
+    --color-primary: #0f172a; 
+    --color-secondary: #00838f; 
+    --color-accent: #ef4444; 
+    --color-text: #0f172a; 
+    --color-text-light: #64748b; 
     --color-white: #ffffff;
-    --color-background: #f6f7fb; /* softer background */
-    --color-background-light: #f8fafc; /* near white */
-    --color-border: #e5e7eb; /* light neutral */
+    --color-background: #f6f7fb; 
+    --color-background-light: #f8fafc; 
+    --color-border: #e5e7eb; 
     --color-border-light: rgba(15, 23, 42, 0.06);
     --color-hover: #006f7a;
-    --color-hover-bg: #d6edf1; /* comfortable soft turquoise */
+    --color-hover-bg: #d6edf1; 
     --color-blue: #006f7a;
     --color-gray-100: #f8fafc;
     --color-gray-200: #eef2f7;
@@ -206,25 +207,25 @@
     --primary-color: var(--color-primary);
     --accent-color: var(--color-accent);
     --background-light: var(--color-background-light);
-    /* Typography */
+    
     --font-primary: 'Segoe UI', system-ui, -apple-system, sans-serif;
     --text-xs: 0.75rem;
     --text-sm: 0.875rem;
     --text-base: 1rem;
     --text-lg: 1.125rem;
     --text-xl: 1.25rem;
-    /* Border Radius */
+    
     --border-radius-sm: 6px;
     --border-radius: 10px;
     --border-radius-md: 14px;
     --border-radius-lg: 22px;
-    /* Z-index */
+    
     --z-index-dropdown: 1000;
     --z-index-modal: 2000;
-    /* Transitions */
+    
     --transition: all 0.15s ease;
     --transition-slow: all 0.25s ease;
-    /* Spacing (4/8/12/16/24 rhythm) */
+    
     --spacing-xxs: 0.25rem;
     --spacing-xs: 0.5rem;
     --spacing-sm: 0.75rem;
@@ -232,8 +233,8 @@
     --spacing-md: 1.25rem;
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
-    --pane-padding: 1rem; /* internal pane padding */
-    /* Effects */
+    --pane-padding: 1rem; 
+    
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 6px 12px rgba(0, 0, 0, 0.15);
@@ -252,12 +253,11 @@ html, body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-    /* Prevent page-level scrolling so the left/right panes handle their own scroll */
-    body.dashboard-page {
-        overflow: hidden;
-    }
+body.dashboard-page {
+    overflow: hidden;
+}
 
-/* Navigation */
+
 .top-nav {
     padding: 0;
     background-color: var(--color-white);
@@ -276,16 +276,8 @@ html, body {
     display: none;
 }
 
-/* Navigation Links & Buttons */
 
-/* ==========================================================================
-   #COMPONENTS
-   ========================================================================== */
 
-/* ==========================================================================
-   #UTILITIES & HELPERS
-   ========================================================================== */
-/* Responsive Design */
 @media (max-width: 1200px) {
     :root {
         --spacing-md: 0.875rem;
@@ -327,7 +319,7 @@ html, body {
     }
 }
 
-/* Content Sections */
+
 .left-side,
 .right-side {
     flex: 1;
@@ -351,7 +343,7 @@ html, body {
         box-shadow: none;
     }
 
-/* Navigation Layout */
+
 .main-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -370,7 +362,7 @@ html, body {
     background-color: #ffffff;
 }
 
-/* Document Box */
+
 .doc-box {
     background: transparent;
     border-radius: 0;
@@ -390,6 +382,7 @@ html, body {
     height: 100%;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 #upload-container {
@@ -406,7 +399,7 @@ html, body {
     flex-direction: column;
 }
 
-/* Add comfortable inner padding around manual input area in left pane */
+
 .left-side #manual-text {
     padding: 12px !important;
 }
@@ -427,8 +420,24 @@ html, body {
     flex-direction: column;
 }
 
-/* Add a bit of top spacing when a file is opened */
+#summary-display-container {
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: var(--color-background);
+}
+
 .left-side #file-display-container {
+    padding-top: 12px !important;
+}
+
+.right-side #summary-display-container {
     padding-top: 12px !important;
 }
 
@@ -441,12 +450,11 @@ html, body {
     padding: 0;
 }
 
-/* Text Content */
-/* Typography
-   ========================================================================== */
 
 
-/* Left pane: force truly edge-to-edge content */
+
+
+
 .left-side .p-4 {
     padding: 0 !important;
 }
@@ -470,7 +478,7 @@ html, body {
     padding-right: 0 !important;
 }
 
-/* Right pane: remove internal paddings to be flush with edges */
+
 .right-side .p-4 {
     padding: 0 !important;
 }
@@ -488,7 +496,7 @@ html, body {
     margin-top: 0 !important;
 }
 
-/* Remove residual margins inside main content to avoid any gaps */
+
 .main-content > .left-side,
 .main-content > .right-side {
     margin: 0 !important;
@@ -548,7 +556,7 @@ html, body {
         text-decoration: underline;
     }
 
-/* File Header */
+
 .file-header {
     display: flex;
     justify-content: space-between;
@@ -592,9 +600,7 @@ html, body {
     align-items: center;
 }
 
-/* Navigation Bar rules removed: page uses .top-nav instead of .navbar/.nav-container */
 
-/* Left navigation */
 .left-nav {
     display: flex;
     align-items: center;
@@ -603,9 +609,7 @@ html, body {
     overflow: hidden;
 }
 
-    /* Removed .left-nav .nav-link rules (not used) */
 
-/* Navigation Containers */
 .right-nav {
     display: flex;
     align-items: center;
@@ -619,7 +623,7 @@ html, body {
     overflow: visible;
 }
 
-/* Navigation Buttons */
+
 .nav-btn {
     display: inline-flex;
     align-items: center;
@@ -647,10 +651,10 @@ html, body {
     box-sizing: border-box;
     flex-shrink: 0;
     position: relative;
-    top: -2px; /* Move up slightly */
+    top: -2px; 
     vertical-align: middle;
     line-height: 1.1;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
 }
 
     .nav-btn i {
@@ -665,7 +669,7 @@ html, body {
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-/* User button specific styles */
+
 .user-btn {
     padding: 0.4rem 0.8rem;
     display: flex;
@@ -673,10 +677,10 @@ html, body {
     gap: 0.5rem;
 }
 
-/* Dropdown menu */
+
  
 
-/* Responsive adjustments */
+
 @media (max-width: 1200px) {
     .nav-btn {
         padding: 0.5rem 0.8rem;
@@ -826,27 +830,10 @@ html, body {
     cursor: pointer;
 }
 
-/* Remove default Bootstrap caret for specific toggles */
+
 .dropdown-toggle.no-caret::after {
     display: none !important;
 }
-
-.dropdown-menu {
-    display: none;
-    position: absolute;
-    right: 0;
-    background-color: white;
-    min-width: 200px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-    border-radius: 8px;
-    z-index: 1000;
-    padding: 8px 0;
-    margin-top: 5px;
-}
-
-    .dropdown-menu.show {
-        display: block;
-    }
 
 .dropdown-item {
     padding: 8px 16px;
@@ -874,15 +861,6 @@ html, body {
 .enhanced-dropdown {
     min-width: 280px;
     padding: 12px 0;
-}
-
-.dropdown-header {
-    padding: 8px 16px;
-    font-weight: 600;
-    color: var(--color-secondary);
-    display: flex;
-    align-items: center;
-    margin-right: 8px;
 }
 
 .timer-container {
@@ -978,14 +956,14 @@ html, body {
     margin: 0 auto 2rem;
 }
 
-/* Ensure the inline timer ring in the activity item has proper dimensions and doesn't get squished */
+
 .progress-ring {
     width: 120px;
     height: 120px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 auto; /* prevent flexbox from shrinking the ring */
+    flex: 0 0 auto; 
 }
 
 .progress-ring svg {
@@ -1174,8 +1152,6 @@ html, body {
     animation: fadeIn 0.3s ease-in;
 }
 
-/* Removed duplicate @keyframes fadeIn (a more detailed definition exists later) */
-
 .loading {
     position: relative;
     min-height: 200px;
@@ -1340,10 +1316,6 @@ html, body {
         color: white;
     }
 
-/* Removed duplicate generic .nav-btn (we already style .top-nav .nav-btn above) */
-
-/* Removed duplicate .user-btn block (already defined earlier) */
-
 .dropdown-menu {
     position: absolute;
     top: calc(100% + 8px);
@@ -1371,9 +1343,9 @@ html, body {
 .dropdown-menu.inline-left-from-tools {
     right: auto !important;
     margin: 0 !important;
-    top: auto; /* JS sets fixed top */
-    left: auto; /* JS sets fixed left */
-    z-index: 2000; /* ensure above dropdown */
+    top: auto; 
+    left: auto; 
+    z-index: 2000; 
 }
 
 .dropdown-menu.show {
@@ -1421,11 +1393,11 @@ html, body {
         color: var(--color-primary);
     }
 
-/* Activity items inside dropdowns: ensure consistent icon/text spacing (LTR) */
+
 .enhanced-dropdown .activity-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem; /* small space between icon and text */
+    gap: 0.5rem; 
     padding: 8px 12px;
 }
 
@@ -1438,7 +1410,7 @@ html, body {
 
 .enhanced-dropdown .activity-item .activity-icon i {
     font-size: 1.1rem;
-    color: inherit; /* inherit to allow context-specific coloring */
+    color: inherit; 
 }
 
 .enhanced-dropdown .activity-item .activity-info {
@@ -1447,7 +1419,7 @@ html, body {
     gap: 2px;
 }
 
-/* User dropdown: force icons to use site palette */
+
 #user-dropdown .dropdown-header i,
 #user-dropdown .activity-item .activity-icon,
 #user-dropdown .activity-item .activity-icon i,
@@ -1456,17 +1428,17 @@ html, body {
     color: var(--color-secondary) !important;
 }
 
-/* Broad fallback to catch any remaining icons inside the user dropdown */
+
 #user-dropdown i {
     color: var(--color-secondary) !important;
 }
 
-/* Do not override icons inside buttons (they should follow button text color) */
+
 #user-dropdown .btn i {
     color: inherit !important;
 }
 
-/* Study Tools dropdown: force icons to use site palette (match user dropdown) */
+
 #tools-dropdown .dropdown-header i,
 #tools-dropdown .activity-item .activity-icon,
 #tools-dropdown .activity-item .activity-icon i,
@@ -1475,17 +1447,17 @@ html, body {
     color: var(--color-secondary) !important;
 }
 
-/* Broad fallback to catch any remaining icons inside the tools dropdown */
+
 #tools-dropdown i {
     color: var(--color-secondary) !important;
 }
 
-/* Do not override icons inside buttons in tools dropdown */
+
 #tools-dropdown .btn i {
     color: inherit !important;
 }
 
-/* Override Bootstrap text-* utilities inside user menu to unify icon colors */
+
 #user-dropdown .activity-icon.text-primary,
 #user-dropdown .activity-icon.text-info,
 #user-dropdown .activity-icon.text-warning,
@@ -1499,7 +1471,7 @@ html, body {
     color: var(--color-secondary) !important;
 }
 
-/* Inline panels opened from user menu should match site color for icons */
+
 #notifications-panel .dropdown-header i,
 #notifications-panel .activity-item .activity-icon i,
 #messages-panel .dropdown-header i,
@@ -1510,13 +1482,13 @@ html, body {
     color: var(--color-secondary) !important;
 }
 
-/* Ensure the inline timer panel has a comfortable width */
+
 #focus-timer-panel {
     min-width: 300px;
     max-width: calc(100vw - 16px);
 }
 
-/* Inside the timer panel, give presets more horizontal space */
+
 #focus-timer-panel .timer-options > div {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1530,7 +1502,7 @@ html, body {
     font-size: 0.95rem;
 }
 
-/* Make the Remaining Time block more compact */
+
 #focus-timer-panel .progress-ring {
     width: 72px;
     height: 72px;
@@ -1545,7 +1517,7 @@ html, body {
     font-size: 1rem;
 }
 
-/* Activity Item Styles */
+
 .activity-item {
     display: flex;
     align-items: center;
@@ -1632,7 +1604,7 @@ html, body {
     text-overflow: ellipsis;
 }
 
-/* Timestamp */
+
 .activity-time {
     font-size: 0.7rem;
     color: var(--color-text-light);
@@ -1646,7 +1618,7 @@ html, body {
         font-size: 0.8em;
     }
 
-/* Inline Panels */
+
 .inline-left-from-network,
 .inline-left-from-notifications {
     position: absolute;
@@ -1659,17 +1631,16 @@ html, body {
     display: none;
 }
 
-/* Alert Enhancements */
+
 .alert-content {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-/* ===== Moved from Views/Dashboard/Index.cshtml (scoped) ===== */
-/* Scope all rules to the dashboard page to avoid conflicts */
 
-/* Layout */
+
+
 .dashboard-page .main-content {
     display: flex;
     width: 100%;
@@ -1732,7 +1703,7 @@ html, body {
     border-radius: 8px;
 }
 
-/* Toolbar and buttons */
+
 .dashboard-page .controls-bar {
     padding: 0;
 }
@@ -1789,7 +1760,7 @@ html, body {
     margin: 0;
 }
 
-/* Content area */
+
 .dashboard-page #content-wrapper {
     padding: 2rem;
     background-color: var(--color-white);
@@ -1808,7 +1779,7 @@ html, body {
     padding: 0;
 }
 
-/* Dark/Reading modes */
+
 .dashboard-page .reading-mode {
     max-width: 800px;
     margin: 0 auto;
@@ -1852,7 +1823,7 @@ html, body {
             color: #ffffff;
         }
 
-/* File list and cards */
+
 .dashboard-page #uploaded-files-section {
     display: block;
     visibility: visible;
@@ -1967,9 +1938,7 @@ html, body {
     padding: 0.25rem 0.5rem;
 }
 
-/* Upload cards */
-/* Upload Card
-   ========================================================================== */
+
 .upload-card {
     background: var(--color-white);
     border: none;
@@ -2014,7 +1983,7 @@ html, body {
     font-size: 0.85rem;
 }
 
-/* Dropdown enhancements */
+
 .dashboard-page .custom-dropdown {
     min-width: 220px;
     padding: 0.5rem 0;
@@ -2044,7 +2013,7 @@ html, body {
         color: var(--color-secondary);
     }
 
-/* User dropdown and inline panels */
+
 .dashboard-page .right-nav {
     position: relative;
     z-index: 1000;
@@ -2056,20 +2025,20 @@ html, body {
     padding-left: 1rem;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
+    scrollbar-width: none; 
 }
 
     .dashboard-page .right-nav::-webkit-scrollbar {
-        display: none; /* Hide scrollbar for Chrome, Safari and Opera */
+        display: none; 
     }
 
-/* Ensure user dropdown has proper spacing */
+
 .user-dropdown {
     position: relative;
     flex-shrink: 0;
 }
 
-/* Navigation buttons */
+
 .nav-btn {
     white-space: nowrap;
     padding: 0.5rem 1rem;
@@ -2078,7 +2047,7 @@ html, body {
     flex-shrink: 0;
 }
 
-/* Responsive adjustments */
+
 @media (max-width: 992px) {
     .dashboard-page .right-nav {
         gap: 0.25rem;
@@ -2100,12 +2069,12 @@ html, body {
     }
 }
 
-/* User dropdown container */
+
 .user-dropdown.combined-icon {
     position: relative;
 }
 
-/* Main dropdown menu */
+
 .dropdown-menu.enhanced-dropdown {
     position: fixed;
     min-width: 320px;
@@ -2127,7 +2096,7 @@ html, body {
         display: block;
     }
 
-/* Inline panels (notifications and add network) */
+
 .dropdown-menu.inline-left-from-network {
     position: absolute;
     top: 0;
@@ -2147,12 +2116,12 @@ html, body {
         display: block;
     }
 
-/* Ensure proper stacking context */
+
 #user-dropdown {
     position: relative;
 }
 
-/* Focus dropdown specific styles */
+
 .dashboard-page #focus-dropdown {
     position: relative;
     overflow: visible;
@@ -2179,9 +2148,7 @@ html, body {
     z-index: 1;
 }
 
-/* ===========================================
-   Notifications Panel
-   =========================================== */
+
 .notifications-panel {
     position: fixed;
     top: 60px;
@@ -2268,11 +2235,7 @@ html, body {
         margin-left: 8px;
     }
 
-/* Removed duplicate .notification-badge block (use the unified one defined earlier) */
 
-/* Removed duplicate .notification-badge variant (consolidated) */
-
-/* Animation for new notifications */
 @keyframes pulse {
     0% {
         transform: scale(1);
@@ -2291,7 +2254,7 @@ html, body {
     animation: pulse 0.5s ease-in-out 2;
 }
 
-/* Scrollbar styling */
+
 .notifications-panel::-webkit-scrollbar {
     width: 6px;
 }
@@ -2310,7 +2273,6 @@ html, body {
         background: #a8a8a8;
     }
 
-/* Old notifications dropdown - keeping for reference */
 .notifications-dropdown .dropdown-header a {
     font-size: 0.8rem;
     font-weight: 500;
@@ -2335,9 +2297,7 @@ html, body {
     margin-left: 10px;
 }
 
-/* Removed third duplicate .notification-badge definition */
 
-/* All Notifications Modal */
 #allNotificationsModal .modal-dialog {
     max-width: 500px;
 }
@@ -2346,7 +2306,7 @@ html, body {
     padding: 0;
 }
 
-/* Dark mode support */
+
 .dark-mode .notifications-dropdown {
     background-color: #2d2d2d;
     border-color: #444;
@@ -2378,7 +2338,7 @@ html, body {
         background-color: #1a3a5f;
     }
 
-/* Network Panel Styles */
+
 .network-panel {
     min-width: 300px;
     max-width: 350px;
@@ -2531,7 +2491,7 @@ html, body {
     font-size: 12px;
 }
 
-/* Hover effects for activity items */
+
 .dashboard-page .activity-item {
     display: flex;
     align-items: center;
@@ -2554,7 +2514,7 @@ html, body {
             color: var(--color-secondary);
         }
 
-/* Animations */
+
 @keyframes focusSpotlight {
     from {
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -2569,7 +2529,7 @@ html, body {
     animation: fadeIn 0.4s ease-out, focusSpotlight 1s ease-in-out alternate infinite;
 }
 
-/* Scrollbar inside document content */
+
 .dashboard-page .document-content::-webkit-scrollbar {
     width: 8px;
 }
@@ -2588,7 +2548,7 @@ html, body {
         background: #a8a8a8;
     }
 
-/* Responsive adjustments */
+
 @media (max-width: 1200px) {
     .dashboard-page #focus-dropdown .inline-left-from-focus {
         right: 0;
@@ -2612,26 +2572,24 @@ html, body {
     }
 }
 
-/* ===== End moved styles ===== */
 
-/* ===== Mode-based visibility enforcement ===== */
-.dashboard-page.mode-files #file-display-container {
+.dashboard-page.mode-files .left-side #file-display-container {
     display: none !important;
 }
 
-.dashboard-page.mode-files #uploaded-files-section {
+.dashboard-page.mode-files .left-side #uploaded-files-section {
     display: block !important;
 }
 
-.dashboard-page.mode-files .controls-bar,
-.dashboard-page.mode-files .divider {
+.dashboard-page.mode-files .left-side .controls-bar,
+.dashboard-page.mode-files .left-side .divider {
     display: none !important;
 }
 
-.dashboard-page.mode-viewer #file-display-container {
+.dashboard-page.mode-viewer .left-side #file-display-container {
     display: flex !important;
 }
 
-.dashboard-page.mode-viewer #uploaded-files-section {
+.dashboard-page.mode-viewer .left-side #uploaded-files-section {
     display: none !important;
 }

@@ -380,6 +380,8 @@
 
                         <label for="signup-password">Password</label>
                         <input type="password" name="password" id="signup-password" placeholder="At least 8 characters" minlength="8" required autocomplete="new-password" />
+                        <label for="signup-confirm-password">Confirm Password</label>
+                        <input type="password" name="confirmPassword" id="signup-confirm-password" placeholder="Re-enter your password" minlength="8" required autocomplete="new-password" />
                         <button type="button" class="submit-btn" onclick="validateStep1()">Next</button>
                     </div>
 
@@ -469,14 +471,19 @@
             const fullName = document.getElementById('fullName').value.trim();
             const email = document.getElementById('signup-email').value.trim();
             const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
             
             // Basic validation
-            if (!fullName || !email || !password) {
+            if (!fullName || !email || !password || !confirmPassword) {
                 alert('Please fill in all fields');
                 return;
             }
             if (password.length < 8) {
                 alert('Password must be at least 8 characters');
+                return;
+            }
+            if (password !== confirmPassword) {
+                alert('Passwords do not match');
                 return;
             }
             

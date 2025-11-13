@@ -88,7 +88,7 @@ namespace ADHDWebApp.Controllers
         }
 
         [HttpPost]
-        public IActionResult Register(string email, string password, string fullName, DateTime dateOfBirth, string role, bool? hasADHD, string? gender)
+        public IActionResult Register(string email, string password, string confirmPassword, string fullName, DateTime dateOfBirth, string role, bool? hasADHD, string? gender)
         {
             var existingUser = _context.Users.FirstOrDefault(u => u.Email == email);
 
@@ -96,6 +96,13 @@ namespace ADHDWebApp.Controllers
             {
                 TempData["OpenSignup"] = "true";
                 TempData["InlineSignupError"] = "This email is exist please try another one.";
+                return RedirectToAction("EnterEmail");
+            }
+
+            if (password != confirmPassword)
+            {
+                TempData["OpenSignup"] = "true";
+                TempData["InlineSignupError"] = "Passwords do not match.";
                 return RedirectToAction("EnterEmail");
             }
 
@@ -113,8 +120,11 @@ namespace ADHDWebApp.Controllers
             _context.Users.Add(newUser);
             _context.SaveChanges();
 
-            TempData["UserEmail"] = email;
-            return RedirectToAction("EnterPassword");
+            // Log the user in by setting session, then go directly to Dashboard
+            HttpContext.Session.SetInt32("UserId", newUser.Id);
+            HttpContext.Session.SetString("FullName", newUser.FullName);
+            HttpContext.Session.SetString("UserEmail", newUser.Email);
+            return RedirectToAction("Index", "Dashboard");
         }
 
         public IActionResult Logout()

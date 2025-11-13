@@ -28,7 +28,6 @@ namespace ADHDWebApp.Data
 
             
 
-            // SharedFile configuration
             modelBuilder.Entity<SharedFile>(entity =>
             {
                 entity.HasOne(sf => sf.Sender)
@@ -47,7 +46,6 @@ namespace ADHDWebApp.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Message configuration
             modelBuilder.Entity<Message>(entity =>
             {
                 entity.HasOne(m => m.Sender)
@@ -61,7 +59,6 @@ namespace ADHDWebApp.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Class configuration
             modelBuilder.Entity<Class>(entity =>
             {
                 entity.HasIndex(c => c.JoinCode).IsUnique();
@@ -73,7 +70,6 @@ namespace ADHDWebApp.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // ClassMembership configuration
             modelBuilder.Entity<ClassMembership>(entity =>
             {
                 entity.HasIndex(cm => new { cm.UserId, cm.ClassId }).IsUnique();
@@ -87,7 +83,6 @@ namespace ADHDWebApp.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // ClassFile configuration
             modelBuilder.Entity<ClassFile>(entity =>
             {
                 entity.HasOne(cf => cf.Class)
@@ -101,7 +96,6 @@ namespace ADHDWebApp.Data
                       .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // ClassChatMessage configuration
             modelBuilder.Entity<ClassChatMessage>(entity =>
             {
                 entity.HasOne(m => m.Class)
