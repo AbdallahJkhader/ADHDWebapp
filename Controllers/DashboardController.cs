@@ -3,10 +3,14 @@ using ADHDWebApp.Models;
 using DocumentFormat.OpenXml.Packaging; 
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.IO;
+using System.Text.Json;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
+using OpenAI;
+using OpenAI.Chat;
 
 
 
@@ -15,10 +19,112 @@ namespace ADHDWebApp.Controllers
     public class DashboardController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _config;
 
-        public DashboardController(AppDbContext context)
+        public DashboardController(AppDbContext context, IConfiguration config)
         {
             _context = context;
+            _config = config;
+        }
+
+      
+        public class SummarizeRequest { public string? Text { get; set; } }
+
+        [HttpPost]
+        [Route("Dashboard/Summarize")]
+        public async Task<IActionResult> Summarize([FromBody] SummarizeRequest req)
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail))
+                    return Json(new { success = false, error = "Not logged in" });
+
+                if (req == null || string.IsNullOrWhiteSpace(req.Text))
+                    return Json(new { success = false, error = "No text provided" });
+
+                var now = DateTime.UtcNow;
+                var lastStr = HttpContext.Session.GetString("SummarizeLastAt");
+                if (DateTime.TryParse(lastStr, out var lastAt))
+                {
+                    var diff = now - lastAt;
+                    const int CooldownSeconds = 30;
+                    if (diff.TotalSeconds < CooldownSeconds)
+                    {
+                        var remaining = Math.Ceiling(CooldownSeconds - diff.TotalSeconds);
+                        Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
+                        return Json(new { success = false, error = $"Please wait {remaining} seconds before trying again." });
+                    }
+                }
+                HttpContext.Session.SetString("SummarizeLastAt", now.ToString("o"));
+
+                var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+                             ?? _config["OpenAI:ApiKey"];
+                if (string.IsNullOrWhiteSpace(apiKey))
+                    return Json(new { success = false, error = "OpenAI API key not configured" });
+
+                var text = req.Text;
+                const int MAX_CHARS = 12000; 
+                if (text.Length > MAX_CHARS) text = text.Substring(0, MAX_CHARS);
+
+                var http = new HttpClient();
+                http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+                var payload = new
+                {
+                    model = _config["OpenAI:Model"] ?? "gpt-4o-mini",
+                    temperature = 0.3,
+                    messages = new object[]
+                    {
+                        new { role = "system", content = "You are a helpful assistant that writes concise, clear summaries." },
+                        new { role = "user", content = "Summarize the following text in bullet points and keep it concise:\n\n" + text }
+                    }
+                };
+
+                var json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                HttpResponseMessage? resp = null;
+                string? respBody = null;
+                const int maxAttempts = 3;
+                for (int attempt = 1; attempt <= maxAttempts; attempt++)
+                {
+                    resp = await http.PostAsync("https://api.openai.com/v1/chat/completions", content);
+                    if (resp.StatusCode == HttpStatusCode.TooManyRequests || resp.StatusCode == HttpStatusCode.ServiceUnavailable)
+                    {
+                        var retryAfter = resp.Headers.RetryAfter?.Delta ?? TimeSpan.Zero;
+                        var delay = retryAfter > TimeSpan.Zero ? retryAfter : TimeSpan.FromMilliseconds(Math.Pow(2, attempt - 1) * 1000);
+                        await Task.Delay(delay);
+                        content = new StringContent(json, Encoding.UTF8, "application/json");
+                        continue;
+                    }
+                    break;
+                }
+
+                respBody = await (resp?.Content.ReadAsStringAsync() ?? Task.FromResult(string.Empty));
+                if (resp == null || !resp.IsSuccessStatusCode)
+                {
+                    var is429 = resp?.StatusCode == HttpStatusCode.TooManyRequests;
+                    var msg = is429
+                        ? "Rate limit exceeded. Please wait a few seconds and try again."
+                        : $"OpenAI error: {(int)(resp?.StatusCode ?? 0)} {resp?.ReasonPhrase}";
+                    return Json(new { success = false, error = msg, body = respBody });
+                }
+                using var doc = JsonDocument.Parse(respBody);
+                var root = doc.RootElement;
+                string? summary = null;
+                try
+                {
+                    summary = root.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+                }
+                catch { summary = null; }
+                if (string.IsNullOrWhiteSpace(summary)) summary = "No summary produced.";
+                return Json(new { success = true, summary });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
         }
 
         [HttpPost]
@@ -452,6 +558,219 @@ namespace ADHDWebApp.Controllers
                 len = len / 1024;
             }
             return $"{len:0.##} {sizes[order]}";
+        }
+
+        // Save plain text content as a new file for the current user
+        [HttpPost]
+        [Route("Dashboard/SaveText")]
+        public async Task<IActionResult> SaveText([FromBody] SaveTextRequest req)
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail))
+                    return Json(new { success = false, error = "Not logged in" });
+
+                if (req == null)
+                    return Json(new { success = false, error = "Invalid request" });
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                if (user == null)
+                    return Json(new { success = false, error = "User not found" });
+
+                var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "Untitled.txt" : req.FileName.Trim();
+                if (!fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+                {
+                    fileName += ".txt";
+                }
+
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                // Ensure unique filename for this user folder (global uploads for now)
+                string MakeSafeName(string name)
+                {
+                    foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+                    return name;
+                }
+
+                fileName = MakeSafeName(fileName);
+                var targetPath = Path.Combine(uploadsFolder, fileName);
+                if (System.IO.File.Exists(targetPath))
+                {
+                    var baseName = Path.GetFileNameWithoutExtension(fileName);
+                    var ext = Path.GetExtension(fileName);
+                    int i = 1;
+                    do
+                    {
+                        fileName = $"{baseName} ({i++}){ext}";
+                        targetPath = Path.Combine(uploadsFolder, fileName);
+                    } while (System.IO.File.Exists(targetPath));
+                }
+
+                // Write text content
+                var content = req.Content ?? string.Empty;
+                await System.IO.File.WriteAllTextAsync(targetPath, content);
+
+                var userFile = new UserFile
+                {
+                    FileName = fileName,
+                    FilePath = "/uploads/" + fileName,
+                    ContentType = "text/plain",
+                    FileSize = new FileInfo(targetPath).Length,
+                    UploadedAt = DateTime.Now,
+                    UserId = user.Id,
+                    User = user
+                };
+                _context.UserFiles.Add(userFile);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, fileId = userFile.Id, fileName = userFile.FileName });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        public class SaveTextRequest
+        {
+            public string? FileName { get; set; }
+            public string? Content { get; set; }
+        }
+
+        // ===== File Groups (persisted per user in JSON) =====
+        private string GetGroupsFolder()
+        {
+            var root = Directory.GetCurrentDirectory();
+            var folder = Path.Combine(root, "App_Data", "groups");
+            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+            return folder;
+        }
+
+        private string GetUserGroupsPath(int userId)
+        {
+            return Path.Combine(GetGroupsFolder(), $"user_{userId}.json");
+        }
+
+        private class GroupsModel
+        {
+            public Dictionary<string, List<int>> Groups { get; set; } = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private async Task<GroupsModel> LoadUserGroupsAsync(int userId)
+        {
+            try
+            {
+                var path = GetUserGroupsPath(userId);
+                if (!System.IO.File.Exists(path)) return new GroupsModel();
+                var json = await System.IO.File.ReadAllTextAsync(path);
+                var model = JsonSerializer.Deserialize<GroupsModel>(json) ?? new GroupsModel();
+                // Normalize nulls
+                model.Groups = model.Groups ?? new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+                return model;
+            }
+            catch { return new GroupsModel(); }
+        }
+
+        private async Task SaveUserGroupsAsync(int userId, GroupsModel model)
+        {
+            var path = GetUserGroupsPath(userId);
+            var json = JsonSerializer.Serialize(model, new JsonSerializerOptions { WriteIndented = true });
+            await System.IO.File.WriteAllTextAsync(path, json);
+        }
+
+        public class SaveGroupRequest
+        {
+            public string? Name { get; set; }
+            public List<int>? FileIds { get; set; }
+        }
+
+        [HttpGet]
+        [Route("Dashboard/GetGroups")]
+        public async Task<IActionResult> GetGroups()
+        {
+            var userEmail = HttpContext.Session.GetString("UserEmail");
+            if (string.IsNullOrEmpty(userEmail))
+                return Json(new { success = false, error = "Not logged in" });
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+            if (user == null) return Json(new { success = false, error = "User not found" });
+
+            var model = await LoadUserGroupsAsync(user.Id);
+            return Json(new { success = true, groups = model.Groups });
+        }
+
+        [HttpPost]
+        [Route("Dashboard/SaveGroup")]
+        public async Task<IActionResult> SaveGroup([FromBody] SaveGroupRequest req)
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail))
+                    return Json(new { success = false, error = "Not logged in" });
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                if (user == null)
+                    return Json(new { success = false, error = "User not found" });
+
+                if (req == null || string.IsNullOrWhiteSpace(req.Name) || req.FileIds == null || req.FileIds.Count == 0)
+                    return Json(new { success = false, error = "Invalid request" });
+
+                // Ensure files belong to user
+                var userFileIds = await _context.UserFiles
+                    .Where(f => f.UserId == user.Id && req.FileIds.Contains(f.Id))
+                    .Select(f => f.Id)
+                    .ToListAsync();
+
+                if (userFileIds.Count == 0)
+                    return Json(new { success = false, error = "No valid files" });
+
+                var model = await LoadUserGroupsAsync(user.Id);
+                var name = req.Name.Trim();
+                if (!model.Groups.ContainsKey(name)) model.Groups[name] = new List<int>();
+                // Overwrite group with provided list (distinct)
+                model.Groups[name] = userFileIds.Distinct().ToList();
+
+                await SaveUserGroupsAsync(user.Id, model);
+                return Json(new { success = true, name = name, fileIds = model.Groups[name] });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        public class DeleteGroupRequest { public string? Name { get; set; } }
+
+        [HttpPost]
+        [Route("Dashboard/DeleteGroup")]
+        public async Task<IActionResult> DeleteGroup([FromBody] DeleteGroupRequest req)
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail))
+                    return Json(new { success = false, error = "Not logged in" });
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                if (user == null) return Json(new { success = false, error = "User not found" });
+
+                if (req == null || string.IsNullOrWhiteSpace(req.Name))
+                    return Json(new { success = false, error = "Invalid request" });
+
+                var model = await LoadUserGroupsAsync(user.Id);
+                if (model.Groups.Remove(req.Name.Trim()))
+                {
+                    await SaveUserGroupsAsync(user.Id, model);
+                }
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
         }
     }
 }

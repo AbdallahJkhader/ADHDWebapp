@@ -168,7 +168,6 @@
             line-height: 1.6;
         }
 
-        /* Tabs Styling */
         .tabs {
             display: flex;
             border-bottom: 1px solid #e5e7eb;
@@ -216,7 +215,6 @@
             display: block;
         }
 
-        /* Make labels occupy full line above inputs */
         .right label {
             display: block;
             margin-bottom: 4px;
@@ -225,7 +223,6 @@
             font-weight: 500;
         }
 
-        /* Stack inputs/buttons vertically inside signup steps */
         #signup-step1, #signup-step2 {
             display: flex;
             flex-direction: column;
@@ -309,7 +306,7 @@
         .hero::before {
             content: "";
             display: block;
-            padding-top: 56.25%; /* 16:9 fallback */
+            padding-top: 56.25%; 
         }
 
         .hero img {
@@ -331,14 +328,12 @@
             <img src="/images/loginphoto.jpg" alt="Login image" />
         </div>
         
-        <!-- Tabs Navigation -->
         <div class="tabs">
             <button class="tab-btn active" data-tab="signin">Sign In</button>
             <button class="tab-btn" data-tab="signup">Sign Up</button>
         </div>
 
         <div class="right">
-            <!-- Sign In Tab Content -->
             <div id="signin" class="tab-content active">
                 <div class="social-buttons">
                     <button type="button" class="google-btn" onclick="alert('Google Login Coming Soon')">
@@ -363,14 +358,12 @@
                 </div>
             </div>
 
-            <!-- Sign Up Tab Content -->
             <div id="signup" class="tab-content">
                 @if (TempData["InlineSignupError"] != null)
                 {
                     <p style="color:red; text-align:center; margin-bottom:10px;">@TempData["InlineSignupError"]</p>
                 }
                 <form id="signup-form" asp-action="Register" asp-controller="Account" method="post" autocomplete="off">
-                    <!-- Step 1 -->
                     <div id="signup-step1">
                         <label for="fullName">Full Name</label>
                         <input type="text" name="fullName" id="fullName" placeholder="example" required autocomplete="name" autocapitalize="off" spellcheck="false" />
@@ -385,7 +378,6 @@
                         <button type="button" class="submit-btn" onclick="validateStep1()">Next</button>
                     </div>
 
-                    <!-- Step 2 (initially hidden) -->
                     <div id="signup-step2" style="display: none;">
                         <label for="dateOfBirth">Date of Birth</label>
                         <input type="date" name="dateOfBirth" id="dateOfBirth" required />
@@ -425,33 +417,26 @@
     </div>
 
     <script>
-        // Tab switching functionality
         document.addEventListener('DOMContentLoaded', function() {
             const tabBtns = document.querySelectorAll('.tab-btn');
             const tabContents = document.querySelectorAll('.tab-content');
 
             tabBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    // Remove active class from all buttons and contents
                     tabBtns.forEach(b => b.classList.remove('active'));
                     tabContents.forEach(c => c.classList.remove('active'));
                     
-                    // Add active class to clicked button
                     btn.classList.add('active');
                     
-                    // Show corresponding content
                     const tabId = btn.getAttribute('data-tab');
                     document.getElementById(tabId).classList.add('active');
                 });
             });
 
-            // Auto-open Sign Up tab if server indicates so via TempData
             const openSignup = '@(TempData["OpenSignup"] as string)';
             if (openSignup === 'true') {
-                // Deactivate all
                 tabBtns.forEach(b => b.classList.remove('active'));
                 tabContents.forEach(c => c.classList.remove('active'));
-                // Activate signup
                 const signupBtn = document.querySelector('.tab-btn[data-tab="signup"]');
                 const signupContent = document.getElementById('signup');
                 if (signupBtn && signupContent) {
@@ -467,13 +452,11 @@
         }
 
         function validateStep1() {
-            // Get form elements
             const fullName = document.getElementById('fullName').value.trim();
             const email = document.getElementById('signup-email').value.trim();
             const password = document.getElementById('signup-password').value;
             const confirmPassword = document.getElementById('signup-confirm-password').value;
             
-            // Basic validation
             if (!fullName || !email || !password || !confirmPassword) {
                 alert('Please fill in all fields');
                 return;
@@ -487,28 +470,22 @@
                 return;
             }
             
-            // Email validation
             const emailRegex = new RegExp('^[^\\s@@]+@@[^\\s@@]+\\.[^\\s@@]+$');
             if (!emailRegex.test(email)) {
                 alert('Please enter a valid email address');
                 return;
             }
             
-            // If validation passes, show step 2
             document.getElementById('signup-step1').style.display = 'none';
             document.getElementById('signup-step2').style.display = 'block';
         }
         
         function backToStep1() {
-            // Go back to step 1
             document.getElementById('signup-step1').style.display = 'block';
             document.getElementById('signup-step2').style.display = 'none';
         }
         
-        // This function is no longer needed as we're using form submission
-        // function submitSignupForm() {
-        //     document.getElementById('signup-form').submit();
-        // }
+      
     </script>
 </body>
 </html>

@@ -689,71 +689,55 @@
         <div class="left-side">
             <div class="doc-box">
                 <div class="left-content">
-                    <!-- Upload Container -->
-                    <div id="upload-container" class="text-center p-4" style="display: @((ViewBag.ShowLeftPanel == true || TempData["UploadedText"] != null) ? "none" : "flex")">
-                        <div class="welcome-section mb-3">
-                            <h5 class="mb-2">Welcome, @ViewBag.FullName</h5>
-                        </div>
-
-                        <div class="upload-options">
-                            <div class="upload-card mb-1" onclick="document.getElementById('file-upload').click()">
-                                <div class="upload-icon">
-                                    <i class="bi bi-file-text"></i>
-                                </div>
+                  
+                    <div id="left-top-actions" class="p-3 d-flex align-items-center justify-content-center">
+                        <div class="d-flex gap-3" style="max-width:720px;">
+                            <div class="upload-card text-center flex-fill" style="cursor:pointer;" onclick="document.getElementById('file-upload').click()">
+                                <div class="upload-icon"><i class="bi bi-file-text"></i></div>
                                 <h5>Upload File</h5>
-                                <p class="text-muted small">PDF, DOCX, TXT, Images (PNG/JPG/JPEG/GIF)</p>
                             </div>
-
-                            <div class="upload-card mb-1" onclick="showMyFiles()">
-                                <div class="upload-icon">
-                                    <i class="bi bi-folder"></i>
-                                </div>
-                                <h5>My Files</h5>
-                                <p class="text-muted small">Open your previously uploaded files</p>
-                            </div>
-
-                            <div class="upload-card mb-0" onclick="toggleTextInput()">
-                                <div class="upload-icon">
-                                    <i class="bi bi-pencil-square"></i>
-                                </div>
-                                <h5>Manual Input</h5>
-                                <p class="text-muted small">Type or paste your text</p>
+                            <div class="upload-card text-center flex-fill" style="cursor:pointer;" onclick="startEmptyDocument()">
+                                <div class="upload-icon"><i class="bi bi-pencil-square"></i></div>
+                                <h5>Start Empty</h5>
                             </div>
                         </div>
-
-                        <div id="upload-inline-error" class="text-danger small mt-2">@TempData["InlineError"]</div>
-
-                        <form id="uploadForm" method="post" enctype="multipart/form-data" asp-controller="Dashboard" asp-action="UploadDocument">
-                            <input type="file" id="file-upload" name="file" class="d-none" accept=".txt,.docx,.pdf,.png,.jpg,.jpeg,.gif" onchange="if (handleFileSelection(this)) document.getElementById('uploadForm').submit();">
-                            <div id="file-info" class="upload-info mt-4"></div>
-                        </form>
+                        <div id="upload-inline-error" class="text-danger small ms-3">@TempData["InlineError"]</div>
                     </div>
 
-                    <!-- Uploaded Files Section - Small and Clean -->
-                    <div id="uploaded-files-section" class="mt-1" style="display: none">
-                        <div class="uploaded-files-container">
-                            <h6 class="files-section-title mb-2">
-                                <i class="bi bi-folder-open me-2"></i><span id="uploaded-files-title-text">Your Files</span>
-                            </h6>
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div>
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="setLeftView('upload')">
-                                        <i class="bi bi-arrow-left"></i> Back
+                    
+                    <form id="uploadForm" method="post" enctype="multipart/form-data" asp-controller="Dashboard" asp-action="UploadDocument">
+                        <input type="file" id="file-upload" name="file" class="d-none" accept=".txt,.docx,.pdf,.png,.jpg,.jpeg,.gif" onchange="if (handleFileSelection(this)) document.getElementById('uploadForm').submit();">
+                        <div id="file-info" class="upload-info mt-2"></div>
+                    </form>
+
+                    
+                    <div id="uploaded-files-section" class="mt-1" style="display: block">
+                            <div id="uploaded-files-container" class="uploaded-files-container">
+                            <div id="files-manage-bar" class="d-flex justify-content-between align-items-center mb-2" style="display:none;">
+                                <div class="d-flex align-items-center gap-3"></div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" id="btn-delete-group" style="display:none;" onclick="deleteCurrentGroup()">
+                                        <i class="bi bi-folder-x"></i> Delete Group
                                     </button>
-                                </div>
-                                <div>
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="groupSelectedFiles()">
+                                        <i class="bi bi-collection"></i> Group
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-danger" onclick="deleteSelectedFiles()">
-                                        <i class="bi bi-trash"></i> Delete Selected
+                                        <i class="bi bi-trash"></i> Delete
                                     </button>
                                 </div>
                             </div>
+
+                            <h6 class="files-section-title mb-2">
+                                <i class="bi bi-folder-open me-2"></i><span id="uploaded-files-title-text">Your Recent Files</span>
+                            </h6>
 
                             @if (ViewBag.UserFiles != null && ((List<UserFile>)ViewBag.UserFiles).Any())
                             {
                                 <div class="files-grid">
-                                    @foreach (var file in (List<UserFile>)ViewBag.UserFiles)
+                                    @foreach (var file in ((List<UserFile>)ViewBag.UserFiles).OrderByDescending(f => f.UploadedAt))
                                     {
-                                        <div class="file-card" onclick="openFile(@file.Id)" data-file-id="@file.Id">
+                                        <div class="file-card" onclick="openFile(@file.Id)" data-file-id="@file.Id" data-uploaded-at="@file.UploadedAt.Ticks">
                                             <div class="form-check" style="position: absolute; top: 8px; left: 8px;">
                                                 <input class="form-check-input file-select-checkbox" type="checkbox" data-file-id="@file.Id" onclick="event.stopPropagation();" onchange="onFileCheckboxChange(this)">
                                             </div>
@@ -795,7 +779,7 @@
                         </div>
                     </div>
 
-                    <!-- Manual Text Input -->
+                    
                     <div id="manual-text" style="display: none;" class="p-4">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h5 class="m-0">Manual Text Input</h5>
@@ -813,104 +797,90 @@
                     </div>
 
 
+                
+                    <div id="file-display-container" style="display: none" class="d-flex flex-column h-100 pt-2">
+                        <div class="controls-bar d-flex align-items-center gap-2">
+                            <button onclick="resetUpload()" class="btn btn-primary btn-sm">
+                                <i class="bi bi-arrow-left me-1"></i>
+                                Back
+                            </button>
+                            
+                            <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
+                                <i class="bi bi-eye-slash"></i>
+                            </button>
 
-                    <!-- File Display Container -->
-                    <div id="file-display-container" style="display: @((ViewBag.ShowLeftPanel == true || TempData["UploadedText"] != null) ? "flex" : "none")" class="d-flex flex-column h-100 pt-2">
-                        <!-- Controls Bar -->
-                        <div class="controls-bar">
-                            <div class="d-flex gap-2 align-items-center">
-                                <!-- Back button moved to the far left -->
-                                <button onclick="resetUpload()" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back
+                            <div class="dropdown d-inline-block">
+                                <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
+                                    <i class="bi bi-sliders me-1"></i><span class="d-none d-sm-inline">Options</span>
                                 </button>
-
-                                <!-- Text Alignment Controls -->
-                                
-
-                                <!-- Dark Mode Toggle -->
-                                <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
-                                    <i class="bi bi-eye-slash"></i>
-                                </button>
-
-                                <div class="dropdown d-inline-block">
-                                    <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
-                                        <i class="bi bi-sliders me-1"></i><span class="d-none d-sm-inline">Options</span>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
-                                        <li class="dropdown-header">Text Settings</li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="adjustFontSize('increase')">
-                                                <i class="bi bi-zoom-in me-2"></i>Increase Font Size
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="adjustFontSize('decrease')">
-                                                <i class="bi bi-zoom-out me-2"></i>Decrease Font Size
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li class="dropdown-header">Alignment</li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="setTextAlign('left')">
-                                                <i class="bi bi-text-left me-2"></i>Align Left
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="setTextAlign('center')">
-                                                <i class="bi bi-text-center me-2"></i>Align Center
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="setTextAlign('right')">
-                                                <i class="bi bi-text-right me-2"></i>Align Right
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li class="dropdown-header">Layout</li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="toggleLineHeight()">
-                                                <i class="bi bi-text-spacing me-2"></i>Toggle Line Spacing
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="toggleReadingMode()">
-                                                <i class="bi bi-book me-2"></i>Reading Mode
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li class="dropdown-header">File Actions</li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="downloadContent()">
-                                                <i class="bi bi-download me-2"></i>Download
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="shareContent()">
-                                                <i class="bi bi-share me-2"></i>Share
-                                            </button>
-                                        </li>
-                                    </ul>
+                                <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                                    <li class="dropdown-header">Text Settings</li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="adjustFontSize('increase')">
+                                            <i class="bi bi-zoom-in me-2"></i>Increase Font Size
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="adjustFontSize('decrease')">
+                                            <i class="bi bi-zoom-out me-2"></i>Decrease Font Size
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li class="dropdown-header">Alignment</li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="setTextAlign('left')">
+                                            <i class="bi bi-text-left me-2"></i>Align Left
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="setTextAlign('center')">
+                                            <i class="bi bi-text-center me-2"></i>Align Center
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="setTextAlign('right')">
+                                            <i class="bi bi-text-right me-2"></i>Align Right
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li class="dropdown-header">Layout</li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="toggleLineHeight()">
+                                            <i class="bi bi-text-spacing me-2"></i>Toggle Line Spacing
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="toggleReadingMode()">
+                                            <i class="bi bi-book me-2"></i>Reading Mode
+                                        </button>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li class="dropdown-header">File Actions</li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="downloadContent()">
+                                            <i class="bi bi-download me-2"></i>Download
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="shareContent()">
+                                            <i class="bi bi-share me-2"></i>Share
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="flex-grow-1 text-center">
+                                <span class="filename-display fw-medium">@(ViewBag.FileName ?? TempData["FileName"])</span>
+                            </div>
+                            <div class="ms-auto d-flex gap-3 align-items-center">
+                                <div id="word-count" class="text-muted small">
+                                    <i class="bi bi-hash me-1"></i>0 words
                                 </div>
-
-                                <div class="flex-grow-1 text-center">
-                                    <span class="filename-display fw-medium">@(ViewBag.FileName ?? TempData["FileName"])</span>
-                                </div>
-
-                                <!-- Word Count and Read Time -->
-                                <div class="ms-auto d-flex gap-3 align-items-center">
-                                    <div id="word-count" class="text-muted small">
-                                        <i class="bi bi-hash me-1"></i>0 words
-                                    </div>
-                                    <div id="read-time" class="text-muted small">
-                                        <i class="bi bi-clock me-1"></i>0 min read
-                                    </div>
+                                <div id="read-time" class="text-muted small">
+                                    <i class="bi bi-clock me-1"></i>0 min read
                                 </div>
                             </div>
                         </div>
-
                         <hr class="divider my-2">
-
                         <div class="document-content flex-grow-1 bg-white pt-2">
                             <div id="content-wrapper">
                                 <div id="content-display" class="content-text mb-0">@(ViewBag.UploadedText ?? TempData["UploadedText"])</div>
@@ -938,7 +908,7 @@
                     <div id="generate-options" class="w-100" style="max-width: 720px; display: none;">
                         <div class="row w-100">
                             <div class="col-12 col-sm-6 mb-3">
-                                <div class="upload-card text-center" id="gen-opt-summary" style="cursor:pointer;" onclick="window.openSummaryRight && window.openSummaryRight(); return false;">
+                                <div class="upload-card text-center" id="gen-opt-summary" style="cursor:pointer;" onclick="window.summarizeLeftToRight && window.summarizeLeftToRight(); return false;">
                                     <div class="upload-icon"><i class="bi bi-journal-text"></i></div>
                                     <h5>Summary</h5>
                                 </div>
@@ -946,7 +916,7 @@
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-workbook" style="cursor:pointer;">
                                     <div class="upload-icon"><i class="bi bi-book"></i></div>
-                                    <h5>Workbook</h5>
+                                    <h5>Flashcards</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
@@ -1042,6 +1012,13 @@
                                 </div>
 
                                 <div class="ms-auto d-flex gap-3 align-items-center">
+                                    <button type="button"
+                                            id="summary-reload-btn"
+                                            class="btn btn-sm btn-outline-primary"
+                                            onclick="window.summarizeLeftToRight && window.summarizeLeftToRight();"
+                                            title="Reload summary">
+                                        <i class="bi bi-arrow-repeat me-1"></i>Reload
+                                    </button>
                                     <div id="summary-word-count" class="text-muted small">
                                         <i class="bi bi-hash me-1"></i>0 words
                                     </div>
@@ -1070,7 +1047,7 @@
         <button class="arrow-btn"><i class="bi bi-chevron-right"></i></button>
     </div>
 
-    <!-- Help Modal -->
+    
     <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -1082,7 +1059,7 @@
                     <p class="mb-2">Use the right panel to generate new content:</p>
                     <ul class="mb-0">
                         <li>Generate new Summary</li>
-                        <li>Workbook</li>
+                        <li>Flashcards</li>
                         <li>Generate Quizzes</li>
                         <li>Ask AI</li>
                     </ul>
@@ -1094,7 +1071,7 @@
         </div>
     </div>
 
-    <!-- Add Network Modal -->
+    
     <div class="modal fade" id="addNetworkModal" tabindex="-1" aria-labelledby="addNetworkModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -1120,7 +1097,6 @@
         </div>
     </div>
 
-    <!-- Inline Add Network panel -->
     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="network-add-panel" style="z-index: 1100; direction:ltr;" dir="ltr">
         <div class="dropdown-header">
             <i class="bi bi-people"></i>
@@ -1154,7 +1130,6 @@
             getFileContentUrl: '@Url.Action("GetFileContent", "Dashboard")'
         };
     </script>
-    <!-- Load Bootstrap before app scripts to ensure bootstrap.Modal is available -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/dashboard.js"></script>
 </body>

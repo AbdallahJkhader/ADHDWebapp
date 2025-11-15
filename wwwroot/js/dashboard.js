@@ -10,6 +10,208 @@ document.addEventListener('DOMContentLoaded', () => {
         if (generateOptions) generateOptions.style.display = 'none';
     } catch {}
 
+// ===== Groups: load, render, open/exit =====
+async function loadGroups() {
+    try {
+        const res = await fetch('/Dashboard/GetGroups', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (res.ok && data && data.success) {
+            GROUPS = data.groups || {};
+            renderGroupsUI();
+        }
+    } catch {}
+}
+
+function renderGroupsUI() {
+    const grid = document.querySelector('#uploaded-files-section .files-grid');
+    if (!grid) return;
+    // Remove existing group cards
+    Array.from(grid.querySelectorAll('.group-card')).forEach(el => el.remove());
+    // Compute set of grouped IDs
+    const groupedIds = new Set();
+    Object.values(GROUPS || {}).forEach(arr => (Array.isArray(arr) ? arr : []).forEach(id => groupedIds.add(Number(id))));
+    // Hide grouped file cards when not viewing a specific group
+    const inGroupView = !!CURRENT_GROUP_VIEW;
+    Array.from(grid.children).forEach(card => {
+        const idAttr = card.getAttribute && card.getAttribute('data-file-id');
+        if (!idAttr) return; // skip non-file cards
+        const id = parseInt(idAttr, 10);
+        if (Number.isNaN(id)) return;
+        if (!inGroupView) {
+            card.style.display = groupedIds.has(id) ? 'none' : '';
+        }
+    });
+    if (inGroupView) return;
+    // Insert group cards for each group
+    Object.keys(GROUPS || {}).forEach(name => {
+        const card = document.createElement('div');
+        card.className = 'file-card group-card';
+        card.setAttribute('data-group-name', name);
+        card.onclick = (e) => { e.preventDefault(); openGroup(name); };
+        card.innerHTML = `
+            <div class="file-icon-large"><i class="bi bi-collection"></i></div>
+            <div class="file-name-card">${name}</div>
+            <div class="file-meta-card"><small class="text-muted">${(GROUPS[name]||[]).length} items</small></div>
+        `;
+        grid.insertBefore(card, grid.firstChild);
+    });
+}
+
+function openGroup(name) {
+    CURRENT_GROUP_VIEW = name;
+    const uploadedSection = document.getElementById('uploaded-files-section');
+    const titleEl = document.getElementById('uploaded-files-title-text');
+    if (titleEl) titleEl.textContent = name;
+    const delBtn = document.getElementById('btn-delete-group');
+    if (delBtn) delBtn.style.display = '';
+    const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
+    if (!grid) return;
+    // Hide all
+    Array.from(grid.children).forEach(el => el.style.display = 'none');
+    // Show only group's files
+    const ids = (GROUPS && GROUPS[name]) ? GROUPS[name] : [];
+    ids.forEach(id => {
+        const card = grid.querySelector(`.file-card[data-file-id="${id}"]`);
+        if (card) card.style.display = '';
+    });
+}
+
+function exitGroupView() {
+    CURRENT_GROUP_VIEW = null;
+    const titleEl = document.getElementById('uploaded-files-title-text');
+    if (titleEl) titleEl.textContent = 'Your Files';
+    const delBtn = document.getElementById('btn-delete-group');
+    if (delBtn) delBtn.style.display = 'none';
+    renderGroupsUI();
+}
+
+// Click title to exit group view
+document.addEventListener('click', function (e) {
+    const titleSpan = e.target && e.target.closest('#uploaded-files-title-text');
+    if (titleSpan && CURRENT_GROUP_VIEW) {
+        e.preventDefault();
+        exitGroupView();
+    }
+});
+
+// Summarize left content to right summary panel via server (OpenAI)
+window.summarizeLeftToRight = async function () {
+    try {
+        // Prevent rapid duplicate requests
+        if (window._summarizeInFlight) return;
+        // Respect client-side cooldown
+        const nowMs = Date.now();
+        const cooldownUntil = window._summarizeCooldownUntil || 0;
+        const btn = document.getElementById('summary-reload-btn');
+        const ensureCooldownTimer = () => {
+            if (window._summarizeCooldownTimer) return;
+            window._summarizeCooldownTimer = setInterval(() => {
+                const now = Date.now();
+                const until = window._summarizeCooldownUntil || 0;
+                const remaining = Math.max(0, Math.ceil((until - now) / 1000));
+                const b = document.getElementById('summary-reload-btn');
+                if (b) {
+                    if (remaining > 0) {
+                        b.disabled = true;
+                        b.textContent = `Reload (${remaining})`;
+                    } else {
+                        b.disabled = false;
+                        b.textContent = 'Reload';
+                        clearInterval(window._summarizeCooldownTimer);
+                        window._summarizeCooldownTimer = null;
+                    }
+                }
+            }, 1000);
+        };
+        if (nowMs < cooldownUntil) {
+            const remaining = Math.max(0, Math.ceil((cooldownUntil - nowMs) / 1000));
+            const targetEarly = document.getElementById('summary-content-display');
+            if (targetEarly) targetEarly.innerHTML = `<div class="text-center p-4 text-muted"><i class="bi bi-hourglass-split text-primary" style="font-size: 2rem;"></i><p class="mt-2">Please wait ${remaining} seconds before trying again.</p></div>`;
+            // Reflect remaining on the button immediately
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = `Reload (${remaining})`;
+            }
+            ensureCooldownTimer();
+            return;
+        }
+        window._summarizeInFlight = true;
+        const contentDisplay = document.getElementById('content-display');
+        const text = contentDisplay ? (contentDisplay.textContent || '').trim() : '';
+        if (!text) { alert('No text to summarize.'); return; }
+        // Open summary UI and show loading (match file-loading style)
+        if (typeof window.openSummaryRight === 'function') window.openSummaryRight();
+        const target = document.getElementById('summary-content-display');
+        if (target) {
+            target.innerHTML = '<div class="text-center p-4"><i class="bi bi-hourglass-split text-primary" style="font-size: 2rem;"></i><p class="mt-2">Summarizing content...</p></div>';
+        }
+        // Set button to loading state
+        if (btn) { btn.disabled = true; btn.textContent = 'Reload...'; }
+
+        const res = await fetch('/Dashboard/Summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || data.success !== true) {
+            let msg = (data && data.error) ? data.error : `Failed (HTTP ${res.status})`;
+            if (res.status === 429) {
+                msg = 'Rate limit exceeded. Please wait a few seconds and try again.';
+            }
+            if (target) target.innerHTML = `<div class="text-center p-4 text-danger"><i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i><p class="mt-2">${msg}</p></div>`;
+            // Start cooldown after an attempt (30 seconds)
+            const seconds = 30;
+            window._summarizeCooldownUntil = Date.now() + seconds * 1000;
+            ensureCooldownTimer();
+            return;
+        }
+        const summary = data.summary || '';
+        if (target) {
+            // Render as plain text to avoid any HTML injection
+            target.textContent = summary;
+        }
+        try { updateWordCount(); } catch (_) {}
+        // Normal cooldown after success (30 seconds)
+        window._summarizeCooldownUntil = Date.now() + 30 * 1000;
+        ensureCooldownTimer();
+    } catch (e) {
+        const target = document.getElementById('summary-content-display');
+        if (target) target.innerHTML = `<div class="text-center p-4 text-danger"><i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i><p class="mt-2">${e?.message || 'Summary failed'}</p></div>`;
+    } finally {
+        window._summarizeInFlight = false;
+        // If no cooldown, re-enable button now; otherwise timer will handle it
+        const btn = document.getElementById('summary-reload-btn');
+        if (btn && !(window._summarizeCooldownUntil && Date.now() < window._summarizeCooldownUntil)) {
+            btn.disabled = false;
+            btn.textContent = 'Reload';
+        }
+    }
+};
+
+// Delete current group but keep files
+function deleteCurrentGroup() {
+    if (!CURRENT_GROUP_VIEW) return;
+    const name = CURRENT_GROUP_VIEW;
+    if (!confirm(`Delete group '${name}'? Files will remain.`)) return;
+    fetch('/Dashboard/DeleteGroup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ name })
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.success !== true) throw new Error(data && data.error ? data.error : 'Delete group failed');
+            if (GROUPS && GROUPS[name]) delete GROUPS[name];
+            exitGroupView();
+        })
+        .catch(err => {
+            alert(err?.message || 'Failed to delete group');
+        });
+}
+
     const showOptions = () => {
         if (generateCard) {
             generateCard.style.display = 'none';
@@ -34,6 +236,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.openSummaryRight) window.openSummaryRight();
         });
     }
+
+    // Ensure left pane starts in files mode (hide viewer)
+    try {
+        setLeftView('files');
+        const leftViewer = document.getElementById('file-display-container');
+        const uploadedSectionInit = document.getElementById('uploaded-files-section');
+        if (leftViewer) leftViewer.style.display = 'none';
+        if (uploadedSectionInit) uploadedSectionInit.style.display = 'block';
+    } catch {}
 
     try {
         const panel = document.getElementById('focus-music-panel');
@@ -340,9 +551,179 @@ document.addEventListener('click', (e) => {
     const tab = btn.getAttribute('data-tab');
     if (tab && window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab(tab);
 });
+
+// Save current editable document to server and My Files
+window.saveCurrentDocument = async function () {
+    try {
+        const contentDisplay = document.getElementById('content-display');
+        const fileNameDisplay = document.querySelector('.filename-display');
+        const content = contentDisplay ? (contentDisplay.textContent || '') : '';
+        let fileName = fileNameDisplay ? (fileNameDisplay.textContent || '').trim() : 'Untitled.txt';
+        if (!fileName) fileName = 'Untitled.txt';
+        const res = await fetch('/Dashboard/SaveText', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ fileName, content })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || data.success !== true) {
+            const msg = (data && data.error) ? data.error : `Save failed (HTTP ${res.status})`;
+            alert(msg);
+            return false;
+        }
+        // Update UI
+        if (fileNameDisplay) fileNameDisplay.textContent = data.fileName || fileName;
+        try { if (typeof addRecentFile === 'function') addRecentFile(data.fileId, data.fileName || fileName); } catch (_) {}
+        // Optional: small visual feedback
+        try {
+            const wc = document.getElementById('word-count');
+            if (wc) {
+                const orig = wc.innerHTML;
+                wc.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Saved';
+                setTimeout(() => { wc.innerHTML = orig; }, 1200);
+            }
+        } catch {}
+        return true;
+    } catch (e) {
+        alert(e?.message || 'Failed to save');
+        return false;
+    }
+}
+
+// Bind Ctrl+S to save
+document.addEventListener('keydown', function (e) {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const saveCombo = (isMac && e.metaKey && e.key.toLowerCase() === 's') || (!isMac && e.ctrlKey && e.key.toLowerCase() === 's');
+    if (saveCombo) {
+        e.preventDefault();
+        if (typeof window.saveCurrentDocument === 'function') window.saveCurrentDocument();
+    }
+});
+
+// Passive auto-save when navigating back or leaving the page
+// Uses sendBeacon to avoid blocking navigation; falls back to fetch with keepalive
+window.autoSaveIfEditable = function () {
+    try {
+        const contentDisplay = document.getElementById('content-display');
+        if (!contentDisplay || contentDisplay.contentEditable !== 'true') return;
+        const fileNameDisplay = document.querySelector('.filename-display');
+        const content = contentDisplay.textContent || '';
+        let fileName = fileNameDisplay ? (fileNameDisplay.textContent || '').trim() : 'Untitled.txt';
+        if (!fileName) fileName = 'Untitled.txt';
+        const payload = JSON.stringify({ fileName, content });
+        const url = '/Dashboard/SaveText';
+        if (navigator.sendBeacon) {
+            const blob = new Blob([payload], { type: 'application/json' });
+            navigator.sendBeacon(url, blob);
+        } else {
+            // Fire-and-forget; keepalive allows it during unload
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                keepalive: true,
+                body: payload
+            }).catch(() => {});
+        }
+    } catch {}
+};
+
+// Save on browser back/navigation and tab close
+window.addEventListener('beforeunload', function () {
+    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch {}
+});
+window.addEventListener('pagehide', function () {
+    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch {}
+});
+window.addEventListener('popstate', function () {
+    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch {}
+});
+
+// Heuristic: save when clicking common back elements
+document.addEventListener('click', function (e) {
+    const backEl = e.target && (e.target.closest('[data-action="back"]') || e.target.closest('.btn-back') || e.target.closest('a[href="#back"]'));
+    if (backEl && typeof window.autoSaveIfEditable === 'function') {
+        try { window.autoSaveIfEditable(); } catch {}
+    }
+});
+
 const DASHBOARD_CFG = window.DASHBOARD_CFG || {};
 const SELECTED_FILE_IDS = new Set();
+let CURRENT_GROUP_VIEW = null; // null or group name
+let GROUPS = {}; // { name: [fileId, ...] }
 const DROPDOWN_ANCHORS = {};
+
+// ===== Global Groups helpers (ensure availability outside any closures) =====
+async function loadGroups() {
+    try {
+        const res = await fetch('/Dashboard/GetGroups', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (res.ok && data && data.success) {
+            GROUPS = data.groups || {};
+            renderGroupsUI();
+        }
+    } catch {}
+}
+
+function renderGroupsUI() {
+    const grid = document.querySelector('#uploaded-files-section .files-grid');
+    if (!grid) return;
+    // Remove existing group cards
+    Array.from(grid.querySelectorAll('.group-card')).forEach(el => el.remove());
+    // Compute set of grouped IDs
+    const groupedIds = new Set();
+    Object.values(GROUPS || {}).forEach(arr => (Array.isArray(arr) ? arr : []).forEach(id => groupedIds.add(Number(id))));
+    // Hide grouped file cards when not viewing a specific group
+    const inGroupView = !!CURRENT_GROUP_VIEW;
+    Array.from(grid.children).forEach(card => {
+        const idAttr = card.getAttribute && card.getAttribute('data-file-id');
+        if (!idAttr) return; // skip non-file cards
+        const id = parseInt(idAttr, 10);
+        if (Number.isNaN(id)) return;
+        if (!inGroupView) {
+            card.style.display = groupedIds.has(id) ? 'none' : '';
+        }
+    });
+    if (inGroupView) return;
+    // Insert group cards for each group
+    Object.keys(GROUPS || {}).forEach(name => {
+        const card = document.createElement('div');
+        card.className = 'file-card group-card';
+        card.setAttribute('data-group-name', name);
+        card.onclick = (e) => { e.preventDefault(); openGroup(name); };
+        card.innerHTML = `
+            <div class="file-icon-large"><i class="bi bi-collection"></i></div>
+            <div class="file-name-card">${name}</div>
+            <div class="file-meta-card"><small class="text-muted">${(GROUPS[name]||[]).length} items</small></div>
+        `;
+        grid.insertBefore(card, grid.firstChild);
+    });
+}
+
+function openGroup(name) {
+    CURRENT_GROUP_VIEW = name;
+    const uploadedSection = document.getElementById('uploaded-files-section');
+    const titleEl = document.getElementById('uploaded-files-title-text');
+    if (titleEl) titleEl.textContent = name;
+    const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
+    if (!grid) return;
+    // Hide all
+    Array.from(grid.children).forEach(el => el.style.display = 'none');
+    // Show only group's files
+    const ids = (GROUPS && GROUPS[name]) ? GROUPS[name] : [];
+    ids.forEach(id => {
+        const card = grid.querySelector(`.file-card[data-file-id="${id}"]`);
+        if (card) card.style.display = '';
+    });
+}
+
+function exitGroupView() {
+    CURRENT_GROUP_VIEW = null;
+    const titleEl = document.getElementById('uploaded-files-title-text');
+    if (titleEl) titleEl.textContent = 'Your Files';
+    renderGroupsUI();
+}
 
 function toggleDropdown(id, evt) {
     if (evt) evt.stopPropagation();
@@ -522,25 +903,87 @@ function setLeftView(mode) {
     // Set a mode class on body to allow CSS to enforce visibility
     const body = document.body;
     if (body) {
-        body.classList.remove('mode-upload', 'mode-viewer', 'mode-manual', 'mode-files');
+        body.classList.remove('mode-upload', 'mode-viewer', 'mode-manual', 'mode-files', 'mode-manage-files');
         body.classList.add(`mode-${mode}`);
     }
+    // Hide manage toolbar unless explicitly in manage-files mode
+    const manageBar = document.getElementById('files-manage-bar');
+    if (manageBar && mode !== 'manage-files') manageBar.style.display = 'none';
+    // Restore left title when back to files mode
+    const titleEl = document.getElementById('uploaded-files-title-text');
+    if (titleEl && mode === 'files') titleEl.textContent = 'Your Recent Files';
 }
 
 // Show the files list as the main view in the left section
 function showMyFiles() {
-    setLeftView('files');
-    const fileDisplayContainer = document.getElementById('file-display-container');
-    const uploadedSection = document.getElementById('uploaded-files-section');
-    const uploadContainer = document.getElementById('upload-container');
-    const titleEl = document.getElementById('uploaded-files-title-text');
-    if (fileDisplayContainer) fileDisplayContainer.style.display = 'none';
-    if (uploadContainer) uploadContainer.style.display = 'none';
-    if (uploadedSection) uploadedSection.style.display = 'block';
-    // Reset any filtering
-    const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
-    if (grid) Array.from(grid.children).forEach(card => card.style.display = '');
-    if (titleEl) titleEl.textContent = 'Your Files';
+    // Enter full-manage mode for files in the left pane
+    try {
+        const body = document.body;
+        if (body) {
+            body.classList.remove('mode-upload','mode-viewer','mode-manual','mode-files');
+            body.classList.add('mode-manage-files');
+        }
+        const viewer = document.getElementById('file-display-container');
+        const uploadedSection = document.getElementById('uploaded-files-section');
+        const topActions = document.getElementById('left-top-actions');
+        const manageBar = document.getElementById('files-manage-bar');
+        const titleEl = document.getElementById('uploaded-files-title-text');
+        if (viewer) viewer.style.display = 'none';
+        if (uploadedSection) uploadedSection.style.display = 'block';
+        if (topActions) topActions.style.display = 'none';
+        if (manageBar) manageBar.style.display = 'flex';
+        if (titleEl) titleEl.textContent = 'Your Files';
+        // Show all cards
+        const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
+        if (grid) Array.from(grid.children).forEach(card => card.style.display = '');
+        CURRENT_GROUP_VIEW = null;
+        try { renderGroupsUI(); } catch {}
+    } catch {}
+}
+
+// Toggle select all checkboxes in file cards
+function toggleSelectAllFiles(master) {
+    try {
+        const grid = document.querySelector('#uploaded-files-section .files-grid');
+        if (!grid) return;
+        const boxes = grid.querySelectorAll('.file-select-checkbox');
+        boxes.forEach(cb => { cb.checked = master.checked; onFileCheckboxChange(cb); });
+    } catch {}
+}
+
+// Group files by simple criteria: none, type, date (uploaded day)
+function groupFiles(mode) {
+    try {
+        const grid = document.querySelector('#uploaded-files-section .files-grid');
+        if (!grid) return;
+        const cards = Array.from(grid.children);
+        const getType = (card) => {
+            const name = (card.querySelector('.file-name-card')?.textContent || '').toLowerCase();
+            if (/\.(png|jpg|jpeg|gif)$/i.test(name)) return 'Image';
+            if (/\.(pdf)$/i.test(name)) return 'PDF';
+            if (/\.(docx)$/i.test(name)) return 'DOCX';
+            if (/\.(txt)$/i.test(name)) return 'TXT';
+            return 'Other';
+        };
+        const getDay = (card) => {
+            const t = parseInt(card.getAttribute('data-uploaded-at')||'0',10)||0;
+            return t ? new Date(t/10000).toDateString() : 'Unknown';
+        };
+        const keyFn = mode === 'type' ? getType : mode === 'date' ? getDay : null;
+        if (!keyFn) {
+            cards.forEach(c => grid.appendChild(c));
+            return;
+        }
+        const groups = new Map();
+        cards.forEach(c => {
+            const k = keyFn(c);
+            if (!groups.has(k)) groups.set(k, []);
+            groups.get(k).push(c);
+        });
+        // Clear DOM and append grouped
+        const order = Array.from(groups.keys()).sort();
+        order.forEach(k => groups.get(k).forEach(c => grid.appendChild(c)));
+    } catch {}
 }
 
 // Close dropdowns when clicking elsewhere
@@ -826,13 +1269,29 @@ function formatFileSize(bytes) {
 }
 
 function resetUpload() {
-    setLeftView('upload');
+    // Return to files list view
+    setLeftView('files');
 
-    // Reset form and info
-    document.getElementById('file-info').innerHTML = '';
-    document.getElementById('file-info').classList.remove('show');
-    document.getElementById('file-upload').value = '';
-    // No separate image input anymore
+    // Hide viewer, show files section
+    const viewer = document.getElementById('file-display-container');
+    const filesSection = document.getElementById('uploaded-files-section');
+    if (viewer) viewer.style.display = 'none';
+    if (filesSection) filesSection.style.display = 'block';
+
+    // Clear filename/content safely
+    const nameEl = document.querySelector('.filename-display');
+    const contentEl = document.getElementById('content-display');
+    if (nameEl) nameEl.textContent = '';
+    if (contentEl) {
+        contentEl.innerHTML = '';
+        contentEl.contentEditable = 'false';
+    }
+
+    // Reset form and info (if present)
+    const fileInfo = document.getElementById('file-info');
+    const fileInput = document.getElementById('file-upload');
+    if (fileInfo) { fileInfo.innerHTML = ''; fileInfo.classList.remove('show'); }
+    if (fileInput) fileInput.value = '';
 }
 
 function toggleTextInput() {
@@ -841,25 +1300,53 @@ function toggleTextInput() {
     setLeftView(isHidden ? 'manual' : 'upload');
 }
 
+window.startEmptyDocument = function () {
+    try {
+        // Switch to the standard viewer UI
+        setLeftView('viewer');
+
+        // Hide other sections
+        const manualText = document.getElementById('manual-text');
+        if (manualText) manualText.style.display = 'none';
+        const uploadContainer = document.getElementById('upload-container');
+        if (uploadContainer) uploadContainer.style.display = 'none';
+
+        // Show the file display container
+        const fileDisplayContainer = document.getElementById('file-display-container');
+        if (fileDisplayContainer) fileDisplayContainer.style.display = 'flex';
+
+        // Prepare editable content area
+        const fileNameDisplay = document.querySelector('.filename-display');
+        if (fileNameDisplay) fileNameDisplay.textContent = 'Untitled.txt';
+        const contentDisplay = document.getElementById('content-display');
+        const contentWrapper = document.getElementById('content-wrapper');
+        // Ensure white background: clear dark/reading modes
+        if (contentWrapper) contentWrapper.classList.remove('dark-mode');
+        if (contentDisplay) contentDisplay.classList.remove('reading-mode');
+        if (contentDisplay) {
+            contentDisplay.innerHTML = '';
+            contentDisplay.contentEditable = 'true';
+            // Place caret and focus
+            contentDisplay.focus();
+        }
+
+        // Reset counters
+        try { updateWordCount(); } catch (_) {}
+    } catch {}
+}
+
 function submitManualText() {
     const textArea = document.querySelector('#manual-text textarea');
-    const contentDisplay = document.getElementById('content-display');
     const manualText = document.getElementById('manual-text');
     const fileDisplayContainer = document.getElementById('file-display-container');
-
+    const contentDisplay = document.getElementById('content-display');
+    const fileNameDisplay = document.querySelector('.filename-display');
     if (textArea.value.trim() !== '') {
-        const fileNameDisplay = document.querySelector('.filename-display');
-        if (fileNameDisplay) {
-            fileNameDisplay.textContent = 'Manual Text';
-        }
-        contentDisplay.textContent = textArea.value;
-
-        // Hide manual text input
+        if (fileNameDisplay) fileNameDisplay.textContent = 'Manual Text';
+        if (contentDisplay) contentDisplay.textContent = textArea.value;
         manualText.style.display = 'none';
-        // Show file display container
-        fileDisplayContainer.style.display = 'flex';
-
-        // Update word count and format text
+        if (fileDisplayContainer) fileDisplayContainer.style.display = 'flex';
+        setLeftView('viewer');
         updateWordCount();
         formatDisplayedText();
     } else {
@@ -1109,15 +1596,15 @@ function setTextAlign(alignment) {
 
 // Function to open uploaded files
 function openFile(fileId) {
-    // Switch to viewer mode
+    // Switch to left viewer mode
     setLeftView('viewer');
-    // Show loading state
     const fileDisplayContainer = document.getElementById('file-display-container');
     const contentDisplay = document.getElementById('content-display');
     const fileNameDisplay = document.querySelector('.filename-display');
-
-    if (contentDisplay && fileNameDisplay) {
-        fileNameDisplay.textContent = 'Loading...';
+    if (fileDisplayContainer) fileDisplayContainer.style.display = 'flex';
+    if (fileNameDisplay) fileNameDisplay.textContent = 'Loading...';
+    if (contentDisplay) {
+        contentDisplay.contentEditable = 'false';
         contentDisplay.innerHTML = '<div class="text-center p-4"><i class="bi bi-hourglass-split text-primary" style="font-size: 2rem;"></i><p class="mt-2">Loading file content...</p></div>';
     }
 
@@ -1141,35 +1628,23 @@ function openFile(fileId) {
                 throw new Error(data.error || 'Failed to load file');
             }
 
-            // Update the display
+            // Update the left viewer display
             if (contentDisplay && fileNameDisplay) {
                 fileNameDisplay.textContent = data.fileName;
-
                 if (data.displayType === 'image') {
                     contentDisplay.innerHTML = `<div class="text-center p-4"><img src="${data.content}" alt="${data.fileName}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"></div>`;
                 } else if (data.displayType === 'pdf') {
-                    // Inline PDF using iframe
                     contentDisplay.innerHTML = `
                         <div class="p-2" style="height: calc(100vh - 260px);">
                             <iframe src="${data.content}#view=fitH" style="width:100%; height:100%; border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);"></iframe>
                         </div>`;
                 } else if (data.displayType === 'text') {
                     contentDisplay.innerHTML = formatTextWithLineBreaks(data.content || '');
-                    if (data.truncated) {
-                        const notice = document.createElement('div');
-                        notice.className = 'text-muted small mt-2';
-                        notice.innerHTML = '<i class="bi bi-info-circle me-1"></i>Displayed content is truncated for performance.';
-                        contentDisplay.parentElement.appendChild(notice);
-                    }
+                    contentDisplay.contentEditable = 'false';
                 } else {
                     contentDisplay.innerHTML = `<div class="text-center p-4"><p class="text-muted">${data.content || 'Preview not available for this file type.'}</p></div>`;
                 }
-
-                // Update word count if function exists
-                if (typeof updateWordCount === 'function') {
-                    updateWordCount();
-                }
-                // Track as recent
+                if (typeof updateWordCount === 'function') updateWordCount();
                 try { addRecentFile(fileId, data.fileName); } catch (_) { }
             }
         })
@@ -1258,6 +1733,54 @@ function showRecentFiles() {
     });
 }
 
+// Reorder files by last opened (client-side) on initial load
+function reorderFilesByRecent() {
+    try {
+        const uploadedSection = document.getElementById('uploaded-files-section');
+        if (!uploadedSection) return;
+        const grid = uploadedSection.querySelector('.files-grid');
+        if (!grid) return;
+
+        const recent = getRecentFiles();
+        const cards = Array.from(grid.children);
+        if (!cards || cards.length === 0) return;
+
+        // Build maps
+        const cardById = new Map();
+        cards.forEach(card => {
+            const idAttr = card.getAttribute('data-file-id');
+            const id = idAttr ? parseInt(idAttr, 10) : NaN;
+            if (!Number.isNaN(id)) cardById.set(id, card);
+        });
+
+        // Prepare recent ordered list of cards
+        const recentOrderedCards = [];
+        if (Array.isArray(recent) && recent.length > 0) {
+            const sortedRecent = [...recent]
+                .filter(r => r && typeof r.id === 'number')
+                .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+            sortedRecent.forEach(r => {
+                const card = cardById.get(r.id);
+                if (card) recentOrderedCards.push(card);
+            });
+        }
+
+        // Remaining cards sorted by uploaded-at desc (fallback)
+        const remaining = cards.filter(c => !recentOrderedCards.includes(c));
+        remaining.sort((a, b) => {
+            const ta = parseInt(a.getAttribute('data-uploaded-at') || '0', 10) || 0;
+            const tb = parseInt(b.getAttribute('data-uploaded-at') || '0', 10) || 0;
+            return tb - ta;
+        });
+
+        const finalOrder = [...recentOrderedCards, ...remaining];
+        finalOrder.forEach(card => grid.appendChild(card));
+
+        const titleEl = document.getElementById('uploaded-files-title-text');
+        if (titleEl) titleEl.textContent = 'Your Recent Files';
+    } catch (_) { }
+}
+
 // Global: handle selection checkbox on file cards
 function onFileCheckboxChange(checkbox) {
     const idAttr = checkbox.getAttribute('data-file-id');
@@ -1274,10 +1797,10 @@ function onFileCheckboxChange(checkbox) {
     }
 }
 
-// Global: delete selected files
+// Global: delete selected files (first click enables selection, second confirms delete)
 function deleteSelectedFiles() {
     if (SELECTED_FILE_IDS.size === 0) {
-        alert('Please select at least one file to delete.');
+        enterManageSelectionMode('delete');
         return;
     }
     if (!confirm('Delete selected file(s)? This action cannot be undone.')) {
@@ -1310,12 +1833,54 @@ function deleteSelectedFiles() {
         });
 }
 
+// Global: group selected files (first click enables selection, second groups)
+function groupSelectedFiles() {
+    if (SELECTED_FILE_IDS.size === 0) {
+        enterManageSelectionMode('group');
+        return;
+    }
+    const name = prompt('Group name:');
+    if (!name) return;
+    const ids = Array.from(SELECTED_FILE_IDS);
+    // Persist group to backend, then update UI
+    fetch('/Dashboard/SaveGroup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ name, fileIds: ids })
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.success !== true) throw new Error(data && data.error ? data.error : 'Save group failed');
+            // Update in-memory groups and UI
+            GROUPS = GROUPS || {};
+            GROUPS[data.name || name] = Array.isArray(data.fileIds) ? data.fileIds : ids;
+            SELECTED_FILE_IDS.clear();
+            CURRENT_ACTION_MODE = null;
+            openGroup(data.name || name);
+            renderGroupsUI();
+        })
+        .catch(err => {
+            alert(err?.message || 'Failed to save group');
+        });
+}
+
+// Load groups on page ready
+document.addEventListener('DOMContentLoaded', function () {
+    try { loadGroups(); } catch {}
+});
+
 // Initialize tooltips
 document.addEventListener('DOMContentLoaded', function () {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+});
+
+// Apply initial ordering by last opened when the page loads
+document.addEventListener('DOMContentLoaded', function () {
+    try { reorderFilesByRecent(); } catch (_) { }
 });
 
 document.addEventListener('DOMContentLoaded', function () {
