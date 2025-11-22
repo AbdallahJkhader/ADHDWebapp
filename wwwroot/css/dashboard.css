@@ -6,6 +6,11 @@
     padding: 10px;
 }
 
+/* Slightly increase right-side inner padding on the far right to avoid it looking glued to the screen edge */
+.right-side {
+    padding-right: calc(var(--pane-padding) * 1.5);
+}
+
 .d-none {
     display: none !important;
 }
@@ -347,9 +352,9 @@ body.dashboard-page {
 .main-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    column-gap: 0;
+    column-gap: calc(var(--pane-padding) * 2);
     row-gap: 0;
-    padding: 0;
+    padding: 0 var(--pane-padding);
     max-width: 100%;
     width: 100%;
     margin: 0;
@@ -433,11 +438,25 @@ body.dashboard-page {
     background-color: var(--color-background);
 }
 
+#flashcards-display-container {
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: var(--color-background);
+}
+
 .left-side #file-display-container {
     padding-top: 12px !important;
 }
 
-.right-side #summary-display-container {
+.right-side #summary-display-container,
+.right-side #flashcards-display-container {
     padding-top: 12px !important;
 }
 
@@ -448,6 +467,25 @@ body.dashboard-page {
     background: transparent;
     border: none;
     padding: 0;
+}
+
+.flashcard-card {
+    max-width: 520px;
+    width: 100%;
+    background: var(--color-white);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    padding: 1.25rem 1.5rem;
+    text-align: left;
+}
+
+.flashcard-question {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.flashcard-answer {
+    font-size: 0.95rem;
 }
 
 
@@ -488,8 +526,8 @@ body.dashboard-page {
 }
 
 .right-side .container, .right-side .container-fluid {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    padding-left: var(--pane-padding) !important;
+    padding-right: var(--pane-padding) !important;
 }
 
 .right-side > *:first-child {
@@ -1038,6 +1076,16 @@ body.dashboard-page {
 .upload-icon {
     color: var(--color-secondary);
     margin-bottom: 1rem;
+}
+
+/* Consistent sizing for Helper Tool images */
+.upload-icon .helper-icon {
+    width: 56px;
+    height: 56px;
+    max-width: 100%;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
 }
 
 .upload-card h5 {
@@ -2623,9 +2671,10 @@ body.dashboard-page {
       display: block !important;
   }
 
-  /* Defensive: ensure manage bar and checkboxes are hidden unless in manage mode */
+  /* Defensive: ensure manage bar and checkboxes are hidden unless in manage mode or in group view */
   #files-manage-bar { display: none !important; }
-  .mode-manage-files #files-manage-bar { display: flex !important; }
+  .mode-manage-files #files-manage-bar,
+  .mode-group-view #files-manage-bar { display: flex !important; }
   .uploaded-files-container .file-card .form-check { display: none !important; }
   .mode-manage-files .uploaded-files-container .file-card .form-check { display: block !important; }
 

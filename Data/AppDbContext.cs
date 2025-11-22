@@ -16,6 +16,7 @@ namespace ADHDWebApp.Data
         public DbSet<ClassMembership> ClassMemberships { get; set; }
         public DbSet<ClassFile> ClassFiles { get; set; }
         public DbSet<ClassChatMessage> ClassChatMessages { get; set; }
+        public DbSet<Flashcard> Flashcards { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

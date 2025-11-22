@@ -192,12 +192,12 @@
             <!-- Files Dropdown -->
             <div class="user-dropdown me-3">
                 <button class="nav-btn" onclick="toggleDropdown('files', event)">
-                    <i class="bi bi-folder"></i>
+                    <img src="~/images/folder.png" alt="Files" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain;" />
                     <span>Files</span>
                 </button>
                 <div class="dropdown-menu enhanced-dropdown text-start" id="files-dropdown" dir="ltr" style="direction:ltr;">
                     <div class="dropdown-header">
-                        <i class="bi bi-folder"></i>
+                        <img src="~/images/folder.png" alt="File Management" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
                         <span>File Management</span>
                     </div>
                     <div class="dropdown-divider"></div>
@@ -299,7 +299,6 @@
                         </div>
                     </div>
 
-                    
                 </div>
             </div>
 
@@ -693,11 +692,15 @@
                     <div id="left-top-actions" class="p-3 d-flex align-items-center justify-content-center">
                         <div class="d-flex gap-3" style="max-width:720px;">
                             <div class="upload-card text-center flex-fill" style="cursor:pointer;" onclick="document.getElementById('file-upload').click()">
-                                <div class="upload-icon"><i class="bi bi-file-text"></i></div>
+                                <div class="upload-icon">
+                                    <img src="~/images/upload.png" alt="Upload file" class="helper-icon" />
+                                </div>
                                 <h5>Upload File</h5>
                             </div>
                             <div class="upload-card text-center flex-fill" style="cursor:pointer;" onclick="startEmptyDocument()">
-                                <div class="upload-icon"><i class="bi bi-pencil-square"></i></div>
+                                <div class="upload-icon">
+                                    <img src="~/images/startempty.png" alt="Start empty document" class="helper-icon" />
+                                </div>
                                 <h5>Start Empty</h5>
                             </div>
                         </div>
@@ -713,23 +716,27 @@
                     
                     <div id="uploaded-files-section" class="mt-1" style="display: block">
                             <div id="uploaded-files-container" class="uploaded-files-container">
-                            <div id="files-manage-bar" class="d-flex justify-content-between align-items-center mb-2" style="display:none;">
+                            <div id="files-manage-bar" class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="d-flex align-items-center gap-3"></div>
                                 <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-back" data-action="back" onclick="exitGroupView()">
+                                        <i class="bi bi-arrow-left"></i> Back
+                                    </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger" id="btn-delete-group" style="display:none;" onclick="deleteCurrentGroup()">
                                         <i class="bi bi-folder-x"></i> Delete Group
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="groupSelectedFiles()">
-                                        <i class="bi bi-collection"></i> Group
+                                    <button type="button" class="btn btn-sm btn-secondary" id="btn-group-files" style="display:none;" onclick="groupSelectedFiles()">
+                                        <i class="bi bi-collection"></i> Add folder
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteSelectedFiles()">
+                                    <button type="button" class="btn btn-sm btn-danger" id="btn-delete-files" style="display:none;" onclick="deleteSelectedFiles()">
                                         <i class="bi bi-trash"></i> Delete
                                     </button>
                                 </div>
                             </div>
 
-                            <h6 class="files-section-title mb-2">
-                                <i class="bi bi-folder-open me-2"></i><span id="uploaded-files-title-text">Your Recent Files</span>
+                            <h6 class="files-section-title mb-2 d-flex align-items-center gap-2">
+                                <img src="~/images/folder.png" alt="Files" style="width: 20px; height: 20px; object-fit: contain;" />
+                                <span id="uploaded-files-title-text">Your Recent Files</span>
                             </h6>
 
                             @if (ViewBag.UserFiles != null && ((List<UserFile>)ViewBag.UserFiles).Any())
@@ -741,19 +748,8 @@
                                             <div class="form-check" style="position: absolute; top: 8px; left: 8px;">
                                                 <input class="form-check-input file-select-checkbox" type="checkbox" data-file-id="@file.Id" onclick="event.stopPropagation();" onchange="onFileCheckboxChange(this)">
                                             </div>
-                                            <div class="file-icon-large">
-                                                @{
-                                                    var extension = System.IO.Path.GetExtension(file.FileName).ToLower();
-                                                    var iconClass = extension switch
-                                                    {
-                                                        ".pdf" => "bi-file-pdf text-danger",
-                                                        ".docx" => "bi-file-word text-primary",
-                                                        ".txt" => "bi-file-text text-secondary",
-                                                        ".jpg" or ".jpeg" or ".png" or ".gif" => "bi-file-image text-success",
-                                                        _ => "bi-file-earmark text-muted"
-                                                    };
-                                                }
-                                                <i class="bi @iconClass"></i>
+                                            <div class="file-icon-large d-flex align-items-center justify-content-center">
+                                                <img src="~/images/file.png" alt="File" style="width: 36px; height: 36px; object-fit: contain;" />
                                             </div>
                                             <div class="file-name-card">@file.FileName</div>
                                             <div class="file-meta-card">
@@ -771,7 +767,7 @@
                             else
                             {
                                 <div class="no-files-message text-center py-3">
-                                    <i class="bi bi-folder-x text-muted mb-2" style="font-size: 2rem;"></i>
+                                    <img src="~/images/folder.png" alt="No files" class="mb-2" style="width: 40px; height: 40px; object-fit: contain; opacity: 0.6;" />
                                     <p class="text-muted mb-1">No files uploaded yet</p>
                                     <small class="text-muted">Upload your first file above</small>
                                 </div>
@@ -900,7 +896,7 @@
                     <div id="generate-wrapper" class="d-flex flex-column align-items-center justify-content-center" style="min-height: 70vh; display: flex;">
                     <div id="btn-generate-ai-helper" class="upload-card mb-3" style="cursor: pointer; width: 260px;">
                         <div class="upload-icon">
-                            <i class="bi bi-mortarboard"></i>
+                            <img src="~/images/helpertools.png" alt="Helper tools" class="helper-icon">
                         </div>
                         <h5>Add Helper Study Tool</h5>
                         <p class="text-muted small">Open to choose what to generate</p>
@@ -909,26 +905,32 @@
                         <div class="row w-100">
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-summary" style="cursor:pointer;" onclick="window.summarizeLeftToRight && window.summarizeLeftToRight(); return false;">
-                                    <div class="upload-icon"><i class="bi bi-journal-text"></i></div>
+                                    <div class="upload-icon"><img src="~/images/summary.png" alt="Summary icon" class="helper-icon"></div>
                                     <h5>Summary</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-workbook" style="cursor:pointer;">
-                                    <div class="upload-icon"><i class="bi bi-book"></i></div>
+                                    <div class="upload-icon"><img src="~/images/flashcard.png" alt="Flashcards icon" class="helper-icon"></div>
                                     <h5>Flashcards</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-quizzes" style="cursor:pointer;">
-                                    <div class="upload-icon"><i class="bi bi-patch-question"></i></div>
+                                    <div class="upload-icon"><img src="~/images/quizzes.png" alt="Quizzes icon" class="helper-icon"></div>
                                     <h5>Quizzes</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-ai" style="cursor:pointer;">
-                                    <div class="upload-icon"><i class="bi bi-youtube"></i></div>
+                                    <div class="upload-icon"><img src="~/images/youtube.png" alt="YouTube icon" class="helper-icon"></div>
                                     <h5>Add YouTube Video</h5>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 mb-3">
+                                <div class="upload-card text-center" id="gen-opt-whiteboard" style="cursor:pointer;">
+                                    <div class="upload-icon"><img src="~/images/whiteboard.png" alt="Whiteboard icon" class="helper-icon"></div>
+                                    <h5>Whiteboard</h5>
                                 </div>
                             </div>
                         </div>
@@ -1034,6 +1036,109 @@
                         <div class="document-content flex-grow-1 bg-white pt-2">
                             <div id="summary-content-wrapper">
                                 <div id="summary-content-display" class="content-text mb-0"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Flashcards right-pane view -->
+                    <div id="flashcards-display-container" style="display: none;" class="h-100 pt-2">
+                        <div class="controls-bar d-flex align-items-center gap-2">
+                            <button onclick="window.backFromFlashcardsRight && window.backFromFlashcardsRight(); return false;" class="btn btn-primary btn-sm">
+                                <i class="bi bi-arrow-left me-1"></i>
+                                Back
+                            </button>
+
+                            <button type="button" class="btn btn-success btn-sm" id="flashcards-add-toggle">
+                                <i class="bi bi-plus-circle me-1"></i>
+                                Add
+                            </button>
+
+                            <div class="flex-grow-1 text-center">
+                                <span id="flashcards-title" class="filename-display fw-medium">Flashcards</span>
+                            </div>
+
+                            <div class="ms-auto d-flex gap-3 align-items-center">
+                                <div id="flashcards-count" class="text-muted small">
+                                    <i class="bi bi-collection me-1"></i>0 cards
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="divider my-2" />
+
+                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column">
+                            <div id="flashcards-content" class="flex-grow-1 d-flex flex-column align-items-center text-center px-3">
+
+                                <div id="flashcard-create-container" class="w-100" style="max-width: 480px; display:none;">
+                                    <div class="mb-3 text-start">
+                                        <label for="flashcard-new-question" class="form-label mb-1">Question</label>
+                                        <textarea id="flashcard-new-question" class="form-control" rows="2" placeholder="Enter question..."></textarea>
+                                    </div>
+                                    <div class="mb-2 text-start">
+                                        <label for="flashcard-new-answer" class="form-label mb-1">Answer</label>
+                                        <textarea id="flashcard-new-answer" class="form-control" rows="3" placeholder="Enter answer..."></textarea>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <small id="flashcard-create-error" class="text-danger"></small>
+                                        <button type="button" class="btn btn-sm btn-success" id="flashcard-add-btn">Add Flashcard</button>
+                                    </div>
+                                </div>
+
+                                <div id="flashcard-card" class="flashcard-card">
+                                    <div class="flashcard-progress small text-muted mb-2">
+                                        <span id="flashcard-index">1</span>/<span id="flashcard-total">1</span>
+                                    </div>
+                                    <div class="flashcard-body">
+                                        <div id="flashcard-question" class="flashcard-question mb-3">
+                                            Flashcard question will appear here.
+                                        </div>
+                                        <div id="flashcard-answer" class="flashcard-answer d-none">
+                                            Flashcard answer will appear here.
+                                        </div>
+                                    </div>
+                                    <div class="flashcard-actions mt-3 d-flex justify-content-between">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="prevFlashcard()">Previous</button>
+                                        <button type="button" class="btn btn-primary btn-sm" id="flashcard-toggle-btn" onclick="toggleFlashcardAnswer()">Show answer</button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="nextFlashcard()">Next</button>
+                                    </div>
+                                </div>
+                                <div id="flashcards-empty-state" class="text-muted small d-none mt-2">
+                                    No flashcards available.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Whiteboard right-pane view -->
+                    <div id="whiteboard-display-container" style="display: none;" class="h-100">
+                        <div class="controls-bar d-flex align-items-center gap-2">
+                            <button onclick="window.backFromWhiteboardRight && window.backFromWhiteboardRight(); return false;" class="btn btn-primary btn-sm">
+                                <i class="bi bi-arrow-left me-1"></i>
+                                Back
+                            </button>
+
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Whiteboard mode">
+                                <button type="button" class="btn btn-outline-secondary active" id="whiteboard-mode-text">Text</button>
+                                <button type="button" class="btn btn-outline-secondary" id="whiteboard-mode-draw">Draw</button>
+                            </div>
+
+                            <div class="flex-grow-1 text-center">
+                                <span id="whiteboard-title" class="filename-display fw-medium">Whiteboard</span>
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-auto" id="whiteboard-clear-canvas">
+                                <i class="bi bi-eraser me-1"></i>Clear drawing
+                            </button>
+                        </div>
+
+                        <hr class="divider my-2" />
+
+                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column">
+                            <div id="whiteboard-text-wrapper" class="flex-grow-1 d-flex flex-column">
+                                <textarea id="whiteboard-editor" class="form-control flex-grow-1" style="min-height: 200px; resize: vertical;" placeholder="Write your notes here..."></textarea>
+                            </div>
+                            <div id="whiteboard-canvas-wrapper" class="flex-grow-1 d-flex flex-column" style="display:none;">
+                                <canvas id="whiteboard-canvas" class="border rounded" style="width: 100%; height: 100%; touch-action: none; background-color: #ffffff;"></canvas>
                             </div>
                         </div>
                     </div>

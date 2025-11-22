@@ -58,8 +58,9 @@ namespace ADHDWebApp.Controllers
                 }
                 HttpContext.Session.SetString("SummarizeLastAt", now.ToString("o"));
 
-                var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-                             ?? _config["OpenAI:ApiKey"];
+                // Prefer appsettings (OpenAI:ApiKey), fall back to environment variable only if not set.
+                var apiKey = _config["OpenAI:ApiKey"]
+                             ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
                 if (string.IsNullOrWhiteSpace(apiKey))
                     return Json(new { success = false, error = "OpenAI API key not configured" });
 

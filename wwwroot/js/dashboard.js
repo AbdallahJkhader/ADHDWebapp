@@ -49,7 +49,9 @@ function renderGroupsUI() {
         card.setAttribute('data-group-name', name);
         card.onclick = (e) => { e.preventDefault(); openGroup(name); };
         card.innerHTML = `
-            <div class="file-icon-large"><i class="bi bi-collection"></i></div>
+            <div class="file-icon-large d-flex align-items-center justify-content-center">
+                <img src="/images/folder.png" alt="Folder" style="width: 36px; height: 36px; object-fit: contain;" />
+            </div>
             <div class="file-name-card">${name}</div>
             <div class="file-meta-card"><small class="text-muted">${(GROUPS[name]||[]).length} items</small></div>
         `;
@@ -62,6 +64,10 @@ function openGroup(name) {
     const uploadedSection = document.getElementById('uploaded-files-section');
     const titleEl = document.getElementById('uploaded-files-title-text');
     if (titleEl) titleEl.textContent = name;
+    const groupBtn = document.getElementById('btn-group-files');
+    if (groupBtn) groupBtn.style.display = '';
+    const deleteBtn = document.getElementById('btn-delete-files');
+    if (deleteBtn) deleteBtn.style.display = '';
     const delBtn = document.getElementById('btn-delete-group');
     if (delBtn) delBtn.style.display = '';
     const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
@@ -234,6 +240,22 @@ function deleteCurrentGroup() {
         summaryCard.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.openSummaryRight) window.openSummaryRight();
+        });
+    }
+
+    const flashcardsCard = document.getElementById('gen-opt-workbook');
+    if (flashcardsCard) {
+        flashcardsCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.openFlashcardsRight) window.openFlashcardsRight();
+        });
+    }
+
+    const whiteboardCard = document.getElementById('gen-opt-whiteboard');
+    if (whiteboardCard) {
+        whiteboardCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.openWhiteboardRight) window.openWhiteboardRight();
         });
     }
 
@@ -703,9 +725,13 @@ function renderGroupsUI() {
 
 function openGroup(name) {
     CURRENT_GROUP_VIEW = name;
+    const body = document.body;
+    if (body) body.classList.add('mode-group-view');
     const uploadedSection = document.getElementById('uploaded-files-section');
     const titleEl = document.getElementById('uploaded-files-title-text');
     if (titleEl) titleEl.textContent = name;
+    const manageBar = document.getElementById('files-manage-bar');
+    if (manageBar) manageBar.style.display = 'flex';
     const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
     if (!grid) return;
     // Hide all
@@ -720,8 +746,12 @@ function openGroup(name) {
 
 function exitGroupView() {
     CURRENT_GROUP_VIEW = null;
+    const body = document.body;
+    if (body) body.classList.remove('mode-group-view');
     const titleEl = document.getElementById('uploaded-files-title-text');
     if (titleEl) titleEl.textContent = 'Your Files';
+    const delBtn = document.getElementById('btn-delete-group');
+    if (delBtn) delBtn.style.display = 'none';
     renderGroupsUI();
 }
 
@@ -906,9 +936,15 @@ function setLeftView(mode) {
         body.classList.remove('mode-upload', 'mode-viewer', 'mode-manual', 'mode-files', 'mode-manage-files');
         body.classList.add(`mode-${mode}`);
     }
-    // Hide manage toolbar unless explicitly in manage-files mode
+    // Hide manage toolbar only in non-files modes; keep it visible in files/manage-files modes
     const manageBar = document.getElementById('files-manage-bar');
-    if (manageBar && mode !== 'manage-files') manageBar.style.display = 'none';
+    if (manageBar) {
+        if (mode === 'files' || mode === 'manage-files') {
+            manageBar.style.display = 'flex';
+        } else {
+            manageBar.style.display = 'none';
+        }
+    }
     // Restore left title when back to files mode
     const titleEl = document.getElementById('uploaded-files-title-text');
     if (titleEl && mode === 'files') titleEl.textContent = 'Your Recent Files';
@@ -932,6 +968,10 @@ function showMyFiles() {
         if (uploadedSection) uploadedSection.style.display = 'block';
         if (topActions) topActions.style.display = 'none';
         if (manageBar) manageBar.style.display = 'flex';
+        const groupBtn = document.getElementById('btn-group-files');
+        if (groupBtn) groupBtn.style.display = '';
+        const deleteBtn = document.getElementById('btn-delete-files');
+        if (deleteBtn) deleteBtn.style.display = '';
         if (titleEl) titleEl.textContent = 'Your Files';
         // Show all cards
         const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
@@ -1326,12 +1366,8 @@ window.startEmptyDocument = function () {
         if (contentDisplay) {
             contentDisplay.innerHTML = '';
             contentDisplay.contentEditable = 'true';
-            // Place caret and focus
             contentDisplay.focus();
         }
-
-        // Reset counters
-        try { updateWordCount(); } catch (_) {}
     } catch {}
 }
 
@@ -1601,7 +1637,19 @@ function openFile(fileId) {
     const fileDisplayContainer = document.getElementById('file-display-container');
     const contentDisplay = document.getElementById('content-display');
     const fileNameDisplay = document.querySelector('.filename-display');
-    if (fileDisplayContainer) fileDisplayContainer.style.display = 'flex';
+    if (fileDisplayContainer) {
+        fileDisplayContainer.style.display = 'flex';
+
+        const leftPane = fileDisplayContainer.closest('.left-side');
+        if (leftPane) {
+            leftPane.scrollTop = 0;
+            fileDisplayContainer.scrollTop = 0;
+            requestAnimationFrame(() => {
+                leftPane.scrollTop = 0;
+                fileDisplayContainer.scrollTop = 0;
+            });
+        }
+    }
     if (fileNameDisplay) fileNameDisplay.textContent = 'Loading...';
     if (contentDisplay) {
         contentDisplay.contentEditable = 'false';
@@ -2871,6 +2919,399 @@ window.backFromSummaryRight = window.backFromSummaryRight || function () {
     if (generateWrapper) generateWrapper.style.display = 'flex';
     if (generateOptions) generateOptions.style.display = '';
     
+    if (generateWrapper || generateOptions) {
+        (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+let whiteboardCanvas = null;
+let whiteboardCtx = null;
+
+function initWhiteboardCanvas() {
+    const canvas = document.getElementById('whiteboard-canvas');
+    const wrapper = document.getElementById('whiteboard-canvas-wrapper');
+    if (!canvas || !wrapper) return;
+
+    const resizeCanvas = () => {
+        const rect = wrapper.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#111827';
+        whiteboardCanvas = canvas;
+        whiteboardCtx = ctx;
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    if (canvas.dataset.bound === '1') return;
+    canvas.dataset.bound = '1';
+
+    let drawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    };
+
+    const startDraw = (e) => {
+        if (!whiteboardCtx) return;
+        drawing = true;
+        const pos = getPos(e);
+        lastX = pos.x;
+        lastY = pos.y;
+    };
+
+    const draw = (e) => {
+        if (!drawing || !whiteboardCtx) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(lastX, lastY);
+        whiteboardCtx.lineTo(pos.x, pos.y);
+        whiteboardCtx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+    };
+
+    const endDraw = () => {
+        drawing = false;
+    };
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', endDraw);
+
+    canvas.addEventListener('touchstart', (e) => { startDraw(e); }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { draw(e); }, { passive: false });
+    canvas.addEventListener('touchend', endDraw);
+}
+
+function setWhiteboardMode(mode) {
+    const textWrap = document.getElementById('whiteboard-text-wrapper');
+    const canvasWrap = document.getElementById('whiteboard-canvas-wrapper');
+    const btnText = document.getElementById('whiteboard-mode-text');
+    const btnDraw = document.getElementById('whiteboard-mode-draw');
+    if (!textWrap || !canvasWrap || !btnText || !btnDraw) return;
+
+    if (mode === 'draw') {
+        textWrap.style.display = 'none';
+        canvasWrap.style.display = 'flex';
+        btnText.classList.remove('active');
+        btnDraw.classList.add('active');
+        initWhiteboardCanvas();
+    } else {
+        textWrap.style.display = 'flex';
+        canvasWrap.style.display = 'none';
+        btnDraw.classList.remove('active');
+        btnText.classList.add('active');
+    }
+}
+
+function bindWhiteboardControls() {
+    const btnText = document.getElementById('whiteboard-mode-text');
+    const btnDraw = document.getElementById('whiteboard-mode-draw');
+    const clearBtn = document.getElementById('whiteboard-clear-canvas');
+
+    if (btnText && !btnText.dataset.bound) {
+        btnText.dataset.bound = '1';
+        btnText.addEventListener('click', () => setWhiteboardMode('text'));
+    }
+    if (btnDraw && !btnDraw.dataset.bound) {
+        btnDraw.dataset.bound = '1';
+        btnDraw.addEventListener('click', () => setWhiteboardMode('draw'));
+    }
+    if (clearBtn && !clearBtn.dataset.bound) {
+        clearBtn.dataset.bound = '1';
+        clearBtn.addEventListener('click', () => {
+            if (whiteboardCanvas && whiteboardCtx) {
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            }
+        });
+    }
+}
+
+window.openWhiteboardRight = window.openWhiteboardRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const summaryContainer = document.getElementById('summary-display-container');
+    const flashcardsContainer = document.getElementById('flashcards-display-container');
+    const whiteboardContainer = document.getElementById('whiteboard-display-container');
+
+    if (!whiteboardContainer) return;
+
+    if (generateWrapper) generateWrapper.style.display = 'none';
+    if (generateOptions) generateOptions.style.display = 'none';
+    if (summaryContainer) summaryContainer.style.display = 'none';
+    if (flashcardsContainer) flashcardsContainer.style.display = 'none';
+
+    whiteboardContainer.style.display = 'flex';
+
+    const rightPane = whiteboardContainer.closest('.right-side');
+    const docBox = whiteboardContainer.closest('.doc-box');
+    const leftContent = whiteboardContainer.closest('.left-content');
+    if (rightPane) {
+        rightPane.scrollTop = 0;
+    }
+    if (docBox) {
+        docBox.scrollTop = 0;
+    }
+    if (leftContent) {
+        leftContent.scrollTop = 0;
+    }
+    whiteboardContainer.scrollTop = 0;
+    requestAnimationFrame(() => {
+        if (rightPane) rightPane.scrollTop = 0;
+        if (docBox) docBox.scrollTop = 0;
+        if (leftContent) leftContent.scrollTop = 0;
+        whiteboardContainer.scrollTop = 0;
+    });
+
+    // Make sure the whiteboard container is aligned to the top of the visible area
+    try {
+        whiteboardContainer.scrollIntoView({ behavior: 'auto', block: 'start' });
+    } catch (_) { }
+
+    // Default to text mode on open
+    setWhiteboardMode('text');
+    bindWhiteboardControls();
+};
+
+window.backFromWhiteboardRight = window.backFromWhiteboardRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const whiteboardContainer = document.getElementById('whiteboard-display-container');
+
+    if (whiteboardContainer) whiteboardContainer.style.display = 'none';
+    if (generateWrapper) generateWrapper.style.display = 'flex';
+    if (generateOptions) generateOptions.style.display = '';
+
+    if (generateWrapper || generateOptions) {
+        (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+let flashcardsData = [];
+let currentFlashcardIndex = 0;
+let flashcardsLoadedOnce = false;
+
+async function loadFlashcardsData() {
+    if (flashcardsLoadedOnce && Array.isArray(flashcardsData) && flashcardsData.length >= 0) {
+        updateFlashcardsCount();
+        return;
+    }
+    try {
+        const res = await fetch('/Flashcards/GetUserFlashcards', { credentials: 'same-origin' });
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            flashcardsData = data.map(x => ({
+                question: x.question,
+                answer: x.answer
+            }));
+        } else {
+            flashcardsData = [];
+        }
+        flashcardsLoadedOnce = true;
+    } catch (e) {
+        flashcardsData = [];
+    }
+    updateFlashcardsCount();
+}
+
+function updateFlashcardsCount() {
+    const countEl = document.getElementById('flashcards-count');
+    if (!countEl) return;
+    const count = Array.isArray(flashcardsData) ? flashcardsData.length : 0;
+    countEl.innerHTML = `<i class="bi bi-collection me-1"></i>${count} cards`;
+}
+
+function initFlashcardsUI() {
+    const card = document.getElementById('flashcard-card');
+    const emptyState = document.getElementById('flashcards-empty-state');
+    const indexEl = document.getElementById('flashcard-index');
+    const totalEl = document.getElementById('flashcard-total');
+    const questionEl = document.getElementById('flashcard-question');
+    const answerEl = document.getElementById('flashcard-answer');
+    const toggleBtn = document.getElementById('flashcard-toggle-btn');
+
+    if (!card || !emptyState || !indexEl || !totalEl || !questionEl || !answerEl || !toggleBtn) return;
+
+    if (!flashcardsData || flashcardsData.length === 0) {
+        card.classList.add('d-none');
+        emptyState.classList.remove('d-none');
+        return;
+    }
+
+    card.classList.remove('d-none');
+    emptyState.classList.add('d-none');
+    totalEl.textContent = flashcardsData.length.toString();
+    if (currentFlashcardIndex < 0 || currentFlashcardIndex >= flashcardsData.length) {
+        currentFlashcardIndex = 0;
+    }
+    const item = flashcardsData[currentFlashcardIndex];
+    indexEl.textContent = (currentFlashcardIndex + 1).toString();
+    questionEl.textContent = item.question;
+    answerEl.textContent = item.answer;
+    answerEl.classList.add('d-none');
+    toggleBtn.textContent = 'Show answer';
+}
+
+function bindFlashcardCreateForm() {
+    const btn = document.getElementById('flashcard-add-btn');
+    if (!btn) return;
+    const questionEl = document.getElementById('flashcard-new-question');
+    const answerEl = document.getElementById('flashcard-new-answer');
+    const errorEl = document.getElementById('flashcard-create-error');
+
+    if (!questionEl || !answerEl) return;
+
+    // Prevent binding multiple times
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+
+    const toggleBtn = document.getElementById('flashcards-add-toggle');
+    const formContainer = document.getElementById('flashcard-create-container');
+    if (toggleBtn && formContainer && !toggleBtn.dataset.bound) {
+        toggleBtn.dataset.bound = '1';
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = formContainer.style.display === 'none' || !formContainer.style.display;
+            formContainer.style.display = isHidden ? 'block' : 'none';
+
+            if (isHidden) {
+                // When opening the add form, change button to "View"
+                toggleBtn.innerHTML = '<i class="bi bi-eye me-1"></i>View';
+            } else {
+                // When hiding the add form, change button back to "Add"
+                toggleBtn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add';
+            }
+        });
+    }
+
+    btn.addEventListener('click', async () => {
+        const question = (questionEl.value || '').trim();
+        const answer = (answerEl.value || '').trim();
+        if (!question || !answer) {
+            if (errorEl) errorEl.textContent = 'Question and answer are required.';
+            return;
+        }
+
+        if (errorEl) errorEl.textContent = '';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/Flashcards/CreateFromDashboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ question, answer })
+            });
+
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data || data.success !== true) {
+                const msg = (data && data.error) ? data.error : 'Failed to create flashcard.';
+                if (errorEl) errorEl.textContent = msg;
+                return;
+            }
+
+            if (!Array.isArray(flashcardsData)) flashcardsData = [];
+            flashcardsData.push({ question: data.question || question, answer: data.answer || answer });
+            currentFlashcardIndex = flashcardsData.length - 1;
+            updateFlashcardsCount();
+            initFlashcardsUI();
+
+            questionEl.value = '';
+            answerEl.value = '';
+        } catch (e) {
+            if (errorEl) errorEl.textContent = e?.message || 'Error creating flashcard.';
+        } finally {
+            btn.disabled = false;
+        }
+    });
+}
+
+function toggleFlashcardAnswer() {
+    const answerEl = document.getElementById('flashcard-answer');
+    const toggleBtn = document.getElementById('flashcard-toggle-btn');
+    if (!answerEl || !toggleBtn) return;
+    const hidden = answerEl.classList.contains('d-none');
+    if (hidden) {
+        answerEl.classList.remove('d-none');
+        toggleBtn.textContent = 'Hide answer';
+    } else {
+        answerEl.classList.add('d-none');
+        toggleBtn.textContent = 'Show answer';
+    }
+}
+
+function nextFlashcard() {
+    if (!flashcardsData || flashcardsData.length === 0) return;
+    currentFlashcardIndex = (currentFlashcardIndex + 1) % flashcardsData.length;
+    initFlashcardsUI();
+}
+
+function prevFlashcard() {
+    if (!flashcardsData || flashcardsData.length === 0) return;
+    currentFlashcardIndex = (currentFlashcardIndex - 1 + flashcardsData.length) % flashcardsData.length;
+    initFlashcardsUI();
+}
+
+// Flashcards right-pane helpers
+window.openFlashcardsRight = window.openFlashcardsRight || async function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const summaryContainer = document.getElementById('summary-display-container');
+    const flashcardsContainer = document.getElementById('flashcards-display-container');
+
+    if (!flashcardsContainer) return;
+
+    if (generateWrapper) generateWrapper.style.display = 'none';
+    if (generateOptions) generateOptions.style.display = 'none';
+    if (summaryContainer) summaryContainer.style.display = 'none';
+
+    flashcardsContainer.style.display = 'flex';
+
+    await loadFlashcardsData();
+    initFlashcardsUI();
+    bindFlashcardCreateForm();
+
+    const rightPane = flashcardsContainer.closest('.right-side');
+    if (rightPane) {
+        rightPane.scrollTop = 0;
+        flashcardsContainer.scrollTop = 0;
+        requestAnimationFrame(() => {
+            rightPane.scrollTop = 0;
+            flashcardsContainer.scrollTop = 0;
+        });
+    }
+};
+
+window.backFromFlashcardsRight = window.backFromFlashcardsRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const flashcardsContainer = document.getElementById('flashcards-display-container');
+
+    if (flashcardsContainer) flashcardsContainer.style.display = 'none';
+    if (generateWrapper) generateWrapper.style.display = 'flex';
+    if (generateOptions) generateOptions.style.display = '';
+
     if (generateWrapper || generateOptions) {
         (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
