@@ -451,12 +451,26 @@ body.dashboard-page {
     background-color: var(--color-background);
 }
 
+#whiteboard-display-container {
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: var(--color-background);
+}
+
 .left-side #file-display-container {
     padding-top: 12px !important;
 }
 
 .right-side #summary-display-container,
-.right-side #flashcards-display-container {
+.right-side #flashcards-display-container,
+.right-side #whiteboard-display-container {
     padding-top: 12px !important;
 }
 

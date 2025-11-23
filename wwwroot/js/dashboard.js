@@ -2926,6 +2926,8 @@ window.backFromSummaryRight = window.backFromSummaryRight || function () {
 
 let whiteboardCanvas = null;
 let whiteboardCtx = null;
+let whiteboardColor = '#111827';
+let whiteboardLineWidth = 2;
 
 function initWhiteboardCanvas() {
     const canvas = document.getElementById('whiteboard-canvas');
@@ -2939,9 +2941,9 @@ function initWhiteboardCanvas() {
         canvas.height = rect.height * dpr;
         const ctx = canvas.getContext('2d');
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.lineWidth = 2;
+        ctx.lineWidth = whiteboardLineWidth || 2;
         ctx.lineCap = 'round';
-        ctx.strokeStyle = '#111827';
+        ctx.strokeStyle = whiteboardColor || '#111827';
         whiteboardCanvas = canvas;
         whiteboardCtx = ctx;
     };
@@ -3006,44 +3008,49 @@ function initWhiteboardCanvas() {
 }
 
 function setWhiteboardMode(mode) {
-    const textWrap = document.getElementById('whiteboard-text-wrapper');
     const canvasWrap = document.getElementById('whiteboard-canvas-wrapper');
-    const btnText = document.getElementById('whiteboard-mode-text');
-    const btnDraw = document.getElementById('whiteboard-mode-draw');
-    if (!textWrap || !canvasWrap || !btnText || !btnDraw) return;
+    if (!canvasWrap) return;
 
-    if (mode === 'draw') {
-        textWrap.style.display = 'none';
-        canvasWrap.style.display = 'flex';
-        btnText.classList.remove('active');
-        btnDraw.classList.add('active');
-        initWhiteboardCanvas();
-    } else {
-        textWrap.style.display = 'flex';
-        canvasWrap.style.display = 'none';
-        btnDraw.classList.remove('active');
-        btnText.classList.add('active');
-    }
+    canvasWrap.style.display = 'flex';
+    initWhiteboardCanvas();
 }
 
 function bindWhiteboardControls() {
-    const btnText = document.getElementById('whiteboard-mode-text');
-    const btnDraw = document.getElementById('whiteboard-mode-draw');
     const clearBtn = document.getElementById('whiteboard-clear-canvas');
+    const colorInput = document.getElementById('whiteboard-color');
+    const widthInput = document.getElementById('whiteboard-line-width');
 
-    if (btnText && !btnText.dataset.bound) {
-        btnText.dataset.bound = '1';
-        btnText.addEventListener('click', () => setWhiteboardMode('text'));
-    }
-    if (btnDraw && !btnDraw.dataset.bound) {
-        btnDraw.dataset.bound = '1';
-        btnDraw.addEventListener('click', () => setWhiteboardMode('draw'));
-    }
     if (clearBtn && !clearBtn.dataset.bound) {
         clearBtn.dataset.bound = '1';
         clearBtn.addEventListener('click', () => {
             if (whiteboardCanvas && whiteboardCtx) {
                 whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            }
+        });
+    }
+
+    if (colorInput && !colorInput.dataset.bound) {
+        colorInput.dataset.bound = '1';
+        colorInput.value = whiteboardColor || '#111827';
+        colorInput.addEventListener('input', () => {
+            const val = colorInput.value || '#111827';
+            whiteboardColor = val;
+            if (whiteboardCtx) {
+                whiteboardCtx.strokeStyle = whiteboardColor;
+            }
+        });
+    }
+
+    if (widthInput && !widthInput.dataset.bound) {
+        widthInput.dataset.bound = '1';
+        widthInput.value = whiteboardLineWidth || 2;
+        widthInput.addEventListener('input', () => {
+            const val = parseInt(widthInput.value, 10);
+            if (!Number.isNaN(val) && val > 0) {
+                whiteboardLineWidth = val;
+                if (whiteboardCtx) {
+                    whiteboardCtx.lineWidth = whiteboardLineWidth;
+                }
             }
         });
     }
@@ -3090,8 +3097,8 @@ window.openWhiteboardRight = window.openWhiteboardRight || function () {
         whiteboardContainer.scrollIntoView({ behavior: 'auto', block: 'start' });
     } catch (_) { }
 
-    // Default to text mode on open
-    setWhiteboardMode('text');
+    // Always open in draw mode
+    setWhiteboardMode('draw');
     bindWhiteboardControls();
 };
 
