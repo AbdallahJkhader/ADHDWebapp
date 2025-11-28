@@ -48,7 +48,7 @@ namespace ADHDWebApp.Controllers
                 if (DateTime.TryParse(lastStr, out var lastAt))
                 {
                     var diff = now - lastAt;
-                    const int CooldownSeconds = 30;
+                    const int CooldownSeconds = 15;
                     if (diff.TotalSeconds < CooldownSeconds)
                     {
                         var remaining = Math.Ceiling(CooldownSeconds - diff.TotalSeconds);

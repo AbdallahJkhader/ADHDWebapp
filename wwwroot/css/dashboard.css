@@ -2772,3 +2772,36 @@ body.dashboard-page {
     margin-top: 4px;
     margin-bottom: 8px;
 }
+
+#audio-display-container {
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: var(--color-background);
+}
+
+.right-side #audio-display-container {
+    padding-top: 12px !important;
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+.recording-pulse {
+    animation: pulse-red 2s infinite;
+}

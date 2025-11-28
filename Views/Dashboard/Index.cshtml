@@ -69,7 +69,7 @@
 
             <div class="user-dropdown me-3">
                 <button class="nav-btn" onclick="toggleDropdown('focus', event)">
-                    <i class="bi bi-bullseye"></i>
+                    <img src="~/images/focus icon.png" alt="Focus" style="width: 20px; height: 20px; object-fit: contain;" />
                     <span>Focus</span>
                 </button>
                 <div class="dropdown-menu enhanced-dropdown text-start" id="focus-dropdown" dir="ltr" style="direction:ltr;">
@@ -192,12 +192,12 @@
             <!-- Files Dropdown -->
             <div class="user-dropdown me-3">
                 <button class="nav-btn" onclick="toggleDropdown('files', event)">
-                    <img src="~/images/folder.png" alt="Files" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain;" />
+                    <img src="~/images/files icon.png" alt="Files" style="width: 20px; height: 20px; object-fit: contain;" />
                     <span>Files</span>
                 </button>
                 <div class="dropdown-menu enhanced-dropdown text-start" id="files-dropdown" dir="ltr" style="direction:ltr;">
                     <div class="dropdown-header">
-                        <img src="~/images/folder.png" alt="File Management" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
+                        <img src="~/images/folder icon.png" alt="File Management" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
                         <span>File Management</span>
                     </div>
                     <div class="dropdown-divider"></div>
@@ -250,7 +250,7 @@
             <!-- Tools Dropdown -->
             <div class="user-dropdown me-3">
                 <button class="nav-btn" onclick="toggleDropdown('tools')">
-                    <i class="bi bi-tools"></i>
+                    <img src="~/images/tools icon.png" alt="Tools" style="width: 20px; height: 20px; object-fit: contain;" />
                     <span>Tools</span>
                 </button>
                 <div class="dropdown-menu enhanced-dropdown text-start" id="tools-dropdown" dir="ltr" style="direction:ltr;">
@@ -735,7 +735,7 @@
                             </div>
 
                             <h6 class="files-section-title mb-2 d-flex align-items-center gap-2">
-                                <img src="~/images/folder.png" alt="Files" style="width: 20px; height: 20px; object-fit: contain;" />
+                                <img src="~/images/files icon.png" alt="Files" style="width: 20px; height: 20px; object-fit: contain;" />
                                 <span id="uploaded-files-title-text">Your Recent Files</span>
                             </h6>
 
@@ -767,7 +767,7 @@
                             else
                             {
                                 <div class="no-files-message text-center py-3">
-                                    <img src="~/images/folder.png" alt="No files" class="mb-2" style="width: 40px; height: 40px; object-fit: contain; opacity: 0.6;" />
+                                    <img src="~/images/folder icon.png" alt="No files" class="mb-2" style="width: 40px; height: 40px; object-fit: contain; opacity: 0.6;" />
                                     <p class="text-muted mb-1">No files uploaded yet</p>
                                     <small class="text-muted">Upload your first file above</small>
                                 </div>
@@ -892,13 +892,13 @@
 
         <div class="right-side">
             <div class="doc-box">
-                <div class="left-content">
+                <div class="left-content" style="position: relative;">
                     <div id="generate-wrapper" class="d-flex flex-column align-items-center justify-content-center" style="min-height: 70vh; display: flex;">
                     <div id="btn-generate-ai-helper" class="upload-card mb-3" style="cursor: pointer; width: 260px;">
                         <div class="upload-icon">
                             <img src="~/images/helpertools.png" alt="Helper tools" class="helper-icon">
                         </div>
-                        <h5>Add Helper Study Tool</h5>
+                        <h5>Study Tools</h5>
                         <p class="text-muted small">Open to choose what to generate</p>
                     </div>
                     <div id="generate-options" class="w-100" style="max-width: 720px; display: none;">
@@ -924,19 +924,29 @@
                             <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-ai" style="cursor:pointer;">
                                     <div class="upload-icon"><img src="~/images/youtube.png" alt="YouTube icon" class="helper-icon"></div>
-                                    <h5>Add YouTube Video</h5>
+                                    <h5>Add Video</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
-                                <div class="upload-card text-center" id="gen-opt-whiteboard" style="cursor:pointer;">
-                                    <div class="upload-icon"><img src="~/images/whiteboard.png" alt="Whiteboard icon" class="helper-icon"></div>
-                                    <h5>Whiteboard</h5>
+                                <div class="upload-card text-center" id="gen-opt-notes" style="cursor:pointer;">
+                                    <div class="upload-icon"><img src="~/images/notes.png" alt="Notes icon" class="helper-icon"></div>
+                                    <h5>Notes</h5>
                                 </div>
+                            </div>
+                            <div class="col-12 col-sm-6 mb-3">
+                                <div class="upload-card text-center" id="gen-opt-audio" style="cursor:pointer;">
+                                    <div class="upload-icon">
+                                        <img src="/images/audio icon.png" alt="Add Audio" style="width: 48px; height: 48px;">
+                                    </div>
+                                    <h5>Add Audio</h5>
+                                </div>
+                            </div>
+                            
                             </div>
                         </div>
                     </div>
-                </div>
 
+                    <!-- Summary right-pane view -->
                     <div id="summary-display-container" style="display: none;" class="h-100 pt-2">
                         <div class="controls-bar">
                             <div class="d-flex gap-2 align-items-center">
@@ -1109,32 +1119,169 @@
                         </div>
                     </div>
 
-                    <!-- Whiteboard right-pane view -->
-                    <div id="whiteboard-display-container" style="display: none;" class="h-100">
-                        <div class="controls-bar d-flex align-items-center gap-2">
-                            <button onclick="window.backFromWhiteboardRight && window.backFromWhiteboardRight(); return false;" class="btn btn-primary btn-sm">
-                                <i class="bi bi-arrow-left me-1"></i>
-                                Back
-                            </button>
+                    <!-- Notes right-pane view -->
+                    <div id="notes-display-container" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10;" class="h-100 pt-2">
+                        <div class="controls-bar">
+                            <div class="d-flex gap-2 align-items-center">
+                                <button onclick="window.backFromNotesRight && window.backFromNotesRight(); return false;" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Back
+                                </button>
 
-                            <input type="color" id="whiteboard-color" class="form-control form-control-color form-control-sm" value="#111827" title="Drawing color" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; border: none; background: transparent; overflow: hidden; cursor: pointer;" />
+                                <input type="color" id="whiteboard-color" class="form-control form-control-color form-control-sm" value="#111827" title="Drawing color" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; border: none; background: transparent; overflow: hidden; cursor: pointer;" />
 
-                            <input type="range" id="whiteboard-line-width" class="form-range" min="1" max="12" value="2" title="Brush size" style="width: 110px;" />
+                                <input type="range" id="whiteboard-line-width" class="form-range" min="1" max="12" value="2" title="Brush size" style="width: 110px;" />
 
-                            <div class="flex-grow-1 text-center">
-                                <span id="whiteboard-title" class="filename-display fw-medium">Whiteboard</span>
+                                <button type="button" class="btn btn-sm btn-outline-info" id="toggle-notes-mode" onclick="toggleNotesMode()" title="Toggle between writing and drawing">
+                                    <i class="bi bi-pencil me-1"></i>Draw
+                                </button>
+
+                                <div class="flex-grow-1 text-center">
+                                    <span id="notes-title" class="filename-display fw-medium">Notes</span>
+                                </div>
+
+                                <button type="button" class="btn btn-sm btn-outline-danger ms-auto" id="whiteboard-clear-canvas" title="Clear all content">
+                                    <i class="bi bi-eraser me-1"></i>Clear All
+                                </button>
                             </div>
+                        </div>
 
-                            <button type="button" class="btn btn-sm btn-outline-danger ms-auto" id="whiteboard-clear-canvas">
-                                <i class="bi bi-eraser me-1"></i>Clear drawing
-                            </button>
+                        <hr class="divider my-2">
+
+                        <div id="notes-content" class="flex-grow-1 d-flex flex-column align-items-center px-3" style="overflow-y: auto; max-height: calc(100vh - 200px);">
+                            <!-- Combined white interface for both writing and drawing -->
+                            <div class="w-100 position-relative" style="max-width: 100%; min-height: 500px; background-color: #ffffff;">
+                                <!-- Text area for notes (always visible) -->
+                                <textarea id="notes-textarea" class="form-control" placeholder="Write your notes here..." style="resize: none; width: 100%; height: 500px; border: none; outline: none; background-color: transparent; position: absolute; top: 0; left: 0; z-index: 1;"></textarea>
+                                
+                                <!-- Canvas for drawing (always visible on top) -->
+                                <canvas id="whiteboard-canvas" style="width: 100%; height: 500px; position: absolute; top: 0; left: 0; z-index: 2; background-color: transparent; pointer-events: auto;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Audio right-pane view -->
+                    <div id="audio-display-container" style="display: none;" class="h-100 pt-2">
+                        <div class="controls-bar">
+                            <div class="d-flex gap-2 align-items-center">
+                                <button onclick="window.backFromAudioRight && window.backFromAudioRight(); return false;" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Back
+                                </button>
+
+                                <div class="flex-grow-1 text-center">
+                                    <span id="audio-title" class="filename-display fw-medium">Audio Notes</span>
+                                </div>
+                            </div>
                         </div>
 
                         <hr class="divider my-2" />
 
-                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column">
-                            <div id="whiteboard-canvas-wrapper" class="flex-grow-1 d-flex flex-column">
-                                <canvas id="whiteboard-canvas" class="border rounded" style="width: 100%; height: 100%; touch-action: none; background-color: #ffffff;"></canvas>
+                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column align-items-center">
+                            <div class="text-center p-4 w-100">
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-center gap-4 align-items-center">
+                                        <button id="audio-record-btn" class="btn btn-lg btn-danger rounded-circle p-4 shadow-sm" style="width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center;">
+                                            <img src="/images/audio icon.png" alt="Record" style="width: 32px; height: 32px;">
+                                        </button>
+                                        
+                                        <div class="text-center">
+                                            <input type="file" id="audio-upload-input" accept="audio/*" style="display: none;" onchange="handleAudioUpload(event)" />
+                                            <button id="audio-upload-btn" class="btn btn-lg btn-primary rounded-circle p-4 shadow-sm" style="width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center;" onclick="document.getElementById('audio-upload-input').click()">
+                                                <img src="/images/updoad audio.png" alt="Upload Audio" style="width: 32px; height: 32px;">
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 text-muted fw-medium" id="audio-status">Click to Record or Upload</div>
+                                    <div class="mt-1 fs-3 font-monospace" id="audio-timer">00:00</div>
+                                </div>
+                                
+                                <div class="card shadow-sm mx-auto" style="max-width: 450px;">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="bi bi-collection-play me-2"></i>Recordings</h6>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div id="audio-list-container" class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                                            <div class="text-center py-4 text-muted small">
+                                                <img src="/images/audio icon.png" alt="No recordings" style="width: 32px; height: 32px; opacity: 0.5;" class="d-block mb-2">
+                                                No recordings yet
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- Video right-pane view -->
+                    <div id="video-display-container" style="display: none;" class="h-100 pt-2">
+                        <div class="controls-bar">
+                            <div class="d-flex gap-2 align-items-center">
+                                <button onclick="window.backFromVideoRight && window.backFromVideoRight(); return false;" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Back
+                                </button>
+
+                                <div class="flex-grow-1 text-center">
+                                    <span id="video-title" class="filename-display fw-medium">Video Notes</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="divider my-2" />
+
+                        <div class="document-content flex-grow-1 bg-white pt-4 d-flex flex-column align-items-center">
+                            <div class="text-center p-4 w-100">
+                                <div class="mb-5">
+                                    <div class="d-flex justify-content-center gap-4 align-items-center">
+                                        <div class="text-center">
+                                            <input type="file" id="video-upload-input" accept="video/*" style="display: none;" onchange="handleVideoUpload(event)" />
+                                            <button id="video-upload-btn" class="btn btn-lg btn-primary rounded-circle p-4 shadow-sm" style="width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center;" onclick="document.getElementById('video-upload-input').click()">
+                                                <img src="/images/upload.png" alt="Upload" style="width: 32px; height: 32px;">
+                                            </button>
+                                            <div class="mt-2 text-muted small">Upload Video</div>
+                                        </div>
+                                        
+                                        <div class="text-center">
+                                            <button id="video-youtube-btn" class="btn btn-lg btn-danger rounded-circle p-4 shadow-sm" style="width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center;" onclick="showYouTubeInput()">
+                                                <img src="/images/youtube.png" alt="YouTube" style="width: 32px; height: 32px;">
+                                            </button>
+                                            <div class="mt-2 text-muted small">YouTube</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 text-muted fw-medium" id="video-status">Upload video from device or add from YouTube</div>
+                                </div>
+                                
+                                <!-- YouTube URL Input (hidden by default) -->
+                                <div id="youtube-input-container" class="card shadow-sm mx-auto" style="max-width: 450px; display: none;">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="bi bi-youtube me-2"></i>Add YouTube Video</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <input type="url" id="youtube-url-input" class="form-control" placeholder="Enter YouTube URL..." />
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-primary flex-grow-1" onclick="addYouTubeVideo()">Add Video</button>
+                                            <button class="btn btn-secondary" onclick="hideYouTubeInput()">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card shadow-sm mx-auto" style="max-width: 450px;">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="bi bi-collection-play me-2"></i>Videos</h6>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div id="video-list-container" class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                                            <div class="text-center py-4 text-muted small">
+                                                <img src="/images/youtube.png" alt="No videos" style="width: 32px; height: 32px; opacity: 0.5;" class="d-block mb-2">
+                                                No videos yet
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -259,6 +259,38 @@ function deleteCurrentGroup() {
         });
     }
 
+    const audioCard = document.getElementById('gen-opt-audio');
+    if (audioCard) {
+        audioCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.openAudioRight) window.openAudioRight();
+        });
+    }
+
+    const notesCard = document.getElementById('gen-opt-notes');
+    if (notesCard) {
+        notesCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.openNotesRight) window.openNotesRight();
+        });
+    }
+
+    const quizzesCard = document.getElementById('gen-opt-quizzes');
+    if (quizzesCard) {
+        quizzesCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.openQuizzesRight) window.openQuizzesRight();
+        });
+    }
+
+    const aiCard = document.getElementById('gen-opt-ai');
+    if (aiCard) {
+        aiCard.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.openVideoRight) window.openVideoRight();
+        });
+    }
+
     // Ensure left pane starts in files mode (hide viewer)
     try {
         setLeftView('files');
@@ -715,7 +747,7 @@ function renderGroupsUI() {
         card.setAttribute('data-group-name', name);
         card.onclick = (e) => { e.preventDefault(); openGroup(name); };
         card.innerHTML = `
-            <div class="file-icon-large"><i class="bi bi-collection"></i></div>
+            <div class="file-icon-large"><img src="/images/folder icon.png" alt="Group" style="width: 36px; height: 36px; object-fit: contain;" /></div>
             <div class="file-name-card">${name}</div>
             <div class="file-meta-card"><small class="text-muted">${(GROUPS[name]||[]).length} items</small></div>
         `;
@@ -2496,6 +2528,211 @@ document.addEventListener('DOMContentLoaded', function () {
     if (sendBtn) sendBtn.addEventListener('click', handler);
 });
 
+// ===== Audio Notes Logic =====
+let mediaRecorder = null;
+let audioChunks = [];
+let audioTimerInterval = null;
+let audioStartTime = 0;
+let audioRecordings = []; // { id, blob, url, date, duration }
+
+function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function updateAudioTimer() {
+    const now = Date.now();
+    const diff = (now - audioStartTime) / 1000;
+    const timerEl = document.getElementById('audio-timer');
+    if (timerEl) timerEl.textContent = formatTime(diff);
+}
+
+function renderAudioList() {
+    const container = document.getElementById('audio-list-container');
+    if (!container) return;
+    
+    if (audioRecordings.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4 text-muted small">
+                <i class="bi bi-mic-mute fs-4 d-block mb-2"></i>
+                No recordings yet
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = '';
+    audioRecordings.forEach(rec => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex align-items-center justify-content-between p-3';
+        item.innerHTML = `
+            <div class="d-flex align-items-center overflow-hidden">
+                <div class="me-3 bg-light rounded-circle p-2 text-primary">
+                    <i class="bi bi-music-note-beamed"></i>
+                </div>
+                <div class="overflow-hidden">
+                    <h6 class="mb-0 text-truncate">Recording ${new Date(rec.date).toLocaleTimeString()}</h6>
+                    <small class="text-muted">${rec.duration}</small>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary btn-play" title="Play">
+                    <i class="bi bi-play-fill"></i>
+                </button>
+                <a href="${rec.url}" download="recording-${rec.id}.webm" class="btn btn-sm btn-outline-secondary" title="Download">
+                    <i class="bi bi-download"></i>
+                </a>
+                <button class="btn btn-sm btn-outline-danger btn-delete" title="Delete">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+        
+        // Bind events
+        const playBtn = item.querySelector('.btn-play');
+        const deleteBtn = item.querySelector('.btn-delete');
+        
+        let audio = null;
+        
+        playBtn.onclick = () => {
+            if (audio && !audio.paused) {
+                audio.pause();
+                playBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+            } else {
+                if (!audio) {
+                    audio = new Audio(rec.url);
+                    audio.onended = () => {
+                        playBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
+                    };
+                }
+                // Stop other audios? Maybe later.
+                audio.play();
+                playBtn.innerHTML = '<i class="bi bi-pause-fill"></i>';
+            }
+        };
+        
+        deleteBtn.onclick = () => {
+            if (confirm('Delete this recording?')) {
+                audioRecordings = audioRecordings.filter(r => r.id !== rec.id);
+                renderAudioList();
+            }
+        };
+        
+        container.appendChild(item);
+    });
+}
+
+function initAudioRecorder() {
+    const btn = document.getElementById('audio-record-btn');
+    const status = document.getElementById('audio-status');
+    const timer = document.getElementById('audio-timer');
+    
+    if (!btn || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    
+    btn.onclick = async () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            // Stop recording
+            mediaRecorder.stop();
+            clearInterval(audioTimerInterval);
+            btn.classList.remove('btn-danger', 'recording-pulse');
+            btn.classList.add('btn-outline-danger');
+            btn.innerHTML = '<i class="bi bi-mic-fill fs-2"></i>';
+            status.textContent = 'Click to Record';
+            timer.textContent = '00:00';
+        } else {
+            // Start recording
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const duration = timer.textContent; // Capture final time
+                    audioRecordings.unshift({
+                        id: Date.now(),
+                        blob: blob,
+                        url: url,
+                        date: new Date(),
+                        duration: duration
+                    });
+                    renderAudioList();
+                    
+                    // Stop all tracks to release mic
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start();
+                audioStartTime = Date.now();
+                audioTimerInterval = setInterval(updateAudioTimer, 1000);
+                
+                btn.classList.remove('btn-outline-danger');
+                btn.classList.add('btn-danger', 'recording-pulse'); // Add pulse animation class if needed
+                btn.innerHTML = '<i class="bi bi-stop-fill fs-2"></i>';
+                status.textContent = 'Recording...';
+                
+            } catch (err) {
+                console.error('Mic error:', err);
+                alert('Could not access microphone. Please allow permissions.');
+            }
+        }
+    };
+}
+
+window.openAudioRight = window.openAudioRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const summaryContainer = document.getElementById('summary-display-container');
+    const flashcardsContainer = document.getElementById('flashcards-display-container');
+    const whiteboardContainer = document.getElementById('whiteboard-display-container');
+    const audioContainer = document.getElementById('audio-display-container');
+
+    if (!audioContainer) return;
+
+    if (generateWrapper) generateWrapper.style.display = 'none';
+    if (generateOptions) generateOptions.style.display = 'none';
+    if (summaryContainer) summaryContainer.style.display = 'none';
+    if (flashcardsContainer) flashcardsContainer.style.display = 'none';
+    if (whiteboardContainer) whiteboardContainer.style.display = 'none';
+
+    audioContainer.style.display = 'flex';
+
+    // Scroll handling
+    const rightPane = audioContainer.closest('.right-side');
+    if (rightPane) rightPane.scrollTop = 0;
+    
+    initAudioRecorder();
+    renderAudioList();
+};
+
+window.backFromAudioRight = window.backFromAudioRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const audioContainer = document.getElementById('audio-display-container');
+
+    if (audioContainer) audioContainer.style.display = 'none';
+    if (generateWrapper) generateWrapper.style.display = 'flex';
+    if (generateOptions) generateOptions.style.display = '';
+    
+    // Stop recording if active
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        clearInterval(audioTimerInterval);
+        const btn = document.getElementById('audio-record-btn');
+        if (btn) {
+            btn.innerHTML = '<i class="bi bi-mic-fill fs-2"></i>';
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-outline-danger');
+        }
+    }
+};
+
 // ===== Class-based Chat (Messages panel) =====
 document.addEventListener('DOMContentLoaded', function () {
     const classSelect = document.getElementById('chat-class-select');
@@ -3321,5 +3558,370 @@ window.backFromFlashcardsRight = window.backFromFlashcardsRight || function () {
 
     if (generateWrapper || generateOptions) {
         (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+window.openNotesRight = window.openNotesRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const notesContainer = document.getElementById('notes-display-container');
+    
+    if (!notesContainer) return;
+    
+    if (generateWrapper) generateWrapper.style.display = 'none';
+    if (generateOptions) generateOptions.style.display = 'none';
+    
+    notesContainer.style.display = 'block';
+    
+    const rightPane = notesContainer.closest('.right-side');
+    if (rightPane) {
+        rightPane.scrollTop = 0;
+        notesContainer.scrollTop = 0;
+        requestAnimationFrame(() => {
+            rightPane.scrollTop = 0;
+            notesContainer.scrollTop = 0;
+        });
+    }
+};
+
+window.backFromNotesRight = window.backFromNotesRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const notesContainer = document.getElementById('notes-display-container');
+    
+    if (notesContainer) notesContainer.style.display = 'none';
+    
+    if (generateWrapper) generateWrapper.style.display = 'flex';
+    if (generateOptions) generateOptions.style.display = '';
+    
+    if (generateWrapper || generateOptions) {
+        (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+window.adjustNotesFontSize = window.adjustNotesFontSize || function(action) {
+    const textarea = document.getElementById('notes-textarea');
+    if (!textarea) return;
+    
+    const currentSize = parseInt(window.getComputedStyle(textarea).fontSize) || 16;
+    const newSize = action === 'increase' ? currentSize + 2 : Math.max(12, currentSize - 2);
+    textarea.style.fontSize = newSize + 'px';
+};
+
+window.toggleNotesMode = window.toggleNotesMode || function() {
+    const textarea = document.getElementById('notes-textarea');
+    const canvas = document.getElementById('whiteboard-canvas');
+    const toggleBtn = document.getElementById('toggle-notes-mode');
+    
+    if (!textarea || !canvas || !toggleBtn) return;
+    
+    // Check if canvas is currently disabled for drawing
+    const isDrawingDisabled = canvas.style.pointerEvents === 'none';
+    
+    if (isDrawingDisabled) {
+        // Enable drawing mode
+        canvas.style.pointerEvents = 'auto';
+        textarea.style.pointerEvents = 'none';
+        toggleBtn.innerHTML = '<i class="bi bi-type me-1"></i>Write';
+        // Initialize canvas for drawing
+        initNotesCanvas();
+    } else {
+        // Enable writing mode
+        canvas.style.pointerEvents = 'none';
+        textarea.style.pointerEvents = 'auto';
+        toggleBtn.innerHTML = '<i class="bi bi-pencil me-1"></i>Draw';
+    }
+};
+
+// Notes drawing functionality
+let notesCanvas = null;
+let notesCtx = null;
+let isDrawing = false;
+
+function initNotesCanvas() {
+    const canvas = document.getElementById('whiteboard-canvas');
+    if (!canvas) return;
+    
+    notesCanvas = canvas;
+    notesCtx = canvas.getContext('2d');
+    
+    // Set canvas size
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    
+    // Drawing events
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    
+    // Touch events
+    canvas.addEventListener('touchstart', handleTouch);
+    canvas.addEventListener('touchmove', handleTouch);
+    canvas.addEventListener('touchend', stopDrawing);
+}
+
+function startDrawing(e) {
+    isDrawing = true;
+    const rect = notesCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    notesCtx.beginPath();
+    notesCtx.moveTo(x, y);
+}
+
+function draw(e) {
+    if (!isDrawing) return;
+    
+    const rect = notesCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const color = document.getElementById('whiteboard-color').value;
+    const lineWidth = document.getElementById('whiteboard-line-width').value;
+    
+    notesCtx.strokeStyle = color;
+    notesCtx.lineWidth = lineWidth;
+    notesCtx.lineCap = 'round';
+    notesCtx.lineJoin = 'round';
+    
+    notesCtx.lineTo(x, y);
+    notesCtx.stroke();
+}
+
+function stopDrawing() {
+    isDrawing = false;
+}
+
+function handleTouch(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    notesCanvas.dispatchEvent(mouseEvent);
+}
+
+// Handle audio file upload
+window.handleAudioUpload = window.handleAudioUpload || function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Check if it's an audio file
+    if (!file.type.startsWith('audio/')) {
+        alert('Please select an audio file.');
+        return;
+    }
+    
+    // Create audio element to get duration
+    const audio = new Audio();
+    audio.src = URL.createObjectURL(file);
+    
+    audio.addEventListener('loadedmetadata', function() {
+        const duration = audio.duration;
+        const fileName = file.name;
+        const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+        
+        // Add to recordings list
+        addUploadedAudioToList(fileName, duration, fileSize, file);
+        
+        // Reset file input
+        event.target.value = '';
+    });
+};
+
+function addUploadedAudioToList(fileName, duration, fileSize, file) {
+    const audioList = document.getElementById('audio-list-container');
+    if (!audioList) return;
+    
+    // Remove "No recordings" message if exists
+    const noRecordings = audioList.querySelector('.text-center.py-4');
+    if (noRecordings) {
+        noRecordings.remove();
+    }
+    
+    // Create list item
+    const listItem = document.createElement('div');
+    listItem.className = 'list-group-item d-flex align-items-center';
+    listItem.innerHTML = `
+        <img src="/images/audio icon.png" alt="Audio" style="width: 24px; height: 24px; margin-right: 10px;">
+        <div class="flex-grow-1">
+            <div class="fw-medium">${fileName}</div>
+            <small class="text-muted">${formatAudioDuration(duration)} • ${fileSize}</small>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+    
+    audioList.appendChild(listItem);
+}
+
+function formatAudioDuration(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Handle video file upload
+window.handleVideoUpload = window.handleVideoUpload || function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Check if it's a video file
+    if (!file.type.startsWith('video/')) {
+        alert('Please select a video file.');
+        return;
+    }
+    
+    // Create video element to get duration
+    const video = document.createElement('video');
+    video.src = URL.createObjectURL(file);
+    
+    video.addEventListener('loadedmetadata', function() {
+        const duration = video.duration;
+        const fileName = file.name;
+        const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+        
+        // Add to videos list
+        addUploadedVideoToList(fileName, duration, fileSize, 'upload', file);
+        
+        // Reset file input
+        event.target.value = '';
+    });
+};
+
+// Show YouTube input
+window.showYouTubeInput = window.showYouTubeInput || function() {
+    const container = document.getElementById('youtube-input-container');
+    if (container) {
+        container.style.display = 'block';
+        document.getElementById('youtube-url-input').focus();
+    }
+};
+
+// Hide YouTube input
+window.hideYouTubeInput = window.hideYouTubeInput || function() {
+    const container = document.getElementById('youtube-input-container');
+    const input = document.getElementById('youtube-url-input');
+    if (container) {
+        container.style.display = 'none';
+        if (input) input.value = '';
+    }
+};
+
+// Add YouTube video
+window.addYouTubeVideo = window.addYouTubeVideo || function() {
+    const input = document.getElementById('youtube-url-input');
+    const url = input.value.trim();
+    
+    if (!url) {
+        alert('Please enter a YouTube URL.');
+        return;
+    }
+    
+    // Simple YouTube URL validation
+    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
+        alert('Please enter a valid YouTube URL.');
+        return;
+    }
+    
+    // Extract video ID and title (simplified)
+    let videoId = '';
+    let title = 'YouTube Video';
+    
+    if (url.includes('youtube.com/watch?v=')) {
+        videoId = url.split('v=')[1]?.split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0];
+    }
+    
+    if (videoId) {
+        title = `YouTube Video (${videoId})`;
+    }
+    
+    // Add to videos list
+    addUploadedVideoToList(title, 'Unknown', 'Stream', 'youtube', url);
+    
+    // Hide input and clear
+    hideYouTubeInput();
+};
+
+function addUploadedVideoToList(fileName, duration, fileSize, type, source) {
+    const videoList = document.getElementById('video-list-container');
+    if (!videoList) return;
+    
+    // Remove "No videos" message if exists
+    const noVideos = videoList.querySelector('.text-center.py-4');
+    if (noVideos) {
+        noVideos.remove();
+    }
+    
+    // Create list item
+    const listItem = document.createElement('div');
+    listItem.className = 'list-group-item d-flex align-items-center';
+    
+    const icon = type === 'youtube' ? 'youtube' : 'play-circle-fill';
+    const iconColor = type === 'youtube' ? 'text-danger' : 'text-primary';
+    
+    listItem.innerHTML = `
+        <img src="/images/${type === 'youtube' ? 'youtube' : 'video'}.png" alt="Video" style="width: 24px; height: 24px; margin-right: 10px;">
+        <div class="flex-grow-1">
+            <div class="fw-medium">${fileName}</div>
+            <small class="text-muted">${type === 'youtube' ? 'YouTube Stream' : `${formatVideoDuration(duration)} • ${fileSize}`}</small>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+    
+    videoList.appendChild(listItem);
+}
+
+function formatVideoDuration(seconds) {
+    if (seconds === 'Unknown') return 'Unknown';
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Video back function
+window.backFromVideoRight = window.backFromVideoRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const videoContainer = document.getElementById('video-display-container');
+    
+    if (videoContainer) videoContainer.style.display = 'none';
+    
+    if (generateWrapper) generateWrapper.style.display = 'flex';
+    if (generateOptions) generateOptions.style.display = '';
+    
+    if (generateWrapper || generateOptions) {
+        (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+window.openVideoRight = window.openVideoRight || function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const videoContainer = document.getElementById('video-display-container');
+    
+    if (!videoContainer) return;
+    
+    if (generateWrapper) generateWrapper.style.display = 'none';
+    if (generateOptions) generateOptions.style.display = 'none';
+    
+    videoContainer.style.display = 'flex';
+    
+    const rightPane = videoContainer.closest('.right-side');
+    if (rightPane) {
+        rightPane.scrollTop = 0;
+        videoContainer.scrollTop = 0;
+        requestAnimationFrame(() => {
+            rightPane.scrollTop = 0;
+            videoContainer.scrollTop = 0;
+        });
     }
 };
