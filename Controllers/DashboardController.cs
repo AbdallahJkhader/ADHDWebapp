@@ -634,10 +634,133 @@ namespace ADHDWebApp.Controllers
             }
         }
 
+        // Save video file for the current user
+        [HttpPost]
+        [Route("Dashboard/SaveVideo")]
+        public async Task<IActionResult> SaveVideo([FromBody] SaveVideoRequest req)
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail))
+                    return Json(new { success = false, error = "Not logged in" });
+
+                if (req == null)
+                    return Json(new { success = false, error = "Invalid request" });
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                if (user == null)
+                    return Json(new { success = false, error = "User not found" });
+
+                var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "video.mp4" : req.FileName.Trim();
+                if (!fileName.Contains('.', StringComparison.OrdinalIgnoreCase))
+                {
+                    fileName += ".mp4";
+                }
+
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                // Ensure unique filename for this user folder
+                string MakeSafeName(string name)
+                {
+                    foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+                    return name;
+                }
+
+                fileName = MakeSafeName(fileName);
+                var targetPath = Path.Combine(uploadsFolder, fileName);
+                if (System.IO.File.Exists(targetPath))
+                {
+                    var baseName = Path.GetFileNameWithoutExtension(fileName);
+                    var ext = Path.GetExtension(fileName);
+                    int i = 1;
+                    do
+                    {
+                        fileName = $"{baseName} ({i++}){ext}";
+                        targetPath = Path.Combine(uploadsFolder, fileName);
+                    } while (System.IO.File.Exists(targetPath));
+                }
+
+                // Convert base64 to video file
+                if (!string.IsNullOrWhiteSpace(req.VideoData))
+                {
+                    var videoBytes = Convert.FromBase64String(req.VideoData.Split(',')[1] ?? req.VideoData);
+                    await System.IO.File.WriteAllBytesAsync(targetPath, videoBytes);
+                }
+                else
+                {
+                    return Json(new { success = false, error = "No video data provided" });
+                }
+
+                var userFile = new UserFile
+                {
+                    FileName = fileName,
+                    FilePath = "/uploads/" + fileName,
+                    ContentType = req.ContentType ?? "video/mp4",
+                    FileSize = new FileInfo(targetPath).Length,
+                    UploadedAt = DateTime.Now,
+                    UserId = user.Id,
+                    User = user
+                };
+                _context.UserFiles.Add(userFile);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, fileId = userFile.Id, fileName = userFile.FileName });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        // Get video files for the current user
+        [HttpGet]
+        [Route("Dashboard/GetVideoFiles")]
+        public async Task<IActionResult> GetVideoFiles()
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail))
+                    return Json(new { success = false, error = "Not logged in" });
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                if (user == null)
+                    return Json(new { success = false, error = "User not found" });
+
+                var videoFiles = await _context.UserFiles
+                    .Where(f => f.UserId == user.Id && f.ContentType.StartsWith("video/"))
+                    .OrderByDescending(f => f.UploadedAt)
+                    .Select(f => new {
+                        id = f.Id,
+                        fileName = f.FileName,
+                        filePath = f.FilePath,
+                        contentType = f.ContentType,
+                        fileSize = f.FileSize,
+                        uploadedAt = f.UploadedAt
+                    })
+                    .ToListAsync();
+
+                return Json(new { success = true, videos = videoFiles });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
         public class SaveTextRequest
         {
             public string? FileName { get; set; }
             public string? Content { get; set; }
+        }
+
+        public class SaveVideoRequest
+        {
+            public string? FileName { get; set; }
+            public string? VideoData { get; set; }
+            public string? ContentType { get; set; }
         }
 
         // ===== File Groups (persisted per user in JSON) =====

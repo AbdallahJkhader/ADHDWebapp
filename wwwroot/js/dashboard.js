@@ -10,95 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (generateOptions) generateOptions.style.display = 'none';
     } catch {}
 
-// ===== Groups: load, render, open/exit =====
-async function loadGroups() {
-    try {
-        const res = await fetch('/Dashboard/GetGroups', { credentials: 'same-origin' });
-        const data = await res.json();
-        if (res.ok && data && data.success) {
-            GROUPS = data.groups || {};
-            renderGroupsUI();
-        }
-    } catch {}
-}
-
-function renderGroupsUI() {
-    const grid = document.querySelector('#uploaded-files-section .files-grid');
-    if (!grid) return;
-    // Remove existing group cards
-    Array.from(grid.querySelectorAll('.group-card')).forEach(el => el.remove());
-    // Compute set of grouped IDs
-    const groupedIds = new Set();
-    Object.values(GROUPS || {}).forEach(arr => (Array.isArray(arr) ? arr : []).forEach(id => groupedIds.add(Number(id))));
-    // Hide grouped file cards when not viewing a specific group
-    const inGroupView = !!CURRENT_GROUP_VIEW;
-    Array.from(grid.children).forEach(card => {
-        const idAttr = card.getAttribute && card.getAttribute('data-file-id');
-        if (!idAttr) return; // skip non-file cards
-        const id = parseInt(idAttr, 10);
-        if (Number.isNaN(id)) return;
-        if (!inGroupView) {
-            card.style.display = groupedIds.has(id) ? 'none' : '';
-        }
-    });
-    if (inGroupView) return;
-    // Insert group cards for each group
-    Object.keys(GROUPS || {}).forEach(name => {
-        const card = document.createElement('div');
-        card.className = 'file-card group-card';
-        card.setAttribute('data-group-name', name);
-        card.onclick = (e) => { e.preventDefault(); openGroup(name); };
-        card.innerHTML = `
-            <div class="file-icon-large d-flex align-items-center justify-content-center">
-                <img src="/images/folder.png" alt="Folder" style="width: 36px; height: 36px; object-fit: contain;" />
-            </div>
-            <div class="file-name-card">${name}</div>
-            <div class="file-meta-card"><small class="text-muted">${(GROUPS[name]||[]).length} items</small></div>
-        `;
-        grid.insertBefore(card, grid.firstChild);
-    });
-}
-
-function openGroup(name) {
-    CURRENT_GROUP_VIEW = name;
-    const uploadedSection = document.getElementById('uploaded-files-section');
-    const titleEl = document.getElementById('uploaded-files-title-text');
-    if (titleEl) titleEl.textContent = name;
-    const groupBtn = document.getElementById('btn-group-files');
-    if (groupBtn) groupBtn.style.display = '';
-    const deleteBtn = document.getElementById('btn-delete-files');
-    if (deleteBtn) deleteBtn.style.display = '';
-    const delBtn = document.getElementById('btn-delete-group');
-    if (delBtn) delBtn.style.display = '';
-    const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
-    if (!grid) return;
-    // Hide all
-    Array.from(grid.children).forEach(el => el.style.display = 'none');
-    // Show only group's files
-    const ids = (GROUPS && GROUPS[name]) ? GROUPS[name] : [];
-    ids.forEach(id => {
-        const card = grid.querySelector(`.file-card[data-file-id="${id}"]`);
-        if (card) card.style.display = '';
-    });
-}
-
-function exitGroupView() {
-    CURRENT_GROUP_VIEW = null;
-    const titleEl = document.getElementById('uploaded-files-title-text');
-    if (titleEl) titleEl.textContent = 'Your Files';
-    const delBtn = document.getElementById('btn-delete-group');
-    if (delBtn) delBtn.style.display = 'none';
-    renderGroupsUI();
-}
-
-// Click title to exit group view
-document.addEventListener('click', function (e) {
-    const titleSpan = e.target && e.target.closest('#uploaded-files-title-text');
-    if (titleSpan && CURRENT_GROUP_VIEW) {
-        e.preventDefault();
-        exitGroupView();
-    }
-});
 
 // Summarize left content to right summary panel via server (OpenAI)
 window.summarizeLeftToRight = async function () {
@@ -1742,16 +1653,11 @@ const RECENT_KEY = 'adhd_recent_files';
 const RECENT_MAX = 10;
 
 function getRecentFiles() {
-    try {
-        const raw = localStorage.getItem(RECENT_KEY);
-        const arr = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(arr)) return arr;
-    } catch (_) { }
-    return [];
+    return safeStorage.get(RECENT_KEY, []).filter(x => x && typeof x.id === 'number');
 }
 
 function saveRecentFiles(list) {
-    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (_) { }
+    safeStorage.set(RECENT_KEY, list);
 }
 
 function addRecentFile(id, name) {
@@ -1946,31 +1852,30 @@ function groupSelectedFiles() {
 }
 
 // Load groups on page ready
+// Initialize components on page load
 document.addEventListener('DOMContentLoaded', function () {
-    try { loadGroups(); } catch {}
-});
-
-// Initialize tooltips
-document.addEventListener('DOMContentLoaded', function () {
+    try { 
+        loadGroups(); 
+        reorderFilesByRecent();
+    } catch (_) { }
+    
+    // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-});
-
-// Apply initial ordering by last opened when the page loads
-document.addEventListener('DOMContentLoaded', function () {
-    try { reorderFilesByRecent(); } catch (_) { }
-});
-
-document.addEventListener('DOMContentLoaded', function () {
+    
+    // Setup dark mode toggle
     const dm = document.getElementById('setting-darkmode');
     if (dm) {
         const wrapper = document.getElementById('content-wrapper');
         dm.checked = !!(wrapper && wrapper.classList.contains('dark-mode'));
         dm.addEventListener('change', function () { toggleDarkMode(); });
     }
+});
 
+// ===== ACCOUNT MANAGEMENT =====
+document.addEventListener('DOMContentLoaded', function () {
     // Delete Account button handler
     const delBtn = document.getElementById('delete-account-btn');
     if (delBtn) {
@@ -2449,7 +2354,44 @@ function openAddNetworkModal() {
     } catch (e) { console.error('Failed to open Add Network modal', e); }
 }
 
+// ===== ERROR HANDLING HELPERS =====
+
+/**
+ * Safe function execution helper
+ */
+function safeExecute(fn, ...args) {
+    try {
+        return fn(...args);
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * Safe localStorage operations
+ */
+const safeStorage = {
+    set: (key, value) => {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+            return true;
+        } catch (_) {
+            return false;
+        }
+    },
+    get: (key, defaultValue = null) => {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (_) {
+            return defaultValue;
+        }
+    }
+};
+
+// ===== FRIEND REQUESTS =====
 document.addEventListener('DOMContentLoaded', function () {
+    // Modal friend request
     const sendBtn = document.getElementById('send-friend-request-btn');
     const form = document.getElementById('add-network-form');
     const handler = async function (evt) {
@@ -2458,82 +2400,78 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     if (sendBtn) sendBtn.addEventListener('click', handler);
     if (form) form.addEventListener('submit', handler);
+    
+    // Inline friend request
+    const sendBtnInline = document.getElementById('send-friend-request-inline-btn');
+    if (sendBtnInline) {
+        sendBtnInline.addEventListener('click', async function (evt) {
+            if (evt) evt.preventDefault();
+            const input = document.getElementById('addresseeIdInlineInput');
+            const feedback = document.getElementById('add-network-inline-feedback');
+            if (!input) {
+                console.error('Inline Add Network: input element missing');
+                return;
+            }
+            const val = (input.value || '').trim();
+            const id = parseInt(val, 10);
+
+            if (!val || (Number.isNaN(id) && val.length < 2)) {
+                if (feedback) {
+                    feedback.textContent = 'Please enter a valid User ID or start typing a name to search.';
+                    feedback.className = 'small text-danger';
+                }
+                return;
+            }
+
+            try {
+                sendBtnInline.disabled = true;
+                sendBtnInline.textContent = 'Sending...';
+                if (feedback) { feedback.textContent = ''; feedback.className = 'small'; }
+
+                const res = await fetch('/Friends/Send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ addresseeId: id })
+                });
+                let data;
+                try { data = await res.json(); } catch { data = null; }
+
+                if (!res.ok) {
+                    const msg = data?.error || `Request failed with status ${res.status}`;
+                    throw new Error(msg);
+                }
+
+                if (!data || data.success !== true) {
+                    const msg = (data && data.error) ? data.error : 'Request failed';
+                    throw new Error(msg);
+                }
+
+                if (feedback) {
+                    feedback.textContent = 'Request sent successfully.';
+                    feedback.className = 'small text-success';
+                }
+                sendBtnInline.textContent = 'Sent';
+
+                setTimeout(() => {
+                    try {
+                        toggleInlinePanel('network-add-panel');
+                    } catch { }
+                }, 700);
+            } catch (err) {
+                console.error('Inline friend request error:', err);
+                if (feedback) {
+                    feedback.textContent = err?.message || 'Failed to send request';
+                    feedback.className = 'small text-danger';
+                }
+                sendBtnInline.disabled = false;
+                sendBtnInline.textContent = 'Send Request';
+            }
+        });
+    }
 });
 
-document.addEventListener('DOMContentLoaded', function () {
-    const sendBtn = document.getElementById('send-friend-request-inline-btn');
-    const handler = async function (evt) {
-        if (evt) evt.preventDefault();
-        const input = document.getElementById('addresseeIdInlineInput');
-        const feedback = document.getElementById('add-network-inline-feedback');
-        const sendBtnRef = document.getElementById('send-friend-request-inline-btn');
-        if (!input) {
-            console.error('Inline Add Network: input element missing');
-            return;
-        }
-        const val = (input.value || '').trim();
-        const id = parseInt(val, 10);
-
-        if (!val || (Number.isNaN(id) && val.length < 2)) {
-            if (feedback) {
-                feedback.textContent = 'Please enter a valid User ID or start typing a name to search.';
-                feedback.className = 'small text-danger';
-            }
-            return;
-        }
-
-        try {
-            if (sendBtnRef) { sendBtnRef.disabled = true; sendBtnRef.textContent = 'Sending...'; }
-            if (feedback) { feedback.textContent = ''; feedback.className = 'small'; }
-
-            const res = await fetch('/Friends/Send', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ addresseeId: id })
-            });
-            let data;
-            try { data = await res.json(); } catch { data = null; }
-
-            if (!res.ok) {
-                const msg = data?.error || `Request failed with status ${res.status}`;
-                throw new Error(msg);
-            }
-
-            if (!data || data.success !== true) {
-                const msg = (data && data.error) ? data.error : 'Request failed';
-                throw new Error(msg);
-            }
-
-            if (feedback) {
-                feedback.textContent = 'Request sent successfully.';
-                feedback.className = 'small text-success';
-            }
-            if (sendBtnRef) sendBtnRef.textContent = 'Sent';
-
-            setTimeout(() => {
-                try {
-                    toggleInlinePanel('network-add-panel');
-                } catch { }
-            }, 700);
-        } catch (err) {
-            console.error('Inline friend request error:', err);
-            if (feedback) {
-                feedback.textContent = err?.message || 'Failed to send request';
-                feedback.className = 'small text-danger';
-            }
-            if (sendBtnRef) { sendBtnRef.disabled = false; sendBtnRef.textContent = 'Send Request'; }
-        }
-    };
-    if (sendBtn) sendBtn.addEventListener('click', handler);
-});
-
-// ===== Audio Notes Logic =====
-let mediaRecorder = null;
-let audioChunks = [];
-let audioTimerInterval = null;
-let audioStartTime = 0;
-let audioRecordings = []; // { id, blob, url, date, duration }
+// ===== AUDIO NOTES =====
 
 function formatTime(seconds) {
     const m = Math.floor(seconds / 60);
@@ -3104,14 +3042,11 @@ function formatTimeAgo(dateString) {
 
 // Initialize notifications state on page load
 document.addEventListener('DOMContentLoaded', function () {
-    const savedNotifications = localStorage.getItem('notifications');
-    if (savedNotifications) {
-        try { notifications = JSON.parse(savedNotifications) || []; } catch { notifications = []; }
-    }
+    notifications = safeStorage.get('notifications', []);
     updateNotificationBadge();
     renderNotifications();
     window.addEventListener('beforeunload', () => {
-        try { localStorage.setItem('notifications', JSON.stringify(notifications)); } catch {}
+        safeStorage.set('notifications', notifications);
     });
 });
 
@@ -3257,13 +3192,26 @@ function bindWhiteboardControls() {
     const colorInput = document.getElementById('whiteboard-color');
     const widthInput = document.getElementById('whiteboard-line-width');
 
-    if (clearBtn && !clearBtn.dataset.bound) {
+    if (clearBtn) {
+        // Always bind the click event, remove any existing listener first
+        clearBtn.removeEventListener('click', handleClearAll);
+        clearBtn.addEventListener('click', handleClearAll);
         clearBtn.dataset.bound = '1';
-        clearBtn.addEventListener('click', () => {
-            if (whiteboardCanvas && whiteboardCtx) {
-                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-            }
-        });
+    }
+    
+    function handleClearAll() {
+        console.log('Clear All button clicked'); // Debug log
+        // Clear canvas
+        if (whiteboardCanvas && whiteboardCtx) {
+            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            console.log('Canvas cleared');
+        }
+        // Clear textarea content
+        const textarea = document.getElementById('notes-textarea');
+        if (textarea) {
+            textarea.value = '';
+            console.log('Textarea cleared');
+        }
     }
 
     if (colorInput && !colorInput.dataset.bound) {
@@ -3582,6 +3530,29 @@ window.openNotesRight = window.openNotesRight || function () {
             notesContainer.scrollTop = 0;
         });
     }
+    
+    // Initialize canvas and bind controls for notes
+    initWhiteboardCanvas();
+    bindWhiteboardControls();
+    
+    // Add direct onclick handler as backup
+    const clearBtn = document.getElementById('whiteboard-clear-canvas');
+    if (clearBtn) {
+        clearBtn.onclick = function() {
+            console.log('Direct onclick: Clear All button clicked');
+            // Clear canvas
+            if (whiteboardCanvas && whiteboardCtx) {
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                console.log('Direct onclick: Canvas cleared');
+            }
+            // Clear textarea content
+            const textarea = document.getElementById('notes-textarea');
+            if (textarea) {
+                textarea.value = '';
+                console.log('Direct onclick: Textarea cleared');
+            }
+        };
+    }
 };
 
 window.backFromNotesRight = window.backFromNotesRight || function () {
@@ -3615,21 +3586,26 @@ window.toggleNotesMode = window.toggleNotesMode || function() {
     
     if (!textarea || !canvas || !toggleBtn) return;
     
-    // Check if canvas is currently disabled for drawing
-    const isDrawingDisabled = canvas.style.pointerEvents === 'none';
+    // Check current mode by checking canvas visibility
+    const isCanvasVisible = canvas.style.display !== 'none';
     
-    if (isDrawingDisabled) {
-        // Enable drawing mode
-        canvas.style.pointerEvents = 'auto';
-        textarea.style.pointerEvents = 'none';
-        toggleBtn.innerHTML = '<i class="bi bi-type me-1"></i>Write';
-        // Initialize canvas for drawing
-        initNotesCanvas();
-    } else {
-        // Enable writing mode
-        canvas.style.pointerEvents = 'none';
+    if (isCanvasVisible) {
+        // Switch to writing mode - hide canvas but keep content
+        canvas.style.display = 'none';
+        textarea.style.display = 'block';
         textarea.style.pointerEvents = 'auto';
         toggleBtn.innerHTML = '<i class="bi bi-pencil me-1"></i>Draw';
+    } else {
+        // Switch to drawing mode - show canvas
+        canvas.style.display = 'block';
+        textarea.style.display = 'none';
+        textarea.style.pointerEvents = 'none';
+        toggleBtn.innerHTML = '<i class="bi bi-type me-1"></i>Write';
+        // Initialize canvas for drawing if not already done
+        if (!canvas.dataset.initialized) {
+            initNotesCanvas();
+            canvas.dataset.initialized = 'true';
+        }
     }
 };
 
@@ -3637,10 +3613,17 @@ window.toggleNotesMode = window.toggleNotesMode || function() {
 let notesCanvas = null;
 let notesCtx = null;
 let isDrawing = false;
+let drawingOpacity = 1.0; // Default opacity
 
 function initNotesCanvas() {
     const canvas = document.getElementById('whiteboard-canvas');
     if (!canvas) return;
+    
+    // Save current canvas content if it exists
+    let imageData = null;
+    if (notesCtx && canvas.width && canvas.height) {
+        imageData = notesCtx.getImageData(0, 0, canvas.width, canvas.height);
+    }
     
     notesCanvas = canvas;
     notesCtx = canvas.getContext('2d');
@@ -3649,16 +3632,36 @@ function initNotesCanvas() {
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
     
-    // Drawing events
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
+    // Restore canvas content if it existed
+    if (imageData) {
+        notesCtx.putImageData(imageData, 0, 0);
+    }
     
-    // Touch events
-    canvas.addEventListener('touchstart', handleTouch);
-    canvas.addEventListener('touchmove', handleTouch);
-    canvas.addEventListener('touchend', stopDrawing);
+    // Only add event listeners once
+    if (!canvas.dataset.eventsBound) {
+        canvas.dataset.eventsBound = 'true';
+        
+        // Drawing events
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        // Touch events
+        canvas.addEventListener('touchstart', handleTouch);
+        canvas.addEventListener('touchmove', handleTouch);
+        canvas.addEventListener('touchend', stopDrawing);
+    }
+    
+    // Setup opacity control
+    const opacityInput = document.getElementById('whiteboard-opacity');
+    if (opacityInput && !opacityInput.dataset.bound) {
+        opacityInput.dataset.bound = 'true';
+        opacityInput.value = drawingOpacity;
+        opacityInput.addEventListener('input', () => {
+            drawingOpacity = parseFloat(opacityInput.value) || 1.0;
+        });
+    }
 }
 
 function startDrawing(e) {
@@ -3680,11 +3683,17 @@ function draw(e) {
     
     const color = document.getElementById('whiteboard-color').value;
     const lineWidth = document.getElementById('whiteboard-line-width').value;
+    const opacityInput = document.getElementById('whiteboard-opacity');
+    const opacity = opacityInput ? parseFloat(opacityInput.value) : drawingOpacity;
     
-    notesCtx.strokeStyle = color;
+    // Convert hex color to rgba with opacity
+    const rgbaColor = hexToRgba(color, opacity);
+    
+    notesCtx.strokeStyle = rgbaColor;
     notesCtx.lineWidth = lineWidth;
     notesCtx.lineCap = 'round';
     notesCtx.lineJoin = 'round';
+    notesCtx.globalAlpha = opacity;
     
     notesCtx.lineTo(x, y);
     notesCtx.stroke();
@@ -3693,6 +3702,25 @@ function draw(e) {
 function stopDrawing() {
     isDrawing = false;
 }
+
+/**
+ * Convert hex color to rgba
+ */
+function hexToRgba(hex, opacity) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+/**
+ * Update drawing opacity
+ */
+window.updateDrawingOpacity = window.updateDrawingOpacity || function(value) {
+    drawingOpacity = parseFloat(value) || 1.0;
+    const opacityInput = document.getElementById('whiteboard-opacity');
+    if (opacityInput) opacityInput.value = drawingOpacity;
+};
 
 function handleTouch(e) {
     e.preventDefault();
@@ -3760,9 +3788,11 @@ function addUploadedAudioToList(fileName, duration, fileSize, file) {
 }
 
 function formatAudioDuration(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    return formatTime(seconds);
+}
+
+function formatVideoDuration(seconds) {
+    return formatTime(seconds);
 }
 
 // Handle video file upload
@@ -3862,66 +3892,420 @@ function addUploadedVideoToList(fileName, duration, fileSize, type, source) {
     // Create list item
     const listItem = document.createElement('div');
     listItem.className = 'list-group-item d-flex align-items-center';
+    listItem.style.cursor = 'pointer';
     
     const icon = type === 'youtube' ? 'youtube' : 'play-circle-fill';
     const iconColor = type === 'youtube' ? 'text-danger' : 'text-primary';
     
+    // Store video data for playback
+    listItem.dataset.videoType = type;
+    listItem.dataset.videoSource = type === 'youtube' ? source : URL.createObjectURL(source);
+    listItem.dataset.videoFileName = fileName;
+    
     listItem.innerHTML = `
-        <img src="/images/${type === 'youtube' ? 'youtube' : 'video'}.png" alt="Video" style="width: 24px; height: 24px; margin-right: 10px;">
+        <img src="/images/${type === 'youtube' ? 'youtube' : 'file'}.png" alt="Video" style="width: 24px; height: 24px; margin-right: 10px;">
         <div class="flex-grow-1">
             <div class="fw-medium">${fileName}</div>
             <small class="text-muted">${type === 'youtube' ? 'YouTube Stream' : `${formatVideoDuration(duration)} • ${fileSize}`}</small>
         </div>
-        <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); this.parentElement.remove()">
             <i class="bi bi-trash"></i>
         </button>
     `;
     
+    // Add click handler to play video
+    listItem.addEventListener('click', function(e) {
+        if (e.target.closest('button')) return; // Don't play if delete button clicked
+        playVideo(this.dataset.videoType, this.dataset.videoSource, this.dataset.videoFileName);
+    });
+    
     videoList.appendChild(listItem);
 }
 
-function formatVideoDuration(seconds) {
-    if (seconds === 'Unknown') return 'Unknown';
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+// Play video function
+window.playVideo = window.playVideo || function(type, source, fileName) {
+    const playerContainer = document.getElementById('video-player-container');
+    const videoPlayer = document.getElementById('video-player');
+    const videoTitle = document.getElementById('video-title');
+    const uploadArea = document.getElementById('video-upload-area');
+    const youtubeInput = document.getElementById('youtube-input-container');
+    const saveBtn = document.getElementById('save-video-btn');
+    
+    if (!playerContainer || !videoPlayer) return;
+    
+    // Hide upload area and YouTube input
+    if (uploadArea) uploadArea.style.display = 'none';
+    if (youtubeInput) youtubeInput.style.display = 'none';
+    
+    // Show video player
+    playerContainer.style.display = 'block';
+    
+    // Set video title
+    if (videoTitle) videoTitle.textContent = fileName;
+    
+    // Show save button only for uploaded videos (not YouTube)
+    if (saveBtn) {
+        if (type === 'youtube') {
+            saveBtn.style.display = 'none';
+        } else {
+            saveBtn.style.display = 'inline-block';
+        }
+    }
+    
+    // Load video based on type
+    if (type === 'youtube') {
+        // For YouTube, we need to extract video ID and create embed URL
+        let videoId = '';
+        if (source.includes('youtube.com/watch?v=')) {
+            videoId = source.split('v=')[1]?.split('&')[0];
+        } else if (source.includes('youtu.be/')) {
+            videoId = source.split('youtu.be/')[1]?.split('?')[0];
+        }
+        
+        if (videoId) {
+            videoPlayer.src = `https://www.youtube.com/embed/${videoId}`;
+        } else {
+            alert('Invalid YouTube URL');
+            closeVideoPlayer();
+            return;
+        }
+    } else if (type === 'saved') {
+        // For saved videos, use the file path
+        videoPlayer.src = source;
+    } else {
+        // For uploaded videos (current session)
+        videoPlayer.src = source;
+    }
+    
+    // Load and play video
+    videoPlayer.load();
+    videoPlayer.play().catch(e => {
+        console.log('Auto-play failed:', e);
+    });
+};
+
+// Close video player function
+window.closeVideoPlayer = window.closeVideoPlayer || function() {
+    const playerContainer = document.getElementById('video-player-container');
+    const videoPlayer = document.getElementById('video-player');
+    const uploadArea = document.getElementById('video-upload-area');
+    const videoTitle = document.getElementById('video-title');
+    const saveBtn = document.getElementById('save-video-btn');
+    
+    if (!playerContainer || !videoPlayer) return;
+    
+    // Stop video and clear source
+    videoPlayer.pause();
+    videoPlayer.src = '';
+    
+    // Hide video player
+    playerContainer.style.display = 'none';
+    
+    // Show upload area
+    if (uploadArea) uploadArea.style.display = 'block';
+    
+    // Reset video title
+    if (videoTitle) videoTitle.textContent = 'Video Notes';
+    
+    // Hide save button
+    if (saveBtn) saveBtn.style.display = 'none';
+};
+
+// Save current video function
+window.saveCurrentVideo = window.saveCurrentVideo || async function() {
+    const videoPlayer = document.getElementById('video-player');
+    const videoTitle = document.getElementById('video-title');
+    
+    if (!videoPlayer || !videoPlayer.src) {
+        alert('No video to save');
+        return;
+    }
+    
+    try {
+        // Get video file name from title or generate default
+        let fileName = videoTitle ? videoTitle.textContent.replace('Video Notes', '').trim() : '';
+        if (!fileName) {
+            fileName = 'video';
+        }
+        
+        // For YouTube videos, we can't save the video directly
+        if (videoPlayer.src.includes('youtube.com')) {
+            alert('YouTube videos cannot be saved. Please download them directly from YouTube.');
+            return;
+        }
+        
+        // For uploaded videos, we need to fetch the video data
+        const response = await fetch(videoPlayer.src);
+        const blob = await response.blob();
+        
+        // Convert blob to base64
+        const reader = new FileReader();
+        reader.onloadend = async function() {
+            const base64data = reader.result;
+            
+            try {
+                const res = await fetch('/Dashboard/SaveVideo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ 
+                        fileName: fileName,
+                        videoData: base64data,
+                        contentType: blob.type
+                    })
+                });
+                
+                const data = await res.json().catch(() => null);
+                if (!res.ok || !data || data.success !== true) {
+                    const msg = (data && data.error) ? data.error : `Save failed (HTTP ${res.status})`;
+                    alert(msg);
+                    return;
+                }
+                
+                // Show success message
+                const saveBtn = document.getElementById('save-video-btn');
+                if (saveBtn) {
+                    const originalText = saveBtn.innerHTML;
+                    saveBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Saved!';
+                    saveBtn.classList.remove('btn-success');
+                    saveBtn.classList.add('btn-outline-success');
+                    saveBtn.disabled = true;
+                    
+                    setTimeout(() => {
+                        saveBtn.innerHTML = originalText;
+                        saveBtn.classList.remove('btn-outline-success');
+                        saveBtn.classList.add('btn-success');
+                        saveBtn.disabled = false;
+                    }, 2000);
+                }
+                
+                // Add to recent files if function exists
+                try { 
+                    if (typeof addRecentFile === 'function') {
+                        addRecentFile(data.fileId, data.fileName || fileName);
+                    }
+                } catch (_) {}
+                
+            } catch (saveError) {
+                alert('Failed to save video: ' + saveError.message);
+            }
+        };
+        
+        reader.readAsDataURL(blob);
+        
+    } catch (error) {
+        alert('Failed to process video: ' + error.message);
+    }
+};
+
+/**
+ * Helper function to hide all right panel containers
+ */
+function hideAllRightContainers() {
+    const containers = [
+        'summary-display-container',
+        'flashcards-display-container', 
+        'whiteboard-display-container',
+        'audio-display-container',
+        'notes-display-container',
+        'video-display-container'
+    ];
+    
+    containers.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) container.style.display = 'none';
+    });
+    
+    // Also hide generate options
+    const generateOptions = document.getElementById('generate-options');
+    if (generateOptions) generateOptions.style.display = 'none';
 }
 
 // Video back function
 window.backFromVideoRight = window.backFromVideoRight || function () {
+    // Close any playing video first
+    if (typeof closeVideoPlayer === 'function') {
+        closeVideoPlayer();
+    }
+    
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const videoContainer = document.getElementById('video-display-container');
-    
+
     if (videoContainer) videoContainer.style.display = 'none';
-    
     if (generateWrapper) generateWrapper.style.display = 'flex';
     if (generateOptions) generateOptions.style.display = '';
-    
-    if (generateWrapper || generateOptions) {
-        (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
 };
 
 window.openVideoRight = window.openVideoRight || function () {
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
+    const summaryContainer = document.getElementById('summary-display-container');
+    const flashcardsContainer = document.getElementById('flashcards-display-container');
+    const whiteboardContainer = document.getElementById('whiteboard-display-container');
+    const audioContainer = document.getElementById('audio-display-container');
     const videoContainer = document.getElementById('video-display-container');
-    
+
     if (!videoContainer) return;
-    
+
     if (generateWrapper) generateWrapper.style.display = 'none';
     if (generateOptions) generateOptions.style.display = 'none';
-    
+    if (summaryContainer) summaryContainer.style.display = 'none';
+    if (flashcardsContainer) flashcardsContainer.style.display = 'none';
+    if (whiteboardContainer) whiteboardContainer.style.display = 'none';
+    if (audioContainer) audioContainer.style.display = 'none';
+
     videoContainer.style.display = 'flex';
-    
+
+    // Scroll handling
     const rightPane = videoContainer.closest('.right-side');
-    if (rightPane) {
-        rightPane.scrollTop = 0;
-        videoContainer.scrollTop = 0;
-        requestAnimationFrame(() => {
-            rightPane.scrollTop = 0;
-            videoContainer.scrollTop = 0;
-        });
-    }
+    if (rightPane) rightPane.scrollTop = 0;
+    
+    renderVideoList();
 };
+
+function renderVideoList() {
+    const container = document.getElementById('video-list-container');
+    if (!container) return;
+    
+    // Load saved videos from server
+    loadSavedVideos();
+}
+
+// Load saved videos from server
+async function loadSavedVideos() {
+    const container = document.getElementById('video-list-container');
+    if (!container) return;
+    
+    try {
+        const res = await fetch('/Dashboard/GetVideoFiles', {
+            method: 'GET',
+            credentials: 'same-origin'
+        });
+        
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || data.success !== true) {
+            // If server fails, show current session videos only
+            renderSessionVideos();
+            return;
+        }
+        
+        const savedVideos = data.videos || [];
+        
+        if (savedVideos.length === 0 && videoRecordings.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-muted small">
+                    <img src="/images/youtube.png" alt="No videos" style="width: 32px; height: 32px; opacity: 0.5;" class="d-block mb-2">
+                    No videos yet
+                </div>`;
+            return;
+        }
+        
+        // Clear container
+        container.innerHTML = '';
+        
+        // Render saved videos first
+        savedVideos.forEach(video => {
+            addSavedVideoToList(video);
+        });
+        
+        // Render session videos (YouTube videos)
+        videoRecordings.forEach(rec => {
+            addSessionVideoToList(rec);
+        });
+        
+    } catch (error) {
+        console.error('Failed to load saved videos:', error);
+        renderSessionVideos();
+    }
+}
+
+// Render session videos only (fallback)
+function renderSessionVideos() {
+    const container = document.getElementById('video-list-container');
+    if (!container) return;
+    
+    if (videoRecordings.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4 text-muted small">
+                <img src="/images/youtube.png" alt="No videos" style="width: 32px; height: 32px; opacity: 0.5;" class="d-block mb-2">
+                No videos yet
+            </div>`;
+        return;
+    }
+    
+    container.innerHTML = '';
+    videoRecordings.forEach(rec => {
+        addSessionVideoToList(rec);
+    });
+}
+
+// Add saved video to list
+function addSavedVideoToList(video) {
+    const container = document.getElementById('video-list-container');
+    if (!container) return;
+    
+    const listItem = document.createElement('div');
+    listItem.className = 'list-group-item d-flex align-items-center';
+    listItem.style.cursor = 'pointer';
+    
+    // Store video data for playback
+    listItem.dataset.videoType = 'saved';
+    listItem.dataset.videoSource = video.filePath;
+    listItem.dataset.videoFileName = video.fileName;
+    
+    const fileSize = (video.fileSize / 1024 / 1024).toFixed(2) + ' MB';
+    
+    listItem.innerHTML = `
+        <img src="/images/file.png" alt="Video" style="width: 24px; height: 24px; margin-right: 10px;">
+        <div class="flex-grow-1">
+            <div class="fw-medium">${video.fileName}</div>
+            <small class="text-muted">Saved Video • ${fileSize}</small>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); this.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+    
+    // Add click handler to play video
+    listItem.addEventListener('click', function(e) {
+        if (e.target.closest('button')) return;
+        playVideo('saved', this.dataset.videoSource, this.dataset.videoFileName);
+    });
+    
+    container.appendChild(listItem);
+}
+
+// Add session video (YouTube) to list
+function addSessionVideoToList(rec) {
+    const container = document.getElementById('video-list-container');
+    if (!container) return;
+    
+    const item = document.createElement('div');
+    item.className = 'list-group-item d-flex align-items-center';
+    item.style.cursor = 'pointer';
+    
+    // Store video data for playback
+    item.dataset.videoType = 'youtube';
+    item.dataset.videoSource = rec.url;
+    item.dataset.videoFileName = rec.title;
+    
+    item.innerHTML = `
+        <img src="/images/youtube.png" alt="Video" style="width: 24px; height: 24px; margin-right: 10px;">
+        <div class="flex-grow-1">
+            <div class="fw-medium">${rec.title}</div>
+            <small class="text-muted">YouTube Stream</small>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); this.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+    
+    // Add click handler to play video
+    item.addEventListener('click', function(e) {
+        if (e.target.closest('button')) return;
+        playVideo('youtube', this.dataset.videoSource, this.dataset.videoFileName);
+    });
+    
+    container.appendChild(item);
+}

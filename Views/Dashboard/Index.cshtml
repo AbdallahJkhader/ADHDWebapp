@@ -1212,7 +1212,6 @@
                             </div>
                         </div>
                     </div>
-                    </div>
 
                     <!-- Video right-pane view -->
                     <div id="video-display-container" style="display: none;" class="h-100 pt-2">
@@ -1223,6 +1222,10 @@
                                     Back
                                 </button>
 
+                                <button type="button" class="btn btn-sm btn-success" id="save-video-btn" onclick="saveCurrentVideo()" title="Save video to your files" style="display: none;">
+                                    <i class="bi bi-download me-1"></i>Save
+                                </button>
+
                                 <div class="flex-grow-1 text-center">
                                     <span id="video-title" class="filename-display fw-medium">Video Notes</span>
                                 </div>
@@ -1231,9 +1234,17 @@
 
                         <hr class="divider my-2" />
 
-                        <div class="document-content flex-grow-1 bg-white pt-4 d-flex flex-column align-items-center">
-                            <div class="text-center p-4 w-100">
-                                <div class="mb-5">
+                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column align-items-center">
+                            <!-- Video Player Area (hidden by default) -->
+                            <div id="video-player-container" class="w-100 h-100" style="display: none;">
+                                <video id="video-player" controls style="width: 100%; height: 100%; min-height: 400px;" class="rounded">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                            
+                            <!-- Upload Area (shown by default) -->
+                            <div id="video-upload-area" class="text-center p-4 w-100">
+                                <div class="mb-4">
                                     <div class="d-flex justify-content-center gap-4 align-items-center">
                                         <div class="text-center">
                                             <input type="file" id="video-upload-input" accept="video/*" style="display: none;" onchange="handleVideoUpload(event)" />

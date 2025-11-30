@@ -548,6 +548,12 @@ body.dashboard-page {
     margin-top: 0 !important;
 }
 
+/* Audio and Video interface specific fixes to match design */
+.right-side #audio-display-container .divider,
+.right-side #video-display-container .divider {
+    margin: 0.5rem 0 !important;
+}
+
 
 .main-content > .left-side,
 .main-content > .right-side {
@@ -2787,6 +2793,23 @@ body.dashboard-page {
 }
 
 .right-side #audio-display-container {
+    padding-top: 12px !important;
+}
+
+#video-display-container {
+    height: 100%;
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: var(--color-background);
+}
+
+.right-side #video-display-container {
     padding-top: 12px !important;
 }
 
