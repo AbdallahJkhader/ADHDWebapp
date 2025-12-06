@@ -1,3 +1,11 @@
+// Global variables for audio/video recording
+let mediaRecorder = null;
+let audioChunks = [];
+let audioRecordings = [];
+let audioStartTime = 0;
+let audioTimerInterval = null;
+let videoRecordings = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     const generateCard = document.getElementById('btn-generate-ai-helper');
     const generateOptions = document.getElementById('generate-options');
@@ -8,126 +16,145 @@ document.addEventListener('DOMContentLoaded', () => {
         const generateWrapperInit = document.getElementById('generate-wrapper');
         if (generateWrapperInit) generateWrapperInit.style.display = 'flex';
         if (generateOptions) generateOptions.style.display = 'none';
-    } catch {}
+    } catch { }
 
-
-// Summarize left content to right summary panel via server (OpenAI)
-window.summarizeLeftToRight = async function () {
-    try {
-        // Prevent rapid duplicate requests
-        if (window._summarizeInFlight) return;
-        // Respect client-side cooldown
-        const nowMs = Date.now();
-        const cooldownUntil = window._summarizeCooldownUntil || 0;
-        const btn = document.getElementById('summary-reload-btn');
-        const ensureCooldownTimer = () => {
-            if (window._summarizeCooldownTimer) return;
-            window._summarizeCooldownTimer = setInterval(() => {
-                const now = Date.now();
-                const until = window._summarizeCooldownUntil || 0;
-                const remaining = Math.max(0, Math.ceil((until - now) / 1000));
-                const b = document.getElementById('summary-reload-btn');
-                if (b) {
-                    if (remaining > 0) {
-                        b.disabled = true;
-                        b.textContent = `Reload (${remaining})`;
-                    } else {
-                        b.disabled = false;
-                        b.textContent = 'Reload';
-                        clearInterval(window._summarizeCooldownTimer);
-                        window._summarizeCooldownTimer = null;
-                    }
-                }
-            }, 1000);
-        };
-        if (nowMs < cooldownUntil) {
-            const remaining = Math.max(0, Math.ceil((cooldownUntil - nowMs) / 1000));
-            const targetEarly = document.getElementById('summary-content-display');
-            if (targetEarly) targetEarly.innerHTML = `<div class="text-center p-4 text-muted"><i class="bi bi-hourglass-split text-primary" style="font-size: 2rem;"></i><p class="mt-2">Please wait ${remaining} seconds before trying again.</p></div>`;
-            // Reflect remaining on the button immediately
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = `Reload (${remaining})`;
+    // Add direct click listener for gen-opt-audio
+    const audioCard = document.getElementById('gen-opt-audio');
+    if (audioCard) {
+        console.log('Audio card found, adding click listener');
+        audioCard.addEventListener('click', (e) => {
+            console.log('Audio card clicked!');
+            e.preventDefault();
+            if (window.openAudioRight) {
+                console.log('Calling openAudioRight...');
+                window.openAudioRight();
+            } else {
+                console.error('openAudioRight function not found');
             }
-            ensureCooldownTimer();
-            return;
-        }
-        window._summarizeInFlight = true;
-        const contentDisplay = document.getElementById('content-display');
-        const text = contentDisplay ? (contentDisplay.textContent || '').trim() : '';
-        if (!text) { alert('No text to summarize.'); return; }
-        // Open summary UI and show loading (match file-loading style)
-        if (typeof window.openSummaryRight === 'function') window.openSummaryRight();
-        const target = document.getElementById('summary-content-display');
-        if (target) {
-            target.innerHTML = '<div class="text-center p-4"><i class="bi bi-hourglass-split text-primary" style="font-size: 2rem;"></i><p class="mt-2">Summarizing content...</p></div>';
-        }
-        // Set button to loading state
-        if (btn) { btn.disabled = true; btn.textContent = 'Reload...'; }
+        });
+    } else {
+        console.error('Audio card gen-opt-audio not found');
+    }
 
-        const res = await fetch('/Dashboard/Summarize', {
+    // Audio recording variables moved to global scope
+
+    // Summarize left content to right summary panel via server (OpenAI)
+    window.summarizeLeftToRight = async function () {
+        try {
+            // Prevent rapid duplicate requests
+            if (window._summarizeInFlight) return;
+            // Respect client-side cooldown
+            const nowMs = Date.now();
+            const cooldownUntil = window._summarizeCooldownUntil || 0;
+            const btn = document.getElementById('summary-reload-btn');
+            const ensureCooldownTimer = () => {
+                if (window._summarizeCooldownTimer) return;
+                window._summarizeCooldownTimer = setInterval(() => {
+                    const now = Date.now();
+                    const until = window._summarizeCooldownUntil || 0;
+                    const remaining = Math.max(0, Math.ceil((until - now) / 1000));
+                    const b = document.getElementById('summary-reload-btn');
+                    if (b) {
+                        if (remaining > 0) {
+                            b.disabled = true;
+                            b.textContent = `Reload (${remaining})`;
+                        } else {
+                            b.disabled = false;
+                            b.textContent = 'Reload';
+                            clearInterval(window._summarizeCooldownTimer);
+                            window._summarizeCooldownTimer = null;
+                        }
+                    }
+                }, 1000);
+            };
+            if (nowMs < cooldownUntil) {
+                const remaining = Math.max(0, Math.ceil((cooldownUntil - nowMs) / 1000));
+                const targetEarly = document.getElementById('summary-content-display');
+                if (targetEarly) targetEarly.innerHTML = `<div class="text-center p-4 text-muted"><i class="bi bi-hourglass-split text-primary" style="font-size: 2rem;"></i><p class="mt-2">Please wait ${remaining} seconds before trying again.</p></div>`;
+                // Reflect remaining on the button immediately
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = `Reload (${remaining})`;
+                }
+                ensureCooldownTimer();
+                return;
+            }
+            window._summarizeInFlight = true;
+            const contentDisplay = document.getElementById('content-display');
+            const text = contentDisplay ? (contentDisplay.textContent || '').trim() : '';
+            if (!text) { alert('No text to summarize.'); return; }
+            // Open summary UI and show loading (match file-loading style)
+            if (typeof window.openSummaryRight === 'function') window.openSummaryRight();
+            const target = document.getElementById('summary-content-display');
+            if (target) {
+                target.innerHTML = '<div class="text-center p-4"><i class="bi bi-hourglass-split text-primary" style="font-size: 2rem;"></i><p class="mt-2">Summarizing content...</p></div>';
+            }
+            // Set button to loading state
+            if (btn) { btn.disabled = true; btn.textContent = 'Reload...'; }
+
+            const res = await fetch('/Dashboard/Summarize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ text })
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data || data.success !== true) {
+                let msg = (data && data.error) ? data.error : `Failed (HTTP ${res.status})`;
+                if (res.status === 429) {
+                    msg = 'Rate limit exceeded. Please wait a few seconds and try again.';
+                }
+                if (target) target.innerHTML = `<div class="text-center p-4 text-danger"><i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i><p class="mt-2">${msg}</p></div>`;
+                // Start cooldown after an attempt (30 seconds)
+                const seconds = 30;
+                window._summarizeCooldownUntil = Date.now() + seconds * 1000;
+                ensureCooldownTimer();
+                return;
+            }
+            const summary = data.summary || '';
+            if (target) {
+                // Render as plain text to avoid any HTML injection
+                target.textContent = summary;
+            }
+            try { updateWordCount(); } catch (_) { }
+            // Normal cooldown after success (30 seconds)
+            window._summarizeCooldownUntil = Date.now() + 30 * 1000;
+            ensureCooldownTimer();
+        } catch (e) {
+            const target = document.getElementById('summary-content-display');
+            if (target) target.innerHTML = `<div class="text-center p-4 text-danger"><i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i><p class="mt-2">${e?.message || 'Summary failed'}</p></div>`;
+        } finally {
+            window._summarizeInFlight = false;
+            // If no cooldown, re-enable button now; otherwise timer will handle it
+            const btn = document.getElementById('summary-reload-btn');
+            if (btn && !(window._summarizeCooldownUntil && Date.now() < window._summarizeCooldownUntil)) {
+                btn.disabled = false;
+                btn.textContent = 'Reload';
+            }
+        }
+    };
+
+    // Delete current group but keep files
+    function deleteCurrentGroup() {
+        if (!CURRENT_GROUP_VIEW) return;
+        const name = CURRENT_GROUP_VIEW;
+        if (!confirm(`Delete group '${name}'? Files will remain.`)) return;
+        fetch('/Dashboard/DeleteGroup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ text })
-        });
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data || data.success !== true) {
-            let msg = (data && data.error) ? data.error : `Failed (HTTP ${res.status})`;
-            if (res.status === 429) {
-                msg = 'Rate limit exceeded. Please wait a few seconds and try again.';
-            }
-            if (target) target.innerHTML = `<div class="text-center p-4 text-danger"><i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i><p class="mt-2">${msg}</p></div>`;
-            // Start cooldown after an attempt (30 seconds)
-            const seconds = 30;
-            window._summarizeCooldownUntil = Date.now() + seconds * 1000;
-            ensureCooldownTimer();
-            return;
-        }
-        const summary = data.summary || '';
-        if (target) {
-            // Render as plain text to avoid any HTML injection
-            target.textContent = summary;
-        }
-        try { updateWordCount(); } catch (_) {}
-        // Normal cooldown after success (30 seconds)
-        window._summarizeCooldownUntil = Date.now() + 30 * 1000;
-        ensureCooldownTimer();
-    } catch (e) {
-        const target = document.getElementById('summary-content-display');
-        if (target) target.innerHTML = `<div class="text-center p-4 text-danger"><i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i><p class="mt-2">${e?.message || 'Summary failed'}</p></div>`;
-    } finally {
-        window._summarizeInFlight = false;
-        // If no cooldown, re-enable button now; otherwise timer will handle it
-        const btn = document.getElementById('summary-reload-btn');
-        if (btn && !(window._summarizeCooldownUntil && Date.now() < window._summarizeCooldownUntil)) {
-            btn.disabled = false;
-            btn.textContent = 'Reload';
-        }
-    }
-};
-
-// Delete current group but keep files
-function deleteCurrentGroup() {
-    if (!CURRENT_GROUP_VIEW) return;
-    const name = CURRENT_GROUP_VIEW;
-    if (!confirm(`Delete group '${name}'? Files will remain.`)) return;
-    fetch('/Dashboard/DeleteGroup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ name })
-    })
-        .then(res => res.json())
-        .then(data => {
-            if (!data || data.success !== true) throw new Error(data && data.error ? data.error : 'Delete group failed');
-            if (GROUPS && GROUPS[name]) delete GROUPS[name];
-            exitGroupView();
+            body: JSON.stringify({ name })
         })
-        .catch(err => {
-            alert(err?.message || 'Failed to delete group');
-        });
-}
+            .then(res => res.json())
+            .then(data => {
+                if (!data || data.success !== true) throw new Error(data && data.error ? data.error : 'Delete group failed');
+                if (GROUPS && GROUPS[name]) delete GROUPS[name];
+                exitGroupView();
+            })
+            .catch(err => {
+                alert(err?.message || 'Failed to delete group');
+            });
+    }
 
     const showOptions = () => {
         if (generateCard) {
@@ -170,13 +197,8 @@ function deleteCurrentGroup() {
         });
     }
 
-    const audioCard = document.getElementById('gen-opt-audio');
-    if (audioCard) {
-        audioCard.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (window.openAudioRight) window.openAudioRight();
-        });
-    }
+    const audioCardOption = document.getElementById('gen-opt-audio');
+    // Already handled above in DOMContentLoaded
 
     const notesCard = document.getElementById('gen-opt-notes');
     if (notesCard) {
@@ -209,153 +231,153 @@ function deleteCurrentGroup() {
         const uploadedSectionInit = document.getElementById('uploaded-files-section');
         if (leftViewer) leftViewer.style.display = 'none';
         if (uploadedSectionInit) uploadedSectionInit.style.display = 'block';
-    } catch {}
+    } catch { }
 
     try {
         const panel = document.getElementById('focus-music-panel');
         if (!panel) {
         } else {
             if (!window.__focusMusicAudio) {
-            const audio = new Audio();
-            audio.crossOrigin = 'anonymous';
-            audio.loop = true;
-            audio.preload = 'none';
-            audio.volume = 0.6;
-            window.__focusMusicAudio = audio;
-        }
-
-        const PRESETS = {
-            quran: {
-                name: 'Quran',
-                candidates: [
-                    '/sounds/quran.mp3','/sounds/quran.m4a','/sounds/quran.wav',
-                    '/audio/quran.mp3','/audio/quran.m4a','/audio/quran.wav'
-                ]
-            },
-            rain: {
-                name: 'Rain',
-                candidates: [
-                    '/sounds/rain.mp3','/sounds/rain.m4a','/sounds/rain.wav',
-                    '/audio/rain.mp3','/audio/rain.m4a','/audio/rain.wav'
-                ]
-            },
-            earth: {
-                name: 'Earth',
-                candidates: [
-                    '/sounds/earth.mp3','/sounds/earth.m4a','/sounds/earth.wav',
-                    '/audio/earth.mp3','/audio/earth.m4a','/audio/earth.wav'
-                ]
-            },
-            topone: {
-                name: 'Top One',
-                candidates: [
-                    '/sounds/topone.mp3','/sounds/topone.m4a','/sounds/topone.wav',
-                    '/audio/topone.mp3','/audio/topone.m4a','/audio/topone.wav',
-                    '/sounds/top%20one.mp3','/sounds/top%20one.m4a','/sounds/top%20one.wav',
-                    '/audio/top%20one.mp3','/audio/top%20one.m4a','/audio/top%20one.wav',
-                    '/sounds/Top%20One.mp3','/audio/Top%20One.mp3'
-                ]
+                const audio = new Audio();
+                audio.crossOrigin = 'anonymous';
+                audio.loop = true;
+                audio.preload = 'none';
+                audio.volume = 0.6;
+                window.__focusMusicAudio = audio;
             }
-        };
 
-        let current = PRESETS.quran;
-        const audio = window.__focusMusicAudio;
-        const btnQuran = document.getElementById('music-preset-quran');
-        const btnRain = document.getElementById('music-preset-rain');
-        const btnEarth = document.getElementById('music-preset-earth');
-        const btnTopOne = document.getElementById('music-preset-topone');
-        const toggleBtn = document.getElementById('music-toggle');
-        const volumeInput = document.getElementById('music-volume');
-        const nowPlaying = document.getElementById('music-nowplaying');
-        function setStatus(text, isError = false) {
-            if (!nowPlaying) return;
-            nowPlaying.textContent = text;
-            const parent = nowPlaying.closest('.small');
-            if (parent) parent.classList.toggle('text-danger', !!isError);
-        }
-
-        function updateNowPlaying() {
-            if (audio.src) setStatus(current.name, false); else setStatus('None', false);
-        }
-
-        function setToggleState(isPlaying) {
-            if (!toggleBtn) return;
-            if (isPlaying) {
-                toggleBtn.classList.remove('btn-success');
-                toggleBtn.classList.add('btn-danger');
-                toggleBtn.innerHTML = '<i class="bi bi-pause-fill"></i> Pause';
-            } else {
-                toggleBtn.classList.remove('btn-danger');
-                toggleBtn.classList.add('btn-success');
-                toggleBtn.innerHTML = '<i class="bi bi-play-fill"></i> Play';
-            }
-        }
-
-        function setActivePreset(btn) {
-            [btnQuran, btnRain, btnEarth, btnTopOne].forEach(b => b && b.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-        }
-
-        async function tryPlayCandidates(candidates) {
-            for (const url of (candidates || [])) {
-                try {
-                    audio.src = url;
-                    await audio.play();
-                    return true;
-                } catch (e) {
-                    // try next candidate
+            const PRESETS = {
+                quran: {
+                    name: 'Quran',
+                    candidates: [
+                        '/sounds/quran.mp3', '/sounds/quran.m4a', '/sounds/quran.wav',
+                        '/audio/quran.mp3', '/audio/quran.m4a', '/audio/quran.wav'
+                    ]
+                },
+                rain: {
+                    name: 'Rain',
+                    candidates: [
+                        '/sounds/rain.mp3', '/sounds/rain.m4a', '/sounds/rain.wav',
+                        '/audio/rain.mp3', '/audio/rain.m4a', '/audio/rain.wav'
+                    ]
+                },
+                earth: {
+                    name: 'Earth',
+                    candidates: [
+                        '/sounds/earth.mp3', '/sounds/earth.m4a', '/sounds/earth.wav',
+                        '/audio/earth.mp3', '/audio/earth.m4a', '/audio/earth.wav'
+                    ]
+                },
+                topone: {
+                    name: 'Top One',
+                    candidates: [
+                        '/sounds/topone.mp3', '/sounds/topone.m4a', '/sounds/topone.wav',
+                        '/audio/topone.mp3', '/audio/topone.m4a', '/audio/topone.wav',
+                        '/sounds/top%20one.mp3', '/sounds/top%20one.m4a', '/sounds/top%20one.wav',
+                        '/audio/top%20one.mp3', '/audio/top%20one.m4a', '/audio/top%20one.wav',
+                        '/sounds/Top%20One.mp3', '/audio/Top%20One.mp3'
+                    ]
                 }
-            }
-            return false;
-        }
+            };
 
-        async function loadPreset(preset, btn, autoPlay = true) {
-            current = preset;
-            setActivePreset(btn);
-            const wasPlaying = !audio.paused;
-            setStatus('Loading...', false);
-            if (autoPlay || wasPlaying) {
-                const ok = await tryPlayCandidates(current.candidates || []);
-                if (ok) {
-                    setStatus(current.name, false);
-                    setToggleState(true);
+            let current = PRESETS.quran;
+            const audio = window.__focusMusicAudio;
+            const btnQuran = document.getElementById('music-preset-quran');
+            const btnRain = document.getElementById('music-preset-rain');
+            const btnEarth = document.getElementById('music-preset-earth');
+            const btnTopOne = document.getElementById('music-preset-topone');
+            const toggleBtn = document.getElementById('music-toggle');
+            const volumeInput = document.getElementById('music-volume');
+            const nowPlaying = document.getElementById('music-nowplaying');
+            function setStatus(text, isError = false) {
+                if (!nowPlaying) return;
+                nowPlaying.textContent = text;
+                const parent = nowPlaying.closest('.small');
+                if (parent) parent.classList.toggle('text-danger', !!isError);
+            }
+
+            function updateNowPlaying() {
+                if (audio.src) setStatus(current.name, false); else setStatus('None', false);
+            }
+
+            function setToggleState(isPlaying) {
+                if (!toggleBtn) return;
+                if (isPlaying) {
+                    toggleBtn.classList.remove('btn-success');
+                    toggleBtn.classList.add('btn-danger');
+                    toggleBtn.innerHTML = '<i class="bi bi-pause-fill"></i> Pause';
                 } else {
-                    setStatus('Cannot play. Check sounds path/names.', true);
+                    toggleBtn.classList.remove('btn-danger');
+                    toggleBtn.classList.add('btn-success');
+                    toggleBtn.innerHTML = '<i class="bi bi-play-fill"></i> Play';
                 }
-            } else {
-                // Not auto-playing: just set first candidate as src for later play
-                const first = (current.candidates || [])[0];
-                if (first) audio.src = first;
-                updateNowPlaying();
             }
-        }
 
-        if (btnQuran) btnQuran.addEventListener('click', () => loadPreset(PRESETS.quran, btnQuran, true));
-        if (btnRain) btnRain.addEventListener('click', () => loadPreset(PRESETS.rain, btnRain, true));
-        if (btnEarth) btnEarth.addEventListener('click', () => loadPreset(PRESETS.earth, btnEarth, true));
-        if (btnTopOne) btnTopOne.addEventListener('click', () => loadPreset(PRESETS.topone, btnTopOne, true));
+            function setActivePreset(btn) {
+                [btnQuran, btnRain, btnEarth, btnTopOne].forEach(b => b && b.classList.remove('active'));
+                if (btn) btn.classList.add('active');
+            }
 
-        if (toggleBtn) toggleBtn.addEventListener('click', async () => {
-            if (audio.paused) {
-                const ok = audio.src ? await audio.play().then(() => true).catch(() => false) : await tryPlayCandidates(current.candidates || []);
-                if (ok) {
-                    setToggleState(true);
+            async function tryPlayCandidates(candidates) {
+                for (const url of (candidates || [])) {
+                    try {
+                        audio.src = url;
+                        await audio.play();
+                        return true;
+                    } catch (e) {
+                        // try next candidate
+                    }
+                }
+                return false;
+            }
+
+            async function loadPreset(preset, btn, autoPlay = true) {
+                current = preset;
+                setActivePreset(btn);
+                const wasPlaying = !audio.paused;
+                setStatus('Loading...', false);
+                if (autoPlay || wasPlaying) {
+                    const ok = await tryPlayCandidates(current.candidates || []);
+                    if (ok) {
+                        setStatus(current.name, false);
+                        setToggleState(true);
+                    } else {
+                        setStatus('Cannot play. Check sounds path/names.', true);
+                    }
+                } else {
+                    // Not auto-playing: just set first candidate as src for later play
+                    const first = (current.candidates || [])[0];
+                    if (first) audio.src = first;
                     updateNowPlaying();
-                } else {
-                    setStatus('Cannot play. Check sounds path/names.', true);
                 }
-            } else {
-                audio.pause();
-                setToggleState(false);
-                updateNowPlaying();
             }
-        });
+
+            if (btnQuran) btnQuran.addEventListener('click', () => loadPreset(PRESETS.quran, btnQuran, true));
+            if (btnRain) btnRain.addEventListener('click', () => loadPreset(PRESETS.rain, btnRain, true));
+            if (btnEarth) btnEarth.addEventListener('click', () => loadPreset(PRESETS.earth, btnEarth, true));
+            if (btnTopOne) btnTopOne.addEventListener('click', () => loadPreset(PRESETS.topone, btnTopOne, true));
+
+            if (toggleBtn) toggleBtn.addEventListener('click', async () => {
+                if (audio.paused) {
+                    const ok = audio.src ? await audio.play().then(() => true).catch(() => false) : await tryPlayCandidates(current.candidates || []);
+                    if (ok) {
+                        setToggleState(true);
+                        updateNowPlaying();
+                    } else {
+                        setStatus('Cannot play. Check sounds path/names.', true);
+                    }
+                } else {
+                    audio.pause();
+                    setToggleState(false);
+                    updateNowPlaying();
+                }
+            });
         }
 
         // Ensure try block is balanced so the script parses correctly
-        } catch (e) {}
+    } catch (e) { }
 
-    });
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     const classesList = document.getElementById('classes-list');
@@ -443,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     };
                 }
-            } catch {}
+            } catch { }
 
             // Prepare Files tab (show upload for owner, load files list)
             try {
@@ -457,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (uploadWrap) uploadWrap.style.display = isOwner2 ? '' : 'none';
                 if (typeof setupClassUpload === 'function') setupClassUpload(isOwner2);
                 if (klass?.id && typeof loadClassFiles === 'function') await loadClassFiles(klass.id);
-            } catch {}
+            } catch { }
 
             // Hide the My Classes panel before opening the class details
             const myPanel = document.getElementById('classes-panel');
@@ -539,7 +561,7 @@ window.saveCurrentDocument = async function () {
         }
         // Update UI
         if (fileNameDisplay) fileNameDisplay.textContent = data.fileName || fileName;
-        try { if (typeof addRecentFile === 'function') addRecentFile(data.fileId, data.fileName || fileName); } catch (_) {}
+        try { if (typeof addRecentFile === 'function') addRecentFile(data.fileId, data.fileName || fileName); } catch (_) { }
         // Optional: small visual feedback
         try {
             const wc = document.getElementById('word-count');
@@ -548,7 +570,7 @@ window.saveCurrentDocument = async function () {
                 wc.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Saved';
                 setTimeout(() => { wc.innerHTML = orig; }, 1200);
             }
-        } catch {}
+        } catch { }
         return true;
     } catch (e) {
         alert(e?.message || 'Failed to save');
@@ -589,27 +611,27 @@ window.autoSaveIfEditable = function () {
                 credentials: 'same-origin',
                 keepalive: true,
                 body: payload
-            }).catch(() => {});
+            }).catch(() => { });
         }
-    } catch {}
+    } catch { }
 };
 
 // Save on browser back/navigation and tab close
 window.addEventListener('beforeunload', function () {
-    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch {}
+    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch { }
 });
 window.addEventListener('pagehide', function () {
-    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch {}
+    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch { }
 });
 window.addEventListener('popstate', function () {
-    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch {}
+    try { if (typeof window.autoSaveIfEditable === 'function') window.autoSaveIfEditable(); } catch { }
 });
 
 // Heuristic: save when clicking common back elements
 document.addEventListener('click', function (e) {
     const backEl = e.target && (e.target.closest('[data-action="back"]') || e.target.closest('.btn-back') || e.target.closest('a[href="#back"]'));
     if (backEl && typeof window.autoSaveIfEditable === 'function') {
-        try { window.autoSaveIfEditable(); } catch {}
+        try { window.autoSaveIfEditable(); } catch { }
     }
 });
 
@@ -628,7 +650,7 @@ async function loadGroups() {
             GROUPS = data.groups || {};
             renderGroupsUI();
         }
-    } catch {}
+    } catch { }
 }
 
 function renderGroupsUI() {
@@ -660,7 +682,7 @@ function renderGroupsUI() {
         card.innerHTML = `
             <div class="file-icon-large"><img src="/images/folder icon.png" alt="Group" style="width: 36px; height: 36px; object-fit: contain;" /></div>
             <div class="file-name-card">${name}</div>
-            <div class="file-meta-card"><small class="text-muted">${(GROUPS[name]||[]).length} items</small></div>
+            <div class="file-meta-card"><small class="text-muted">${(GROUPS[name] || []).length} items</small></div>
         `;
         grid.insertBefore(card, grid.firstChild);
     });
@@ -809,7 +831,7 @@ function toggleInlinePanel(panelId, event, ownerHint) {
         } else if (!ownerId && (panel.classList.contains('inline-left-from-focus') || panelId.startsWith('focus-'))) {
             ownerId = 'focus-dropdown';
         }
-        
+
         const owner = ownerId ? document.getElementById(ownerId) : null;
         if (owner) {
             // Close any other top-level dropdowns except the owner to avoid conflicts
@@ -833,12 +855,12 @@ function toggleInlinePanel(panelId, event, ownerHint) {
             const GAP_Y = 12; // vertical gap from owner dropdown
             const SCREEN_MARGIN = 8; // min distance from viewport edges
             panel.style.top = `${Math.max(SCREEN_MARGIN, anchorRect.top + GAP_Y)}px`;
-            
+
             const desiredLeft = anchorRect.left - panelWidth - GAP_X;
             const left = Math.max(SCREEN_MARGIN, Math.min(desiredLeft, window.innerWidth - panelWidth - SCREEN_MARGIN));
             panel.style.left = `${left}px`;
             panel.style.right = 'auto';
-            
+
             panel.style.width = `${panelWidth}px`;
             panel.style.transform = 'none';
             panel.style.zIndex = 2000;
@@ -899,7 +921,7 @@ function showMyFiles() {
     try {
         const body = document.body;
         if (body) {
-            body.classList.remove('mode-upload','mode-viewer','mode-manual','mode-files');
+            body.classList.remove('mode-upload', 'mode-viewer', 'mode-manual', 'mode-files');
             body.classList.add('mode-manage-files');
         }
         const viewer = document.getElementById('file-display-container');
@@ -920,8 +942,8 @@ function showMyFiles() {
         const grid = uploadedSection ? uploadedSection.querySelector('.files-grid') : null;
         if (grid) Array.from(grid.children).forEach(card => card.style.display = '');
         CURRENT_GROUP_VIEW = null;
-        try { renderGroupsUI(); } catch {}
-    } catch {}
+        try { renderGroupsUI(); } catch { }
+    } catch { }
 }
 
 // Toggle select all checkboxes in file cards
@@ -931,7 +953,7 @@ function toggleSelectAllFiles(master) {
         if (!grid) return;
         const boxes = grid.querySelectorAll('.file-select-checkbox');
         boxes.forEach(cb => { cb.checked = master.checked; onFileCheckboxChange(cb); });
-    } catch {}
+    } catch { }
 }
 
 // Group files by simple criteria: none, type, date (uploaded day)
@@ -949,8 +971,8 @@ function groupFiles(mode) {
             return 'Other';
         };
         const getDay = (card) => {
-            const t = parseInt(card.getAttribute('data-uploaded-at')||'0',10)||0;
-            return t ? new Date(t/10000).toDateString() : 'Unknown';
+            const t = parseInt(card.getAttribute('data-uploaded-at') || '0', 10) || 0;
+            return t ? new Date(t / 10000).toDateString() : 'Unknown';
         };
         const keyFn = mode === 'type' ? getType : mode === 'date' ? getDay : null;
         if (!keyFn) {
@@ -966,7 +988,7 @@ function groupFiles(mode) {
         // Clear DOM and append grouped
         const order = Array.from(groups.keys()).sort();
         order.forEach(k => groups.get(k).forEach(c => grid.appendChild(c)));
-    } catch {}
+    } catch { }
 }
 
 // Close dropdowns when clicking elsewhere
@@ -1311,7 +1333,7 @@ window.startEmptyDocument = function () {
             contentDisplay.contentEditable = 'true';
             contentDisplay.focus();
         }
-    } catch {}
+    } catch { }
 }
 
 function submitManualText() {
@@ -1388,10 +1410,10 @@ let isReadingMode = false;
 function adjustFontSize(action) {
     const summaryContainer = document.getElementById('summary-display-container');
     const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
-    const contentText = isSummaryActive 
+    const contentText = isSummaryActive
         ? document.getElementById('summary-content-display')
         : document.querySelector('.content-text');
-    
+
     if (contentText) {
         if (action === 'increase' && currentFontSize < 1.5) {
             currentFontSize += 0.1;
@@ -1405,10 +1427,10 @@ function adjustFontSize(action) {
 function toggleLineHeight() {
     const summaryContainer = document.getElementById('summary-display-container');
     const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
-    const contentText = isSummaryActive 
+    const contentText = isSummaryActive
         ? document.getElementById('summary-content-display')
         : document.querySelector('.content-text');
-    
+
     if (contentText) {
         currentLineHeight = currentLineHeight === 1.8 ? 2.2 : 1.8;
         contentText.style.lineHeight = currentLineHeight;
@@ -1420,13 +1442,13 @@ function updateWordCount() {
     const summaryContentDisplay = document.getElementById('summary-content-display');
     const wordCountElement = document.getElementById('word-count');
     const summaryWordCountElement = document.getElementById('summary-word-count');
-    
+
     const summaryContainer = document.getElementById('summary-display-container');
     const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
-    
+
     const activeContent = isSummaryActive ? summaryContentDisplay : contentDisplay;
     const activeWordCount = isSummaryActive ? summaryWordCountElement : wordCountElement;
-    
+
     if (activeContent && activeWordCount) {
         const text = activeContent.textContent || '';
         const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -1435,11 +1457,11 @@ function updateWordCount() {
         animateNumber(currentCount, wordCount, (count) => {
             activeWordCount.innerHTML = `<i class="bi bi-hash me-1"></i>${count} words`;
         });
-        
-        const readTimeElement = isSummaryActive 
+
+        const readTimeElement = isSummaryActive
             ? document.getElementById('summary-read-time')
             : document.getElementById('read-time');
-        
+
         if (readTimeElement) {
             const minutes = Math.ceil(wordCount / 200);
             readTimeElement.innerHTML = `<i class="bi bi-clock me-1"></i>${minutes} min read`;
@@ -1450,11 +1472,11 @@ function updateWordCount() {
 function updateReadTime(wordCount) {
     const summaryContainer = document.getElementById('summary-display-container');
     const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
-    
-    const readTimeElement = isSummaryActive 
+
+    const readTimeElement = isSummaryActive
         ? document.getElementById('summary-read-time')
         : document.getElementById('read-time');
-    
+
     if (readTimeElement) {
         const minutes = Math.ceil(wordCount / 200);
         readTimeElement.innerHTML = `<i class="bi bi-clock me-1"></i>${minutes} min read`;
@@ -1483,13 +1505,13 @@ function animateNumber(start, end, callback) {
 function downloadContent() {
     const summaryContainer = document.getElementById('summary-display-container');
     const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
-    const contentDisplay = isSummaryActive 
+    const contentDisplay = isSummaryActive
         ? document.getElementById('summary-content-display')
         : document.getElementById('content-display');
     const fileNameDisplay = isSummaryActive
         ? document.getElementById('summary-filename-display')
         : document.querySelector('.filename-display');
-    
+
     if (contentDisplay) {
         const content = contentDisplay.textContent;
         const filename = fileNameDisplay ? fileNameDisplay.textContent : 'document.txt';
@@ -1509,13 +1531,13 @@ function shareContent() {
     if (navigator.share) {
         const summaryContainer = document.getElementById('summary-display-container');
         const isSummaryActive = summaryContainer && summaryContainer.style.display !== 'none';
-        const contentDisplay = isSummaryActive 
+        const contentDisplay = isSummaryActive
             ? document.getElementById('summary-content-display')
             : document.getElementById('content-display');
         const fileNameDisplay = isSummaryActive
             ? document.getElementById('summary-filename-display')
             : document.querySelector('.filename-display');
-        
+
         if (contentDisplay) {
             const filename = fileNameDisplay ? fileNameDisplay.textContent : 'Document';
             navigator.share({
@@ -1532,7 +1554,7 @@ function toggleDarkMode() {
     const contentWrapper = isSummaryActive
         ? document.getElementById('summary-content-wrapper')
         : document.getElementById('content-wrapper');
-    
+
     if (contentWrapper) {
         isDarkMode = !isDarkMode;
         contentWrapper.classList.toggle('dark-mode');
@@ -1545,9 +1567,9 @@ function toggleReadingMode() {
     const contentDisplay = isSummaryActive
         ? document.getElementById('summary-content-display')
         : document.getElementById('content-display');
-    
+
     if (!contentDisplay) return;
-    
+
     isReadingMode = !isReadingMode;
     contentDisplay.classList.toggle('reading-mode');
 }
@@ -1558,7 +1580,7 @@ function setTextAlign(alignment) {
     const contentDisplay = isSummaryActive
         ? document.getElementById('summary-content-display')
         : document.getElementById('content-display');
-    
+
     if (contentDisplay) {
         contentDisplay.style.textAlign = alignment;
     }
@@ -1819,6 +1841,36 @@ function deleteSelectedFiles() {
         });
 }
 
+// Global: delete single file (for Quick Actions)
+function deleteFile(id, event) {
+    if (event) event.stopPropagation();
+    if (!confirm('Are you sure you want to delete this file?')) return;
+
+    fetch('/Dashboard/DeleteFiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify([id])
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.error || 'Delete failed');
+            const card = document.querySelector(`.file-card[data-file-id="${id}"]`);
+            if (card && card.parentElement) {
+                card.parentElement.removeChild(card);
+                // Check if grid is empty
+                const grid = document.querySelector('.files-grid');
+                if (!grid || grid.children.length === 0) {
+                    window.location.reload();
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Delete error:', err);
+            alert('Failed to delete file.');
+        });
+}
+
 // Global: group selected files (first click enables selection, second groups)
 function groupSelectedFiles() {
     if (SELECTED_FILE_IDS.size === 0) {
@@ -1854,17 +1906,17 @@ function groupSelectedFiles() {
 // Load groups on page ready
 // Initialize components on page load
 document.addEventListener('DOMContentLoaded', function () {
-    try { 
-        loadGroups(); 
+    try {
+        loadGroups();
         reorderFilesByRecent();
     } catch (_) { }
-    
+
     // Initialize tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-    
+
     // Setup dark mode toggle
     const dm = document.getElementById('setting-darkmode');
     if (dm) {
@@ -2177,85 +2229,85 @@ function openClassesInlinePanel(event) {
                                     });
                                 }
 
-                            // Prepare Files tab (mirror logic from list item handler)
-                            try {
-                                const filesUl = document.getElementById('cls-files');
-                                if (filesUl) filesUl.innerHTML = '';
-                                window.__currentClassId = klass?.id || null;
-                                const userDropdown2 = document.getElementById('user-dropdown');
-                                const currentUserId2 = parseInt(userDropdown2?.getAttribute('data-user-id') || '', 10);
-                                const isOwner2 = !!klass?.id && !Number.isNaN(currentUserId2) && teacher && (teacher.id === currentUserId2);
-                                const uploadWrap = document.getElementById('cls-files-upload');
-                                if (uploadWrap) uploadWrap.style.display = isOwner2 ? '' : 'none';
-                                if (typeof setupClassUpload === 'function') setupClassUpload(isOwner2);
-                                if (klass?.id && typeof loadClassFiles === 'function') await loadClassFiles(klass.id);
-                            } catch {}
+                                // Prepare Files tab (mirror logic from list item handler)
+                                try {
+                                    const filesUl = document.getElementById('cls-files');
+                                    if (filesUl) filesUl.innerHTML = '';
+                                    window.__currentClassId = klass?.id || null;
+                                    const userDropdown2 = document.getElementById('user-dropdown');
+                                    const currentUserId2 = parseInt(userDropdown2?.getAttribute('data-user-id') || '', 10);
+                                    const isOwner2 = !!klass?.id && !Number.isNaN(currentUserId2) && teacher && (teacher.id === currentUserId2);
+                                    const uploadWrap = document.getElementById('cls-files-upload');
+                                    if (uploadWrap) uploadWrap.style.display = isOwner2 ? '' : 'none';
+                                    if (typeof setupClassUpload === 'function') setupClassUpload(isOwner2);
+                                    if (klass?.id && typeof loadClassFiles === 'function') await loadClassFiles(klass.id);
+                                } catch { }
 
-                            // Show/Hide action buttons based on ownership
-                            const leaveBtn = document.getElementById('leave-class-btn');
-                            const deleteBtn = document.getElementById('delete-class-btn');
-                            try {
-                                const userDropdown = document.getElementById('user-dropdown');
-                                const currentUserId = parseInt(userDropdown?.getAttribute('data-user-id') || '', 10);
-                                const canCompare = !Number.isNaN(currentUserId) && currentUserId > 0;
-                                const isOwner = canCompare && teacher && (teacher.id === currentUserId);
-                                // Leave button for non-owners only
-                                if (leaveBtn) {
-                                    leaveBtn.style.display = (!klass?.id || isOwner) ? 'none' : '';
-                                    leaveBtn.onclick = async (ev) => {
-                                        ev.preventDefault(); ev.stopPropagation();
-                                        if (!klass?.id) return;
-                                        if (!confirm('Leave this class?')) return;
-                                        try {
-                                            leaveBtn.disabled = true;
-                                            const res = await fetch('/Classes/Leave', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                credentials: 'same-origin',
-                                                body: JSON.stringify({ id: klass.id })
-                                            });
-                                            const resp = await res.json();
-                                            if (!resp.success) throw new Error(resp.error || 'Failed to leave');
-                                            const detailsPanel = document.getElementById('class-details-panel');
-                                            if (detailsPanel) detailsPanel.classList.remove('show');
-                                            // Reopen classes panel and refresh list
-                                            toggleInlinePanel('classes-panel');
-                                        } catch (er) {
-                                            alert(er?.message || 'Failed to leave class');
-                                        } finally {
-                                            leaveBtn.disabled = false;
-                                        }
-                                    };
-                                }
-                                // Delete button for owner only
-                                if (deleteBtn) {
-                                    deleteBtn.style.display = (klass?.id && isOwner) ? '' : 'none';
-                                    deleteBtn.onclick = async (ev) => {
-                                        ev.preventDefault(); ev.stopPropagation();
-                                        if (!klass?.id) return;
-                                        if (!confirm('Delete this class? This will remove the class and all memberships.')) return;
-                                        try {
-                                            deleteBtn.disabled = true;
-                                            const res = await fetch('/Classes/Delete', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                credentials: 'same-origin',
-                                                body: JSON.stringify({ id: klass.id })
-                                            });
-                                            const resp = await res.json();
-                                            if (!resp.success) throw new Error(resp.error || 'Failed to delete class');
-                                            const detailsPanel = document.getElementById('class-details-panel');
-                                            if (detailsPanel) detailsPanel.classList.remove('show');
-                                            // Reopen classes panel and refresh list
-                                            toggleInlinePanel('classes-panel');
-                                        } catch (er) {
-                                            alert(er?.message || 'Failed to delete class');
-                                        } finally {
-                                            deleteBtn.disabled = false;
-                                        }
-                                    };
-                                }
-                            } catch {}
+                                // Show/Hide action buttons based on ownership
+                                const leaveBtn = document.getElementById('leave-class-btn');
+                                const deleteBtn = document.getElementById('delete-class-btn');
+                                try {
+                                    const userDropdown = document.getElementById('user-dropdown');
+                                    const currentUserId = parseInt(userDropdown?.getAttribute('data-user-id') || '', 10);
+                                    const canCompare = !Number.isNaN(currentUserId) && currentUserId > 0;
+                                    const isOwner = canCompare && teacher && (teacher.id === currentUserId);
+                                    // Leave button for non-owners only
+                                    if (leaveBtn) {
+                                        leaveBtn.style.display = (!klass?.id || isOwner) ? 'none' : '';
+                                        leaveBtn.onclick = async (ev) => {
+                                            ev.preventDefault(); ev.stopPropagation();
+                                            if (!klass?.id) return;
+                                            if (!confirm('Leave this class?')) return;
+                                            try {
+                                                leaveBtn.disabled = true;
+                                                const res = await fetch('/Classes/Leave', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    credentials: 'same-origin',
+                                                    body: JSON.stringify({ id: klass.id })
+                                                });
+                                                const resp = await res.json();
+                                                if (!resp.success) throw new Error(resp.error || 'Failed to leave');
+                                                const detailsPanel = document.getElementById('class-details-panel');
+                                                if (detailsPanel) detailsPanel.classList.remove('show');
+                                                // Reopen classes panel and refresh list
+                                                toggleInlinePanel('classes-panel');
+                                            } catch (er) {
+                                                alert(er?.message || 'Failed to leave class');
+                                            } finally {
+                                                leaveBtn.disabled = false;
+                                            }
+                                        };
+                                    }
+                                    // Delete button for owner only
+                                    if (deleteBtn) {
+                                        deleteBtn.style.display = (klass?.id && isOwner) ? '' : 'none';
+                                        deleteBtn.onclick = async (ev) => {
+                                            ev.preventDefault(); ev.stopPropagation();
+                                            if (!klass?.id) return;
+                                            if (!confirm('Delete this class? This will remove the class and all memberships.')) return;
+                                            try {
+                                                deleteBtn.disabled = true;
+                                                const res = await fetch('/Classes/Delete', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    credentials: 'same-origin',
+                                                    body: JSON.stringify({ id: klass.id })
+                                                });
+                                                const resp = await res.json();
+                                                if (!resp.success) throw new Error(resp.error || 'Failed to delete class');
+                                                const detailsPanel = document.getElementById('class-details-panel');
+                                                if (detailsPanel) detailsPanel.classList.remove('show');
+                                                // Reopen classes panel and refresh list
+                                                toggleInlinePanel('classes-panel');
+                                            } catch (er) {
+                                                alert(er?.message || 'Failed to delete class');
+                                            } finally {
+                                                deleteBtn.disabled = false;
+                                            }
+                                        };
+                                    }
+                                } catch { }
                             }
                         } catch (err) {
                             if (teacherEl) teacherEl.textContent = 'Error loading class';
@@ -2400,7 +2452,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     if (sendBtn) sendBtn.addEventListener('click', handler);
     if (form) form.addEventListener('submit', handler);
-    
+
     // Inline friend request
     const sendBtnInline = document.getElementById('send-friend-request-inline-btn');
     if (sendBtnInline) {
@@ -2489,7 +2541,75 @@ function updateAudioTimer() {
 function renderAudioList() {
     const container = document.getElementById('audio-list-container');
     if (!container) return;
-    
+
+    // Load saved audios from server
+    loadSavedAudios();
+}
+
+// Load saved audios from server
+async function loadSavedAudios() {
+    const container = document.getElementById('audio-list-container');
+    if (!container) return;
+
+    console.log('Loading saved audios...');
+
+    try {
+        const res = await fetch('/Dashboard/GetAudioFiles', {
+            method: 'GET',
+            credentials: 'same-origin'
+        });
+
+        console.log('GetAudioFiles response status:', res.status);
+
+        const data = await res.json().catch(() => null);
+        console.log('GetAudioFiles response data:', data);
+
+        if (!res.ok || !data || data.success !== true) {
+            console.log('Server failed, showing session audios only');
+            // If server fails, show current session audios only
+            renderSessionAudios();
+            return;
+        }
+
+        const savedAudios = data.audios || [];
+        console.log('Saved audios loaded:', savedAudios.length);
+
+        if (savedAudios.length === 0 && audioRecordings.length === 0) {
+            console.log('No audios to display');
+            container.innerHTML = `
+                <div class="text-center py-4 text-muted small">
+                    <i class="bi bi-mic-mute fs-4 d-block mb-2"></i>
+                    No recordings yet
+                </div>`;
+            return;
+        }
+
+        // Clear container
+        container.innerHTML = '';
+
+        // Render saved audios first
+        savedAudios.forEach(audio => {
+            console.log('Adding saved audio:', audio.fileName);
+            addSavedAudioToList(audio);
+        });
+
+        // Render session audios (recorded audios)
+        audioRecordings.forEach(rec => {
+            console.log('Adding session audio:', rec.duration);
+            addSessionAudioToList(rec);
+        });
+
+    } catch (error) {
+        console.error('Failed to load saved audios:', error);
+        renderSessionAudios();
+    }
+}
+
+// Render session audios only (fallback)
+function renderSessionAudios() {
+    const container = document.getElementById('audio-list-container');
+    if (!container) return;
+
     if (audioRecordings.length === 0) {
         container.innerHTML = `
             <div class="text-center py-4 text-muted small">
@@ -2501,98 +2621,264 @@ function renderAudioList() {
 
     container.innerHTML = '';
     audioRecordings.forEach(rec => {
-        const item = document.createElement('div');
-        item.className = 'list-group-item d-flex align-items-center justify-content-between p-3';
-        item.innerHTML = `
-            <div class="d-flex align-items-center overflow-hidden">
-                <div class="me-3 bg-light rounded-circle p-2 text-primary">
-                    <i class="bi bi-music-note-beamed"></i>
-                </div>
-                <div class="overflow-hidden">
-                    <h6 class="mb-0 text-truncate">Recording ${new Date(rec.date).toLocaleTimeString()}</h6>
-                    <small class="text-muted">${rec.duration}</small>
-                </div>
-            </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary btn-play" title="Play">
-                    <i class="bi bi-play-fill"></i>
-                </button>
-                <a href="${rec.url}" download="recording-${rec.id}.webm" class="btn btn-sm btn-outline-secondary" title="Download">
-                    <i class="bi bi-download"></i>
-                </a>
-                <button class="btn btn-sm btn-outline-danger btn-delete" title="Delete">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        `;
-        
-        // Bind events
-        const playBtn = item.querySelector('.btn-play');
-        const deleteBtn = item.querySelector('.btn-delete');
-        
-        let audio = null;
-        
-        playBtn.onclick = () => {
-            if (audio && !audio.paused) {
-                audio.pause();
-                playBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
-            } else {
-                if (!audio) {
-                    audio = new Audio(rec.url);
-                    audio.onended = () => {
-                        playBtn.innerHTML = '<i class="bi bi-play-fill"></i>';
-                    };
-                }
-                // Stop other audios? Maybe later.
-                audio.play();
-                playBtn.innerHTML = '<i class="bi bi-pause-fill"></i>';
-            }
-        };
-        
-        deleteBtn.onclick = () => {
-            if (confirm('Delete this recording?')) {
-                audioRecordings = audioRecordings.filter(r => r.id !== rec.id);
-                renderAudioList();
-            }
-        };
-        
-        container.appendChild(item);
+        addSessionAudioToList(rec);
     });
 }
+
+// Add saved audio to list
+function addSavedAudioToList(audio) {
+    const container = document.getElementById('audio-list-container');
+    if (!container) {
+        console.log('Audio list container not found!');
+        return;
+    }
+
+    console.log('Adding saved audio to list:', audio);
+
+    const listItem = document.createElement('div');
+    listItem.className = 'list-group-item d-flex align-items-center';
+    listItem.style.cursor = 'pointer';
+
+    // Store audio data for playback
+    listItem.dataset.audioType = 'saved';
+    listItem.dataset.audioSource = audio.filePath;
+    listItem.dataset.audioFileName = audio.fileName;
+
+    const fileSize = (audio.fileSize / 1024 / 1024).toFixed(2) + ' MB';
+
+    listItem.innerHTML = `
+        <img src="/images/audio icon.png" alt="Audio" style="width: 24px; height: 24px; margin-right: 10px;">
+        <div class="flex-grow-1">
+            <div class="fw-medium">${audio.fileName}</div>
+            <small class="text-muted">Saved Audio • ${fileSize}</small>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); this.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+
+    // Add click handler to play audio
+    listItem.addEventListener('click', function (e) {
+        if (e.target.closest('button')) return;
+        console.log('Playing saved audio:', audio.fileName);
+        playAudio('saved', this.dataset.audioSource, this.dataset.audioFileName);
+    });
+
+    container.appendChild(listItem);
+    console.log('Saved audio item added to container');
+}
+
+// Add session audio (recorded) to list
+function addSessionAudioToList(rec) {
+    const container = document.getElementById('audio-list-container');
+    if (!container) {
+        console.log('Audio list container not found!');
+        return;
+    }
+
+    console.log('Adding session audio to list:', rec);
+
+    const item = document.createElement('div');
+    item.className = 'list-group-item d-flex align-items-center';
+    item.style.cursor = 'pointer';
+
+    // Store audio data for playback
+    item.dataset.audioType = 'recorded';
+    item.dataset.audioSource = rec.url;
+    item.dataset.audioFileName = `Recording ${rec.duration}`;
+
+    item.innerHTML = `
+        <img src="/images/audio icon.png" alt="Audio" style="width: 24px; height: 24px; margin-right: 10px;">
+        <div class="flex-grow-1">
+            <div class="fw-medium">Recording ${rec.duration}</div>
+            <small class="text-muted">Session Recording</small>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); this.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+
+    // Add click handler to play audio
+    item.addEventListener('click', function (e) {
+        if (e.target.closest('button')) return;
+        console.log('Playing session audio:', rec.duration);
+        playAudio('recorded', this.dataset.audioSource, this.dataset.audioFileName);
+    });
+
+    container.appendChild(item);
+    console.log('Session audio item added to container');
+}
+
+// Play audio function
+window.playAudio = window.playAudio || function (type, source, fileName) {
+    console.log('=== PLAY AUDIO START ===');
+    console.log('Playing audio:', { type, source, fileName });
+
+    const audioContainer = document.getElementById('audio-player-container');
+    const audioPlayer = document.getElementById('audio-player');
+    const audioTitle = document.getElementById('audio-title');
+    const audioList = document.getElementById('audio-list-container');
+    const saveBtn = document.getElementById('save-audio-btn');
+
+    console.log('Audio elements found:', {
+        audioContainer: !!audioContainer,
+        audioPlayer: !!audioPlayer,
+        audioTitle: !!audioTitle,
+        audioList: !!audioList,
+        saveBtn: !!saveBtn
+    });
+
+    if (!audioContainer || !audioPlayer) {
+        console.log('❌ Missing required audio elements');
+        console.log('audioContainer:', audioContainer);
+        console.log('audioPlayer:', audioPlayer);
+        return;
+    }
+
+    console.log('✅ All elements found');
+
+    // Hide audio list and show player
+    console.log('Before: audioList.style.display =', audioList ? audioList.style.display : 'not found');
+    console.log('Before: audioContainer.style.display =', audioContainer.style.display);
+
+    if (audioList) {
+        audioList.style.display = 'none';
+        console.log('After: audioList.style.display =', audioList.style.display);
+    }
+
+    audioContainer.style.display = 'block';
+    console.log('After: audioContainer.style.display =', audioContainer.style.display);
+
+    // Set audio title
+    if (audioTitle) {
+        audioTitle.textContent = fileName;
+        console.log('Set audio title to:', fileName);
+    }
+
+    // Show save button only for recorded audios (not saved)
+    if (saveBtn) {
+        if (type === 'saved') {
+            saveBtn.style.display = 'none';
+            console.log('Hide save button (saved audio)');
+        } else {
+            saveBtn.style.display = 'inline-block';
+            console.log('Show save button (recorded audio)');
+        }
+    }
+
+    // Load audio based on type
+    if (type === 'saved') {
+        // For saved audios, use the file path
+        console.log('Loading saved audio from:', source);
+        audioPlayer.src = source;
+    } else {
+        // For recorded audios (current session)
+        console.log('Loading recorded audio from:', source);
+        audioPlayer.src = source;
+    }
+
+    console.log('Audio player src set to:', audioPlayer.src);
+
+    // Load and play audio
+    console.log('Loading and playing audio...');
+
+    audioPlayer.addEventListener('loadeddata', function () {
+        console.log('✅ Audio data loaded successfully');
+    });
+
+    audioPlayer.addEventListener('error', function (e) {
+        console.log('❌ Audio player error:', e);
+        console.log('Audio player error code:', audioPlayer.error);
+    });
+
+    audioPlayer.load();
+    audioPlayer.play().then(() => {
+        console.log('✅ Audio playing successfully');
+    }).catch(e => {
+        console.log('❌ Auto-play failed:', e);
+    });
+
+    console.log('=== PLAY AUDIO END ===');
+};
+
+// Close audio player function
+window.closeAudioPlayer = window.closeAudioPlayer || function () {
+    const audioContainer = document.getElementById('audio-player-container');
+    const audioPlayer = document.getElementById('audio-player');
+    const audioList = document.getElementById('audio-list-container');
+    const audioTitle = document.getElementById('audio-title');
+    const saveBtn = document.getElementById('save-audio-btn');
+
+    if (!audioContainer || !audioPlayer) return;
+
+    // Stop audio and clear source
+    audioPlayer.pause();
+    audioPlayer.src = '';
+
+    // Hide audio player
+    audioContainer.style.display = 'none';
+
+    // Show audio list
+    if (audioList) audioList.style.display = 'block';
+
+    // Reset audio title
+    if (audioTitle) audioTitle.textContent = 'Audio Notes';
+
+    // Hide save button
+    if (saveBtn) saveBtn.style.display = 'none';
+};
 
 function initAudioRecorder() {
     const btn = document.getElementById('audio-record-btn');
     const status = document.getElementById('audio-status');
     const timer = document.getElementById('audio-timer');
-    
-    if (!btn || btn.dataset.bound) return;
+
+    console.log('Initializing audio recorder...');
+    console.log('Record button found:', !!btn);
+    console.log('Status element found:', !!status);
+    console.log('Timer element found:', !!timer);
+
+    if (!btn) {
+        console.error('Record button not found!');
+        return;
+    }
+    if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
-    
+
     btn.onclick = async () => {
+        console.log('Record button clicked');
+        console.log('Current mediaRecorder state:', mediaRecorder ? mediaRecorder.state : 'null');
+
         if (mediaRecorder && mediaRecorder.state === 'recording') {
+            console.log('Stopping recording...');
             // Stop recording
             mediaRecorder.stop();
             clearInterval(audioTimerInterval);
             btn.classList.remove('btn-danger', 'recording-pulse');
             btn.classList.add('btn-outline-danger');
             btn.innerHTML = '<i class="bi bi-mic-fill fs-2"></i>';
-            status.textContent = 'Click to Record';
-            timer.textContent = '00:00';
+            if (status) status.textContent = 'Click to Record';
+            if (timer) timer.textContent = '00:00';
         } else {
+            console.log('Starting recording...');
             // Start recording
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('Microphone access granted');
                 mediaRecorder = new MediaRecorder(stream);
                 audioChunks = [];
-                
+
                 mediaRecorder.ondataavailable = (e) => {
+                    console.log('Audio data available:', e.data.size, 'bytes');
                     if (e.data.size > 0) audioChunks.push(e.data);
                 };
-                
+
                 mediaRecorder.onstop = () => {
+                    console.log('Recording stopped, processing data...');
                     const blob = new Blob(audioChunks, { type: 'audio/webm' });
                     const url = URL.createObjectURL(blob);
                     const duration = timer.textContent; // Capture final time
+                    console.log('Creating recording with duration:', duration);
                     audioRecordings.unshift({
                         id: Date.now(),
                         blob: blob,
@@ -2600,21 +2886,22 @@ function initAudioRecorder() {
                         date: new Date(),
                         duration: duration
                     });
+                    console.log('Recording added, total recordings:', audioRecordings.length);
                     renderAudioList();
-                    
+
                     // Stop all tracks to release mic
                     stream.getTracks().forEach(track => track.stop());
                 };
-                
+
                 mediaRecorder.start();
                 audioStartTime = Date.now();
                 audioTimerInterval = setInterval(updateAudioTimer, 1000);
-                
+
                 btn.classList.remove('btn-outline-danger');
                 btn.classList.add('btn-danger', 'recording-pulse'); // Add pulse animation class if needed
                 btn.innerHTML = '<i class="bi bi-stop-fill fs-2"></i>';
-                status.textContent = 'Recording...';
-                
+                if (status) status.textContent = 'Recording...';
+
             } catch (err) {
                 console.error('Mic error:', err);
                 alert('Could not access microphone. Please allow permissions.');
@@ -2624,6 +2911,7 @@ function initAudioRecorder() {
 }
 
 window.openAudioRight = window.openAudioRight || function () {
+    console.log('=== OPEN AUDIO RIGHT START ===');
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const summaryContainer = document.getElementById('summary-display-container');
@@ -2631,7 +2919,19 @@ window.openAudioRight = window.openAudioRight || function () {
     const whiteboardContainer = document.getElementById('whiteboard-display-container');
     const audioContainer = document.getElementById('audio-display-container');
 
-    if (!audioContainer) return;
+    console.log('Elements found:', {
+        generateWrapper: !!generateWrapper,
+        generateOptions: !!generateOptions,
+        summaryContainer: !!summaryContainer,
+        flashcardsContainer: !!flashcardsContainer,
+        whiteboardContainer: !!whiteboardContainer,
+        audioContainer: !!audioContainer
+    });
+
+    if (!audioContainer) {
+        console.error('Audio container not found!');
+        return;
+    }
 
     if (generateWrapper) generateWrapper.style.display = 'none';
     if (generateOptions) generateOptions.style.display = 'none';
@@ -2640,16 +2940,25 @@ window.openAudioRight = window.openAudioRight || function () {
     if (whiteboardContainer) whiteboardContainer.style.display = 'none';
 
     audioContainer.style.display = 'flex';
+    console.log('Audio container display set to flex');
 
     // Scroll handling
     const rightPane = audioContainer.closest('.right-side');
     if (rightPane) rightPane.scrollTop = 0;
-    
+
+    console.log('Calling initAudioRecorder...');
     initAudioRecorder();
+    console.log('Calling renderAudioList...');
     renderAudioList();
+    console.log('=== OPEN AUDIO RIGHT END ===');
 };
 
 window.backFromAudioRight = window.backFromAudioRight || function () {
+    // Close any playing audio first
+    if (typeof closeAudioPlayer === 'function') {
+        closeAudioPlayer();
+    }
+
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const audioContainer = document.getElementById('audio-display-container');
@@ -2657,7 +2966,7 @@ window.backFromAudioRight = window.backFromAudioRight || function () {
     if (audioContainer) audioContainer.style.display = 'none';
     if (generateWrapper) generateWrapper.style.display = 'flex';
     if (generateOptions) generateOptions.style.display = '';
-    
+
     // Stop recording if active
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
@@ -3054,14 +3363,14 @@ window.openSummaryRight = window.openSummaryRight || function () {
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const summaryContainer = document.getElementById('summary-display-container');
-    
+
     if (!summaryContainer) return;
-    
+
     if (generateWrapper) generateWrapper.style.display = 'none';
     if (generateOptions) generateOptions.style.display = 'none';
-    
+
     summaryContainer.style.display = 'flex';
-    
+
     const rightPane = summaryContainer.closest('.right-side');
     if (rightPane) {
         rightPane.scrollTop = 0;
@@ -3071,12 +3380,12 @@ window.openSummaryRight = window.openSummaryRight || function () {
             summaryContainer.scrollTop = 0;
         });
     }
-    
+
     const summaryContent = document.getElementById('summary-content-display');
     if (summaryContent) {
         summaryContent.innerHTML = '';
     }
-    
+
     if (typeof updateWordCount === 'function') {
         updateWordCount();
     }
@@ -3086,11 +3395,11 @@ window.backFromSummaryRight = window.backFromSummaryRight || function () {
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const summaryContainer = document.getElementById('summary-display-container');
-    
+
     if (summaryContainer) summaryContainer.style.display = 'none';
     if (generateWrapper) generateWrapper.style.display = 'flex';
     if (generateOptions) generateOptions.style.display = '';
-    
+
     if (generateWrapper || generateOptions) {
         (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -3187,31 +3496,124 @@ function setWhiteboardMode(mode) {
     initWhiteboardCanvas();
 }
 
+// Eraser mode variables
+let eraserMode = false;
+
+function toggleEraser() {
+    const eraserBtn = document.getElementById('eraser-toggle');
+
+    if (!eraserBtn) return;
+
+    eraserMode = !eraserMode;
+
+    if (eraserMode) {
+        // Enable eraser mode
+        eraserBtn.classList.remove('btn-outline-secondary');
+        eraserBtn.classList.add('btn-secondary');
+        eraserBtn.innerHTML = '<i class="bi bi-eraser-fill me-1"></i>Erasing';
+
+        // Change cursor to eraser
+        const canvas = document.getElementById('whiteboard-canvas');
+        if (canvas) {
+            canvas.style.cursor = 'crosshair';
+        }
+
+        console.log('Eraser mode ENABLED');
+    } else {
+        // Disable eraser mode
+        eraserBtn.classList.remove('btn-secondary');
+        eraserBtn.classList.add('btn-outline-secondary');
+        eraserBtn.innerHTML = '<i class="bi bi-eraser-fill me-1"></i>Eraser';
+
+        // Restore cursor
+        const canvas = document.getElementById('whiteboard-canvas');
+        if (canvas) {
+            canvas.style.cursor = 'default';
+        }
+
+        console.log('Eraser mode DISABLED');
+    }
+}
+
+function handleClearAll() {
+    console.log('Clear All button clicked'); // Debug log
+    // Clear canvas
+    if (whiteboardCanvas && whiteboardCtx) {
+        whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        console.log('Canvas cleared');
+    }
+    // Clear textarea content
+    const textarea = document.getElementById('notes-textarea');
+    if (textarea) {
+        textarea.value = '';
+        console.log('Textarea cleared');
+    }
+}
+
 function bindWhiteboardControls() {
-    const clearBtn = document.getElementById('whiteboard-clear-canvas');
+    const eraserBtn = document.getElementById('eraser-toggle');
     const colorInput = document.getElementById('whiteboard-color');
     const widthInput = document.getElementById('whiteboard-line-width');
+    const opacityInput = document.getElementById('drawing-opacity');
+    const textOpacityInput = document.getElementById('text-opacity');
+    const textSizeInput = document.getElementById('text-size');
 
-    if (clearBtn) {
+    if (eraserBtn) {
         // Always bind the click event, remove any existing listener first
-        clearBtn.removeEventListener('click', handleClearAll);
-        clearBtn.addEventListener('click', handleClearAll);
-        clearBtn.dataset.bound = '1';
+        eraserBtn.removeEventListener('click', toggleEraser);
+        eraserBtn.addEventListener('click', toggleEraser);
+        eraserBtn.dataset.bound = '1';
     }
-    
-    function handleClearAll() {
-        console.log('Clear All button clicked'); // Debug log
-        // Clear canvas
-        if (whiteboardCanvas && whiteboardCtx) {
-            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-            console.log('Canvas cleared');
-        }
-        // Clear textarea content
-        const textarea = document.getElementById('notes-textarea');
-        if (textarea) {
-            textarea.value = '';
-            console.log('Textarea cleared');
-        }
+
+    if (opacityInput && !opacityInput.dataset.bound) {
+        opacityInput.dataset.bound = '1';
+        opacityInput.value = (drawingOpacity * 100).toString(); // Set initial value
+        opacityInput.addEventListener('input', () => {
+            const opacity = opacityInput.value / 100; // Convert to 0-1 range
+            drawingOpacity = opacity;
+
+            // Apply opacity to canvas if drawing
+            const canvas = document.getElementById('whiteboard-canvas');
+            if (canvas && canvas.style.pointerEvents === 'auto') {
+                canvas.style.opacity = opacity;
+            }
+
+            console.log('Drawing opacity set to:', opacity);
+        });
+    }
+
+    if (textOpacityInput && !textOpacityInput.dataset.bound) {
+        textOpacityInput.dataset.bound = '1';
+        textOpacityInput.value = (textOpacity * 100).toString(); // Set initial value
+        textOpacityInput.addEventListener('input', () => {
+            const opacity = textOpacityInput.value / 100; // Convert to 0-1 range
+            textOpacity = opacity;
+
+            // Apply opacity to textarea
+            const textarea = document.getElementById('notes-textarea');
+            if (textarea && textarea.style.pointerEvents === 'auto') {
+                textarea.style.opacity = opacity;
+            }
+
+            console.log('Text opacity set to:', opacity);
+        });
+    }
+
+    if (textSizeInput && !textSizeInput.dataset.bound) {
+        textSizeInput.dataset.bound = '1';
+        textSizeInput.value = textSize.toString(); // Set initial value
+        textSizeInput.addEventListener('input', () => {
+            const size = parseInt(textSizeInput.value);
+            textSize = size;
+
+            // Apply size to textarea
+            const textarea = document.getElementById('notes-textarea');
+            if (textarea) {
+                textarea.style.fontSize = size + 'px';
+            }
+
+            console.log('Text size set to:', size);
+        });
     }
 
     if (colorInput && !colorInput.dataset.bound) {
@@ -3465,6 +3867,275 @@ function prevFlashcard() {
     initFlashcardsUI();
 }
 
+// Quizzes functionality
+let quizzesData = [];
+let currentQuizIndex = 0;
+let selectedQuizAnswer = null;
+let quizAnswered = false;
+
+// Quizzes right-pane helpers
+window.openQuizzesRight = window.openQuizzesRight || async function () {
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+    const summaryContainer = document.getElementById('summary-display-container');
+    const flashcardsContainer = document.getElementById('flashcards-display-container');
+    const quizzesContainer = document.getElementById('quizzes-display-container');
+    const notesContainer = document.getElementById('notes-display-container');
+
+    if (!quizzesContainer) return;
+
+    if (generateWrapper) generateWrapper.style.display = 'none';
+    if (generateOptions) generateOptions.style.display = 'none';
+    if (summaryContainer) summaryContainer.style.display = 'none';
+    if (flashcardsContainer) flashcardsContainer.style.display = 'none';
+    if (notesContainer) notesContainer.style.display = 'none';
+
+    quizzesContainer.style.display = 'block';
+
+    const rightPane = quizzesContainer.closest('.right-side');
+    if (rightPane) {
+        rightPane.scrollTop = 0;
+        quizzesContainer.scrollTop = 0;
+        requestAnimationFrame(() => {
+            rightPane.scrollTop = 0;
+            quizzesContainer.scrollTop = 0;
+        });
+    }
+
+    // Initialize quizzes UI
+    initQuizzesUI();
+};
+
+window.backFromQuizzesRight = window.backFromQuizzesRight || function () {
+    const quizzesContainer = document.getElementById('quizzes-display-container');
+    const generateWrapper = document.getElementById('generate-wrapper');
+    const generateOptions = document.getElementById('generate-options');
+
+    if (quizzesContainer) quizzesContainer.style.display = 'none';
+
+    if (generateWrapper) generateWrapper.style.display = 'flex';
+    if (generateOptions) generateOptions.style.display = '';
+
+    if (generateWrapper || generateOptions) {
+        (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+function initQuizzesUI() {
+    // Load saved quizzes from localStorage
+    const savedQuizzes = localStorage.getItem('quizzesData');
+    if (savedQuizzes) {
+        quizzesData = JSON.parse(savedQuizzes);
+    }
+
+    // Bind Add button
+    const addBtn = document.getElementById('quizzes-add-toggle');
+    if (addBtn && !addBtn.dataset.bound) {
+        addBtn.dataset.bound = '1';
+        addBtn.addEventListener('click', toggleQuizCreationForm);
+    }
+
+    // Display current quiz or empty state
+    if (quizzesData.length === 0) {
+        showQuizzesEmptyState();
+    } else {
+        displayCurrentQuiz();
+    }
+}
+
+function toggleQuizCreationForm() {
+    const form = document.getElementById('quiz-creation-form');
+    const display = document.getElementById('quiz-display');
+
+    if (form.classList.contains('d-none')) {
+        // Show form
+        form.classList.remove('d-none');
+        display.classList.add('d-none');
+        clearQuizForm();
+    } else {
+        // Hide form
+        form.classList.add('d-none');
+        display.classList.remove('d-none');
+    }
+}
+
+function clearQuizForm() {
+    document.getElementById('quiz-question').value = '';
+    document.getElementById('quiz-option-a').value = '';
+    document.getElementById('quiz-option-b').value = '';
+    document.getElementById('quiz-option-c').value = '';
+    document.getElementById('quiz-option-d').value = '';
+    document.getElementById('quiz-correct-answer').value = '';
+}
+
+function saveQuizQuestion() {
+    const question = document.getElementById('quiz-question').value.trim();
+    const optionA = document.getElementById('quiz-option-a').value.trim();
+    const optionB = document.getElementById('quiz-option-b').value.trim();
+    const optionC = document.getElementById('quiz-option-c').value.trim();
+    const optionD = document.getElementById('quiz-option-d').value.trim();
+    const correctAnswer = document.getElementById('quiz-correct-answer').value;
+
+    // Validation
+    if (!question || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
+        alert('Please fill in all fields and select the correct answer.');
+        return;
+    }
+
+    // Create quiz object
+    const newQuiz = {
+        id: Date.now(),
+        question: question,
+        options: {
+            A: optionA,
+            B: optionB,
+            C: optionC,
+            D: optionD
+        },
+        correctAnswer: correctAnswer
+    };
+
+    // Add to quizzes data
+    quizzesData.push(newQuiz);
+
+    // Save to localStorage
+    localStorage.setItem('quizzesData', JSON.stringify(quizzesData));
+
+    // Hide form and display quiz
+    toggleQuizCreationForm();
+
+    // Display the new quiz (it will be the last one)
+    currentQuizIndex = quizzesData.length - 1;
+    displayCurrentQuiz();
+
+    console.log('Quiz question saved:', newQuiz);
+}
+
+function cancelQuizCreation() {
+    toggleQuizCreationForm();
+}
+
+function displayCurrentQuiz() {
+    if (quizzesData.length === 0) {
+        showQuizzesEmptyState();
+        return;
+    }
+
+    const quiz = quizzesData[currentQuizIndex];
+
+    // Update question number
+    document.getElementById('quiz-current-number').textContent = currentQuizIndex + 1;
+    document.getElementById('quiz-total-count').textContent = quizzesData.length;
+
+    // Update question text
+    document.getElementById('quiz-display-question').textContent = quiz.question;
+
+    // Update options
+    document.getElementById('quiz-option-a-text').textContent = quiz.options.A;
+    document.getElementById('quiz-option-b-text').textContent = quiz.options.B;
+    document.getElementById('quiz-option-c-text').textContent = quiz.options.C;
+    document.getElementById('quiz-option-d-text').textContent = quiz.options.D;
+
+    // Reset answer selection
+    selectedQuizAnswer = null;
+    quizAnswered = false;
+
+    // Reset UI
+    resetQuizOptionsUI();
+    hideQuizResult();
+
+    // Hide empty state
+    document.getElementById('quizzes-empty-state').classList.add('d-none');
+    document.getElementById('quiz-display').classList.remove('d-none');
+}
+
+function resetQuizOptionsUI() {
+    const options = document.querySelectorAll('.quiz-option');
+    options.forEach(option => {
+        option.classList.remove('active', 'correct', 'incorrect');
+        option.disabled = false;
+    });
+}
+
+function selectQuizAnswer(option) {
+    if (quizAnswered) return; // Prevent selection after answering
+
+    selectedQuizAnswer = option;
+
+    // Update UI
+    const options = document.querySelectorAll('.quiz-option');
+    options.forEach(opt => {
+        opt.classList.remove('active');
+        if (opt.dataset.option === option) {
+            opt.classList.add('active');
+        }
+    });
+}
+
+function submitQuizAnswer() {
+    if (!selectedQuizAnswer || quizAnswered) return;
+
+    const quiz = quizzesData[currentQuizIndex];
+    const isCorrect = selectedQuizAnswer === quiz.correctAnswer;
+
+    quizAnswered = true;
+
+    // Show result
+    showQuizResult(isCorrect, quiz.correctAnswer);
+
+    // Update options UI
+    const options = document.querySelectorAll('.quiz-option');
+    options.forEach(opt => {
+        opt.disabled = true;
+        if (opt.dataset.option === quiz.correctAnswer) {
+            opt.classList.add('correct');
+        } else if (opt.dataset.option === selectedQuizAnswer && !isCorrect) {
+            opt.classList.add('incorrect');
+        }
+    });
+
+    console.log('Quiz answer submitted:', { selected: selectedQuizAnswer, correct: quiz.correctAnswer, isCorrect });
+}
+
+function showQuizResult(isCorrect, correctAnswer) {
+    const resultDiv = document.getElementById('quiz-result');
+    const resultAlert = document.getElementById('quiz-result-alert');
+    const resultText = document.getElementById('quiz-result-text');
+
+    resultDiv.classList.remove('d-none');
+
+    if (isCorrect) {
+        resultAlert.className = 'alert alert-success';
+        resultText.textContent = '✓ Correct! Well done!';
+    } else {
+        resultAlert.className = 'alert alert-danger';
+        resultText.textContent = `✗ Incorrect. The correct answer is ${correctAnswer}.`;
+    }
+}
+
+function hideQuizResult() {
+    document.getElementById('quiz-result').classList.add('d-none');
+}
+
+function previousQuiz() {
+    if (quizzesData.length === 0) return;
+
+    currentQuizIndex = (currentQuizIndex - 1 + quizzesData.length) % quizzesData.length;
+    displayCurrentQuiz();
+}
+
+function nextQuiz() {
+    if (quizzesData.length === 0) return;
+
+    currentQuizIndex = (currentQuizIndex + 1) % quizzesData.length;
+    displayCurrentQuiz();
+}
+
+function showQuizzesEmptyState() {
+    document.getElementById('quizzes-empty-state').classList.remove('d-none');
+    document.getElementById('quiz-display').classList.add('d-none');
+}
+
 // Flashcards right-pane helpers
 window.openFlashcardsRight = window.openFlashcardsRight || async function () {
     const generateWrapper = document.getElementById('generate-wrapper');
@@ -3513,14 +4184,14 @@ window.openNotesRight = window.openNotesRight || function () {
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const notesContainer = document.getElementById('notes-display-container');
-    
+
     if (!notesContainer) return;
-    
+
     if (generateWrapper) generateWrapper.style.display = 'none';
     if (generateOptions) generateOptions.style.display = 'none';
-    
+
     notesContainer.style.display = 'block';
-    
+
     const rightPane = notesContainer.closest('.right-side');
     if (rightPane) {
         rightPane.scrollTop = 0;
@@ -3530,15 +4201,15 @@ window.openNotesRight = window.openNotesRight || function () {
             notesContainer.scrollTop = 0;
         });
     }
-    
+
     // Initialize canvas and bind controls for notes
     initWhiteboardCanvas();
     bindWhiteboardControls();
-    
+
     // Add direct onclick handler as backup
     const clearBtn = document.getElementById('whiteboard-clear-canvas');
     if (clearBtn) {
-        clearBtn.onclick = function() {
+        clearBtn.onclick = function () {
             console.log('Direct onclick: Clear All button clicked');
             // Clear canvas
             if (whiteboardCanvas && whiteboardCtx) {
@@ -3559,52 +4230,77 @@ window.backFromNotesRight = window.backFromNotesRight || function () {
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const notesContainer = document.getElementById('notes-display-container');
-    
+
     if (notesContainer) notesContainer.style.display = 'none';
-    
+
     if (generateWrapper) generateWrapper.style.display = 'flex';
     if (generateOptions) generateOptions.style.display = '';
-    
+
     if (generateWrapper || generateOptions) {
         (generateWrapper || generateOptions).scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 };
 
-window.adjustNotesFontSize = window.adjustNotesFontSize || function(action) {
-    const textarea = document.getElementById('notes-textarea');
-    if (!textarea) return;
-    
-    const currentSize = parseInt(window.getComputedStyle(textarea).fontSize) || 16;
-    const newSize = action === 'increase' ? currentSize + 2 : Math.max(12, currentSize - 2);
-    textarea.style.fontSize = newSize + 'px';
-};
-
-window.toggleNotesMode = window.toggleNotesMode || function() {
+window.toggleNotesMode = window.toggleNotesMode || function () {
     const textarea = document.getElementById('notes-textarea');
     const canvas = document.getElementById('whiteboard-canvas');
     const toggleBtn = document.getElementById('toggle-notes-mode');
-    
+
     if (!textarea || !canvas || !toggleBtn) return;
-    
-    // Check current mode by checking canvas visibility
-    const isCanvasVisible = canvas.style.display !== 'none';
-    
-    if (isCanvasVisible) {
-        // Switch to writing mode - hide canvas but keep content
-        canvas.style.display = 'none';
-        textarea.style.display = 'block';
-        textarea.style.pointerEvents = 'auto';
-        toggleBtn.innerHTML = '<i class="bi bi-pencil me-1"></i>Draw';
-    } else {
-        // Switch to drawing mode - show canvas
-        canvas.style.display = 'block';
-        textarea.style.display = 'none';
+
+    // Check current mode by checking which element is active
+    const isWritingMode = textarea.style.pointerEvents === 'auto';
+
+    if (isWritingMode) {
+        // Switch to drawing mode - disable textarea, enable canvas
         textarea.style.pointerEvents = 'none';
+        textarea.style.opacity = '0.3'; // Make it semi-transparent
+        canvas.style.pointerEvents = 'auto';
+        canvas.style.opacity = drawingOpacity.toString(); // Use current drawing opacity
         toggleBtn.innerHTML = '<i class="bi bi-type me-1"></i>Write';
+
         // Initialize canvas for drawing if not already done
         if (!canvas.dataset.initialized) {
             initNotesCanvas();
             canvas.dataset.initialized = 'true';
+        }
+    } else {
+        // Switch to writing mode - enable textarea, disable canvas
+        textarea.style.pointerEvents = 'auto';
+        textarea.style.opacity = textOpacity.toString(); // Use current text opacity
+        textarea.style.fontSize = textSize + 'px'; // Use current text size
+        canvas.style.pointerEvents = 'none';
+        canvas.style.opacity = '0.3'; // Make it semi-transparent
+        toggleBtn.innerHTML = '<i class="bi bi-pencil me-1"></i>Draw';
+    }
+};
+
+// Toggle text opacity slider
+window.toggleTextOpacityControl = window.toggleTextOpacityControl || function () {
+    const slider = document.getElementById('text-opacity');
+    if (slider) {
+        const isVisible = slider.style.display !== 'none';
+        slider.style.display = isVisible ? 'none' : 'block';
+
+        // Hide other slider when showing this one
+        if (!isVisible) {
+            const sizeSlider = document.getElementById('text-size');
+            if (sizeSlider) sizeSlider.style.display = 'none';
+        }
+    }
+};
+
+// Toggle text size slider
+window.toggleTextSizeControl = window.toggleTextSizeControl || function () {
+    const slider = document.getElementById('text-size');
+    if (slider) {
+        const isVisible = slider.style.display !== 'none';
+        slider.style.display = isVisible ? 'none' : 'block';
+
+        // Hide other slider when showing this one
+        if (!isVisible) {
+            const opacitySlider = document.getElementById('text-opacity');
+            if (opacitySlider) opacitySlider.style.display = 'none';
         }
     }
 };
@@ -3614,45 +4310,47 @@ let notesCanvas = null;
 let notesCtx = null;
 let isDrawing = false;
 let drawingOpacity = 1.0; // Default opacity
+let textOpacity = 1.0; // Default text opacity
+let textSize = 16; // Default text size in pixels
 
 function initNotesCanvas() {
     const canvas = document.getElementById('whiteboard-canvas');
     if (!canvas) return;
-    
+
     // Save current canvas content if it exists
     let imageData = null;
     if (notesCtx && canvas.width && canvas.height) {
         imageData = notesCtx.getImageData(0, 0, canvas.width, canvas.height);
     }
-    
+
     notesCanvas = canvas;
     notesCtx = canvas.getContext('2d');
-    
+
     // Set canvas size
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
-    
+
     // Restore canvas content if it existed
     if (imageData) {
         notesCtx.putImageData(imageData, 0, 0);
     }
-    
+
     // Only add event listeners once
     if (!canvas.dataset.eventsBound) {
         canvas.dataset.eventsBound = 'true';
-        
+
         // Drawing events
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseout', stopDrawing);
-        
+
         // Touch events
         canvas.addEventListener('touchstart', handleTouch);
         canvas.addEventListener('touchmove', handleTouch);
         canvas.addEventListener('touchend', stopDrawing);
     }
-    
+
     // Setup opacity control
     const opacityInput = document.getElementById('whiteboard-opacity');
     if (opacityInput && !opacityInput.dataset.bound) {
@@ -3669,34 +4367,49 @@ function startDrawing(e) {
     const rect = notesCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     notesCtx.beginPath();
     notesCtx.moveTo(x, y);
 }
 
 function draw(e) {
     if (!isDrawing) return;
-    
+
     const rect = notesCanvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
-    const color = document.getElementById('whiteboard-color').value;
-    const lineWidth = document.getElementById('whiteboard-line-width').value;
-    const opacityInput = document.getElementById('whiteboard-opacity');
-    const opacity = opacityInput ? parseFloat(opacityInput.value) : drawingOpacity;
-    
-    // Convert hex color to rgba with opacity
-    const rgbaColor = hexToRgba(color, opacity);
-    
-    notesCtx.strokeStyle = rgbaColor;
-    notesCtx.lineWidth = lineWidth;
-    notesCtx.lineCap = 'round';
-    notesCtx.lineJoin = 'round';
-    notesCtx.globalAlpha = opacity;
-    
-    notesCtx.lineTo(x, y);
-    notesCtx.stroke();
+
+    if (eraserMode) {
+        // Eraser mode - clear the area where we're drawing
+        const lineWidth = document.getElementById('whiteboard-line-width').value;
+        const eraserSize = parseInt(lineWidth) * 3; // Make eraser bigger than brush
+
+        notesCtx.globalCompositeOperation = 'destination-out';
+        notesCtx.beginPath();
+        notesCtx.arc(x, y, eraserSize, 0, Math.PI * 2);
+        notesCtx.fill();
+        notesCtx.globalCompositeOperation = 'source-over';
+
+        console.log('Erasing at position:', x, y, 'with size:', eraserSize);
+    } else {
+        // Normal drawing mode
+        const color = document.getElementById('whiteboard-color').value;
+        const lineWidth = document.getElementById('whiteboard-line-width').value;
+        const opacityInput = document.getElementById('drawing-opacity');
+        const opacity = opacityInput ? (opacityInput.value / 100) : drawingOpacity;
+
+        // Convert hex color to rgba with opacity
+        const rgbaColor = hexToRgba(color, opacity);
+
+        notesCtx.strokeStyle = rgbaColor;
+        notesCtx.lineWidth = lineWidth;
+        notesCtx.lineCap = 'round';
+        notesCtx.lineJoin = 'round';
+        notesCtx.globalAlpha = opacity;
+
+        notesCtx.lineTo(x, y);
+        notesCtx.stroke();
+    }
 }
 
 function stopDrawing() {
@@ -3716,7 +4429,7 @@ function hexToRgba(hex, opacity) {
 /**
  * Update drawing opacity
  */
-window.updateDrawingOpacity = window.updateDrawingOpacity || function(value) {
+window.updateDrawingOpacity = window.updateDrawingOpacity || function (value) {
     drawingOpacity = parseFloat(value) || 1.0;
     const opacityInput = document.getElementById('whiteboard-opacity');
     if (opacityInput) opacityInput.value = drawingOpacity;
@@ -3733,28 +4446,28 @@ function handleTouch(e) {
 }
 
 // Handle audio file upload
-window.handleAudioUpload = window.handleAudioUpload || function(event) {
+window.handleAudioUpload = window.handleAudioUpload || function (event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     // Check if it's an audio file
     if (!file.type.startsWith('audio/')) {
         alert('Please select an audio file.');
         return;
     }
-    
+
     // Create audio element to get duration
     const audio = new Audio();
     audio.src = URL.createObjectURL(file);
-    
-    audio.addEventListener('loadedmetadata', function() {
+
+    audio.addEventListener('loadedmetadata', function () {
         const duration = audio.duration;
         const fileName = file.name;
         const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
-        
+
         // Add to recordings list
         addUploadedAudioToList(fileName, duration, fileSize, file);
-        
+
         // Reset file input
         event.target.value = '';
     });
@@ -3763,27 +4476,42 @@ window.handleAudioUpload = window.handleAudioUpload || function(event) {
 function addUploadedAudioToList(fileName, duration, fileSize, file) {
     const audioList = document.getElementById('audio-list-container');
     if (!audioList) return;
-    
+
     // Remove "No recordings" message if exists
     const noRecordings = audioList.querySelector('.text-center.py-4');
     if (noRecordings) {
         noRecordings.remove();
     }
-    
+
     // Create list item
     const listItem = document.createElement('div');
     listItem.className = 'list-group-item d-flex align-items-center';
+
+    // Store audio data for playback (similar to addSessionAudioToList)
+    const objectUrl = URL.createObjectURL(file);
+    listItem.dataset.audioType = 'recorded';
+    listItem.dataset.audioSource = objectUrl;
+    listItem.dataset.audioFileName = fileName;
+
     listItem.innerHTML = `
         <img src="/images/audio icon.png" alt="Audio" style="width: 24px; height: 24px; margin-right: 10px;">
         <div class="flex-grow-1">
             <div class="fw-medium">${fileName}</div>
             <small class="text-muted">${formatAudioDuration(duration)} • ${fileSize}</small>
         </div>
-        <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); this.parentElement.remove()">
             <i class="bi bi-trash"></i>
         </button>
     `;
-    
+
+    // Clicking the item should open the audio player and play the uploaded audio
+    listItem.addEventListener('click', function (e) {
+        if (e.target.closest('button')) return;
+        if (typeof playAudio === 'function') {
+            playAudio('recorded', this.dataset.audioSource, this.dataset.audioFileName);
+        }
+    });
+
     audioList.appendChild(listItem);
 }
 
@@ -3796,35 +4524,35 @@ function formatVideoDuration(seconds) {
 }
 
 // Handle video file upload
-window.handleVideoUpload = window.handleVideoUpload || function(event) {
+window.handleVideoUpload = window.handleVideoUpload || function (event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     // Check if it's a video file
     if (!file.type.startsWith('video/')) {
         alert('Please select a video file.');
         return;
     }
-    
+
     // Create video element to get duration
     const video = document.createElement('video');
     video.src = URL.createObjectURL(file);
-    
-    video.addEventListener('loadedmetadata', function() {
+
+    video.addEventListener('loadedmetadata', function () {
         const duration = video.duration;
         const fileName = file.name;
         const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
-        
+
         // Add to videos list
         addUploadedVideoToList(fileName, duration, fileSize, 'upload', file);
-        
+
         // Reset file input
         event.target.value = '';
     });
 };
 
 // Show YouTube input
-window.showYouTubeInput = window.showYouTubeInput || function() {
+window.showYouTubeInput = window.showYouTubeInput || function () {
     const container = document.getElementById('youtube-input-container');
     if (container) {
         container.style.display = 'block';
@@ -3833,7 +4561,7 @@ window.showYouTubeInput = window.showYouTubeInput || function() {
 };
 
 // Hide YouTube input
-window.hideYouTubeInput = window.hideYouTubeInput || function() {
+window.hideYouTubeInput = window.hideYouTubeInput || function () {
     const container = document.getElementById('youtube-input-container');
     const input = document.getElementById('youtube-url-input');
     if (container) {
@@ -3843,38 +4571,38 @@ window.hideYouTubeInput = window.hideYouTubeInput || function() {
 };
 
 // Add YouTube video
-window.addYouTubeVideo = window.addYouTubeVideo || function() {
+window.addYouTubeVideo = window.addYouTubeVideo || function () {
     const input = document.getElementById('youtube-url-input');
     const url = input.value.trim();
-    
+
     if (!url) {
         alert('Please enter a YouTube URL.');
         return;
     }
-    
+
     // Simple YouTube URL validation
     if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
         alert('Please enter a valid YouTube URL.');
         return;
     }
-    
+
     // Extract video ID and title (simplified)
     let videoId = '';
     let title = 'YouTube Video';
-    
+
     if (url.includes('youtube.com/watch?v=')) {
         videoId = url.split('v=')[1]?.split('&')[0];
     } else if (url.includes('youtu.be/')) {
         videoId = url.split('youtu.be/')[1]?.split('?')[0];
     }
-    
+
     if (videoId) {
         title = `YouTube Video (${videoId})`;
     }
-    
+
     // Add to videos list
     addUploadedVideoToList(title, 'Unknown', 'Stream', 'youtube', url);
-    
+
     // Hide input and clear
     hideYouTubeInput();
 };
@@ -3882,26 +4610,26 @@ window.addYouTubeVideo = window.addYouTubeVideo || function() {
 function addUploadedVideoToList(fileName, duration, fileSize, type, source) {
     const videoList = document.getElementById('video-list-container');
     if (!videoList) return;
-    
+
     // Remove "No videos" message if exists
     const noVideos = videoList.querySelector('.text-center.py-4');
     if (noVideos) {
         noVideos.remove();
     }
-    
+
     // Create list item
     const listItem = document.createElement('div');
     listItem.className = 'list-group-item d-flex align-items-center';
     listItem.style.cursor = 'pointer';
-    
+
     const icon = type === 'youtube' ? 'youtube' : 'play-circle-fill';
     const iconColor = type === 'youtube' ? 'text-danger' : 'text-primary';
-    
+
     // Store video data for playback
     listItem.dataset.videoType = type;
     listItem.dataset.videoSource = type === 'youtube' ? source : URL.createObjectURL(source);
     listItem.dataset.videoFileName = fileName;
-    
+
     listItem.innerHTML = `
         <img src="/images/${type === 'youtube' ? 'youtube' : 'file'}.png" alt="Video" style="width: 24px; height: 24px; margin-right: 10px;">
         <div class="flex-grow-1">
@@ -3912,37 +4640,39 @@ function addUploadedVideoToList(fileName, duration, fileSize, type, source) {
             <i class="bi bi-trash"></i>
         </button>
     `;
-    
+
     // Add click handler to play video
-    listItem.addEventListener('click', function(e) {
+    listItem.addEventListener('click', function (e) {
         if (e.target.closest('button')) return; // Don't play if delete button clicked
         playVideo(this.dataset.videoType, this.dataset.videoSource, this.dataset.videoFileName);
     });
-    
+
     videoList.appendChild(listItem);
 }
 
 // Play video function
-window.playVideo = window.playVideo || function(type, source, fileName) {
+// Play video function
+window.playVideo = window.playVideo || function (type, source, fileName) {
     const playerContainer = document.getElementById('video-player-container');
     const videoPlayer = document.getElementById('video-player');
+    const youtubePlayer = document.getElementById('youtube-player');
     const videoTitle = document.getElementById('video-title');
     const uploadArea = document.getElementById('video-upload-area');
     const youtubeInput = document.getElementById('youtube-input-container');
     const saveBtn = document.getElementById('save-video-btn');
-    
+
     if (!playerContainer || !videoPlayer) return;
-    
+
     // Hide upload area and YouTube input
     if (uploadArea) uploadArea.style.display = 'none';
     if (youtubeInput) youtubeInput.style.display = 'none';
-    
-    // Show video player
+
+    // Show video player container
     playerContainer.style.display = 'block';
-    
+
     // Set video title
     if (videoTitle) videoTitle.textContent = fileName;
-    
+
     // Show save button only for uploaded videos (not YouTube)
     if (saveBtn) {
         if (type === 'youtube') {
@@ -3951,7 +4681,17 @@ window.playVideo = window.playVideo || function(type, source, fileName) {
             saveBtn.style.display = 'inline-block';
         }
     }
-    
+
+    // Reset players
+    videoPlayer.pause();
+    videoPlayer.src = '';
+    videoPlayer.style.display = 'none';
+
+    if (youtubePlayer) {
+        youtubePlayer.src = '';
+        youtubePlayer.style.display = 'none';
+    }
+
     // Load video based on type
     if (type === 'youtube') {
         // For YouTube, we need to extract video ID and create embed URL
@@ -3960,108 +4700,113 @@ window.playVideo = window.playVideo || function(type, source, fileName) {
             videoId = source.split('v=')[1]?.split('&')[0];
         } else if (source.includes('youtu.be/')) {
             videoId = source.split('youtu.be/')[1]?.split('?')[0];
+        } else if (source.includes('embed/')) {
+            videoId = source.split('embed/')[1]?.split('?')[0];
         }
-        
-        if (videoId) {
-            videoPlayer.src = `https://www.youtube.com/embed/${videoId}`;
+
+        if (videoId && youtubePlayer) {
+            youtubePlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            youtubePlayer.style.display = 'block';
         } else {
             alert('Invalid YouTube URL');
             closeVideoPlayer();
             return;
         }
-    } else if (type === 'saved') {
-        // For saved videos, use the file path
-        videoPlayer.src = source;
     } else {
-        // For uploaded videos (current session)
+        // For saved or uploaded videos
+        videoPlayer.style.display = 'block';
         videoPlayer.src = source;
+        videoPlayer.load();
+        videoPlayer.play().catch(e => {
+            console.log('Auto-play failed:', e);
+        });
     }
-    
-    // Load and play video
-    videoPlayer.load();
-    videoPlayer.play().catch(e => {
-        console.log('Auto-play failed:', e);
-    });
 };
 
 // Close video player function
-window.closeVideoPlayer = window.closeVideoPlayer || function() {
+// Close video player function
+window.closeVideoPlayer = window.closeVideoPlayer || function () {
     const playerContainer = document.getElementById('video-player-container');
     const videoPlayer = document.getElementById('video-player');
+    const youtubePlayer = document.getElementById('youtube-player');
     const uploadArea = document.getElementById('video-upload-area');
     const videoTitle = document.getElementById('video-title');
     const saveBtn = document.getElementById('save-video-btn');
-    
+
     if (!playerContainer || !videoPlayer) return;
-    
+
     // Stop video and clear source
     videoPlayer.pause();
     videoPlayer.src = '';
-    
+
+    if (youtubePlayer) {
+        youtubePlayer.src = '';
+    }
+
     // Hide video player
     playerContainer.style.display = 'none';
-    
+
     // Show upload area
     if (uploadArea) uploadArea.style.display = 'block';
-    
+
     // Reset video title
     if (videoTitle) videoTitle.textContent = 'Video Notes';
-    
+
     // Hide save button
     if (saveBtn) saveBtn.style.display = 'none';
 };
 
 // Save current video function
-window.saveCurrentVideo = window.saveCurrentVideo || async function() {
+window.saveCurrentVideo = window.saveCurrentVideo || async function () {
     const videoPlayer = document.getElementById('video-player');
     const videoTitle = document.getElementById('video-title');
-    
+
     if (!videoPlayer || !videoPlayer.src) {
         alert('No video to save');
         return;
     }
-    
+
     try {
         // Get video file name from title or generate default
         let fileName = videoTitle ? videoTitle.textContent.replace('Video Notes', '').trim() : '';
         if (!fileName) {
             fileName = 'video';
         }
-        
+
         // For YouTube videos, we can't save the video directly
         if (videoPlayer.src.includes('youtube.com')) {
             alert('YouTube videos cannot be saved. Please download them directly from YouTube.');
             return;
         }
-        
+
         // For uploaded videos, we need to fetch the video data
         const response = await fetch(videoPlayer.src);
         const blob = await response.blob();
-        
+
         // Convert blob to base64
         const reader = new FileReader();
-        reader.onloadend = async function() {
+        reader.onloadend = async function () {
             const base64data = reader.result;
-            
+
             try {
                 const res = await fetch('/Dashboard/SaveVideo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ 
+                    body: JSON.stringify({
                         fileName: fileName,
                         videoData: base64data,
                         contentType: blob.type
                     })
                 });
-                
+
                 const data = await res.json().catch(() => null);
                 if (!res.ok || !data || data.success !== true) {
                     const msg = (data && data.error) ? data.error : `Save failed (HTTP ${res.status})`;
                     alert(msg);
                     return;
                 }
-                
+
                 // Show success message
                 const saveBtn = document.getElementById('save-video-btn');
                 if (saveBtn) {
@@ -4070,7 +4815,7 @@ window.saveCurrentVideo = window.saveCurrentVideo || async function() {
                     saveBtn.classList.remove('btn-success');
                     saveBtn.classList.add('btn-outline-success');
                     saveBtn.disabled = true;
-                    
+
                     setTimeout(() => {
                         saveBtn.innerHTML = originalText;
                         saveBtn.classList.remove('btn-outline-success');
@@ -4078,23 +4823,104 @@ window.saveCurrentVideo = window.saveCurrentVideo || async function() {
                         saveBtn.disabled = false;
                     }, 2000);
                 }
-                
+
                 // Add to recent files if function exists
-                try { 
+                try {
                     if (typeof addRecentFile === 'function') {
                         addRecentFile(data.fileId, data.fileName || fileName);
                     }
-                } catch (_) {}
-                
+                } catch (_) { }
+
             } catch (saveError) {
                 alert('Failed to save video: ' + saveError.message);
             }
         };
-        
+
         reader.readAsDataURL(blob);
-        
+
     } catch (error) {
         alert('Failed to process video: ' + error.message);
+    }
+};
+
+// Save current audio function
+window.saveCurrentAudio = window.saveCurrentAudio || async function () {
+    const audioPlayer = document.getElementById('audio-player');
+    const audioTitle = document.getElementById('audio-title');
+
+    if (!audioPlayer || !audioPlayer.src) {
+        alert('No audio to save');
+        return;
+    }
+
+    try {
+        // Get audio file name from title or generate default
+        let fileName = audioTitle ? audioTitle.textContent.replace('Audio Notes', '').trim() : '';
+        if (!fileName) {
+            fileName = 'audio';
+        }
+
+        // For recorded audio, we need to fetch the audio data
+        const response = await fetch(audioPlayer.src);
+        const blob = await response.blob();
+
+        // Convert blob to base64
+        const reader = new FileReader();
+        reader.onloadend = async function () {
+            const base64data = reader.result;
+
+            try {
+                const res = await fetch('/Dashboard/SaveAudio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        fileName: fileName,
+                        audioData: base64data,
+                        contentType: blob.type
+                    })
+                });
+
+                const data = await res.json().catch(() => null);
+                if (!res.ok || !data || data.success !== true) {
+                    const msg = (data && data.error) ? data.error : `Save failed (HTTP ${res.status})`;
+                    alert(msg);
+                    return;
+                }
+
+                // Show success message
+                const saveBtn = document.getElementById('save-audio-btn');
+                if (saveBtn) {
+                    const originalText = saveBtn.innerHTML;
+                    saveBtn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Saved!';
+                    saveBtn.classList.remove('btn-success');
+                    saveBtn.classList.add('btn-outline-success');
+                    saveBtn.disabled = true;
+
+                    setTimeout(() => {
+                        saveBtn.innerHTML = originalText;
+                        saveBtn.classList.remove('btn-outline-success');
+                        saveBtn.classList.add('btn-success');
+                        saveBtn.disabled = false;
+                    }, 2000);
+                }
+
+                // Add to recent files if function exists
+                try {
+                    if (typeof addRecentFile === 'function') {
+                        addRecentFile(data.fileId, data.fileName || fileName);
+                    }
+                } catch (_) { }
+
+            } catch (saveError) {
+                alert('Failed to save audio: ' + saveError.message);
+            }
+        };
+
+        reader.readAsDataURL(blob);
+
+    } catch (error) {
+        alert('Failed to process audio: ' + error.message);
     }
 };
 
@@ -4104,18 +4930,18 @@ window.saveCurrentVideo = window.saveCurrentVideo || async function() {
 function hideAllRightContainers() {
     const containers = [
         'summary-display-container',
-        'flashcards-display-container', 
+        'flashcards-display-container',
         'whiteboard-display-container',
         'audio-display-container',
         'notes-display-container',
         'video-display-container'
     ];
-    
+
     containers.forEach(id => {
         const container = document.getElementById(id);
         if (container) container.style.display = 'none';
     });
-    
+
     // Also hide generate options
     const generateOptions = document.getElementById('generate-options');
     if (generateOptions) generateOptions.style.display = 'none';
@@ -4127,7 +4953,7 @@ window.backFromVideoRight = window.backFromVideoRight || function () {
     if (typeof closeVideoPlayer === 'function') {
         closeVideoPlayer();
     }
-    
+
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const videoContainer = document.getElementById('video-display-container');
@@ -4160,14 +4986,14 @@ window.openVideoRight = window.openVideoRight || function () {
     // Scroll handling
     const rightPane = videoContainer.closest('.right-side');
     if (rightPane) rightPane.scrollTop = 0;
-    
+
     renderVideoList();
 };
 
 function renderVideoList() {
     const container = document.getElementById('video-list-container');
     if (!container) return;
-    
+
     // Load saved videos from server
     loadSavedVideos();
 }
@@ -4176,22 +5002,22 @@ function renderVideoList() {
 async function loadSavedVideos() {
     const container = document.getElementById('video-list-container');
     if (!container) return;
-    
+
     try {
         const res = await fetch('/Dashboard/GetVideoFiles', {
             method: 'GET',
             credentials: 'same-origin'
         });
-        
+
         const data = await res.json().catch(() => null);
         if (!res.ok || !data || data.success !== true) {
             // If server fails, show current session videos only
             renderSessionVideos();
             return;
         }
-        
+
         const savedVideos = data.videos || [];
-        
+
         if (savedVideos.length === 0 && videoRecordings.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-4 text-muted small">
@@ -4200,20 +5026,20 @@ async function loadSavedVideos() {
                 </div>`;
             return;
         }
-        
+
         // Clear container
         container.innerHTML = '';
-        
+
         // Render saved videos first
         savedVideos.forEach(video => {
             addSavedVideoToList(video);
         });
-        
+
         // Render session videos (YouTube videos)
         videoRecordings.forEach(rec => {
             addSessionVideoToList(rec);
         });
-        
+
     } catch (error) {
         console.error('Failed to load saved videos:', error);
         renderSessionVideos();
@@ -4224,7 +5050,7 @@ async function loadSavedVideos() {
 function renderSessionVideos() {
     const container = document.getElementById('video-list-container');
     if (!container) return;
-    
+
     if (videoRecordings.length === 0) {
         container.innerHTML = `
             <div class="text-center py-4 text-muted small">
@@ -4233,7 +5059,7 @@ function renderSessionVideos() {
             </div>`;
         return;
     }
-    
+
     container.innerHTML = '';
     videoRecordings.forEach(rec => {
         addSessionVideoToList(rec);
@@ -4244,18 +5070,18 @@ function renderSessionVideos() {
 function addSavedVideoToList(video) {
     const container = document.getElementById('video-list-container');
     if (!container) return;
-    
+
     const listItem = document.createElement('div');
     listItem.className = 'list-group-item d-flex align-items-center';
     listItem.style.cursor = 'pointer';
-    
+
     // Store video data for playback
     listItem.dataset.videoType = 'saved';
     listItem.dataset.videoSource = video.filePath;
     listItem.dataset.videoFileName = video.fileName;
-    
+
     const fileSize = (video.fileSize / 1024 / 1024).toFixed(2) + ' MB';
-    
+
     listItem.innerHTML = `
         <img src="/images/file.png" alt="Video" style="width: 24px; height: 24px; margin-right: 10px;">
         <div class="flex-grow-1">
@@ -4266,13 +5092,13 @@ function addSavedVideoToList(video) {
             <i class="bi bi-trash"></i>
         </button>
     `;
-    
+
     // Add click handler to play video
-    listItem.addEventListener('click', function(e) {
+    listItem.addEventListener('click', function (e) {
         if (e.target.closest('button')) return;
         playVideo('saved', this.dataset.videoSource, this.dataset.videoFileName);
     });
-    
+
     container.appendChild(listItem);
 }
 
@@ -4280,16 +5106,16 @@ function addSavedVideoToList(video) {
 function addSessionVideoToList(rec) {
     const container = document.getElementById('video-list-container');
     if (!container) return;
-    
+
     const item = document.createElement('div');
     item.className = 'list-group-item d-flex align-items-center';
     item.style.cursor = 'pointer';
-    
+
     // Store video data for playback
     item.dataset.videoType = 'youtube';
     item.dataset.videoSource = rec.url;
     item.dataset.videoFileName = rec.title;
-    
+
     item.innerHTML = `
         <img src="/images/youtube.png" alt="Video" style="width: 24px; height: 24px; margin-right: 10px;">
         <div class="flex-grow-1">
@@ -4300,12 +5126,12 @@ function addSessionVideoToList(rec) {
             <i class="bi bi-trash"></i>
         </button>
     `;
-    
+
     // Add click handler to play video
-    item.addEventListener('click', function(e) {
+    item.addEventListener('click', function (e) {
         if (e.target.closest('button')) return;
         playVideo('youtube', this.dataset.videoSource, this.dataset.videoFileName);
     });
-    
+
     container.appendChild(item);
 }

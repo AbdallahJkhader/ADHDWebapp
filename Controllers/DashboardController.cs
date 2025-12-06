@@ -221,7 +221,7 @@ namespace ADHDWebApp.Controllers
                 if (user != null)
                 {
                     userFiles = await _context.UserFiles
-                        .Where(f => f.UserId == user.Id)
+                        .Where(f => f.UserId == user.Id && !f.ContentType.StartsWith("audio/"))
                         .OrderByDescending(f => f.UploadedAt)
                         .ToListAsync();
                 }
@@ -248,6 +248,7 @@ namespace ADHDWebApp.Controllers
                     }
                 }
                 ViewBag.AvatarUrl = avatarUrl;
+                ViewBag.DateOfBirth = user?.DateOfBirth;
 
                 return View();
             }
@@ -256,6 +257,22 @@ namespace ADHDWebApp.Controllers
                 TempData["Error"] = "An error occurred while accessing the dashboard. Please try logging in again.";
                 return RedirectToAction("Login", "Account");
             }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdateDateOfBirth(DateTime dob)
+        {
+            var userEmail = HttpContext.Session.GetString("UserEmail");
+            if (string.IsNullOrEmpty(userEmail)) return RedirectToAction("Login", "Account");
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+            if (user != null)
+            {
+                user.DateOfBirth = dob;
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Date of Birth updated.";
+            }
+            return RedirectToAction("Index");
         }
 
         [HttpPost]
@@ -714,6 +731,86 @@ namespace ADHDWebApp.Controllers
             }
         }
 
+        // Save audio file for the current user
+        [HttpPost]
+        [Route("Dashboard/SaveAudio")]
+        public async Task<IActionResult> SaveAudio([FromBody] SaveAudioRequest req)
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail))
+                    return Json(new { success = false, error = "Not logged in" });
+
+                if (req == null)
+                    return Json(new { success = false, error = "Invalid request" });
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                if (user == null)
+                    return Json(new { success = false, error = "User not found" });
+
+                var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "audio.mp3" : req.FileName.Trim();
+                if (!fileName.Contains('.', StringComparison.OrdinalIgnoreCase))
+                {
+                    fileName += ".mp3";
+                }
+
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                // Ensure unique filename for this user folder
+                string MakeSafeName(string name)
+                {
+                    foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+                    return name;
+                }
+
+                fileName = MakeSafeName(fileName);
+                var targetPath = Path.Combine(uploadsFolder, fileName);
+                if (System.IO.File.Exists(targetPath))
+                {
+                    var baseName = Path.GetFileNameWithoutExtension(fileName);
+                    var ext = Path.GetExtension(fileName);
+                    int i = 1;
+                    do
+                    {
+                        fileName = $"{baseName} ({i++}){ext}";
+                        targetPath = Path.Combine(uploadsFolder, fileName);
+                    } while (System.IO.File.Exists(targetPath));
+                }
+
+                // Convert base64 to audio file
+                if (!string.IsNullOrWhiteSpace(req.AudioData))
+                {
+                    var audioBytes = Convert.FromBase64String(req.AudioData.Split(',')[1] ?? req.AudioData);
+                    await System.IO.File.WriteAllBytesAsync(targetPath, audioBytes);
+                }
+                else
+                {
+                    return Json(new { success = false, error = "No audio data provided" });
+                }
+
+                var userFile = new UserFile
+                {
+                    FileName = fileName,
+                    FilePath = "/uploads/" + fileName,
+                    ContentType = req.ContentType ?? "audio/mp3",
+                    FileSize = new FileInfo(targetPath).Length,
+                    UploadedAt = DateTime.Now,
+                    UserId = user.Id,
+                    User = user
+                };
+                _context.UserFiles.Add(userFile);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true, fileId = userFile.Id, fileName = userFile.FileName });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
         // Get video files for the current user
         [HttpGet]
         [Route("Dashboard/GetVideoFiles")]
@@ -750,6 +847,60 @@ namespace ADHDWebApp.Controllers
             }
         }
 
+        // Get audio files for the current user
+        [HttpGet]
+        [Route("Dashboard/GetAudioFiles")]
+        public async Task<IActionResult> GetAudioFiles()
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                System.Diagnostics.Debug.WriteLine($"GetAudioFiles: UserEmail = {userEmail}");
+                
+                if (string.IsNullOrEmpty(userEmail))
+                    return Json(new { success = false, error = "Not logged in" });
+
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
+                System.Diagnostics.Debug.WriteLine($"GetAudioFiles: User found = {user != null}, UserId = {user?.Id}");
+                
+                if (user == null)
+                    return Json(new { success = false, error = "User not found" });
+
+                var allUserFiles = await _context.UserFiles
+                    .Where(f => f.UserId == user.Id)
+                    .ToListAsync();
+                
+                System.Diagnostics.Debug.WriteLine($"GetAudioFiles: Total user files = {allUserFiles.Count}");
+                
+                foreach (var file in allUserFiles)
+                {
+                    System.Diagnostics.Debug.WriteLine($"GetAudioFiles: File = {file.FileName}, ContentType = {file.ContentType}");
+                }
+
+                var audioFiles = await _context.UserFiles
+                    .Where(f => f.UserId == user.Id && f.ContentType.StartsWith("audio/"))
+                    .OrderByDescending(f => f.UploadedAt)
+                    .Select(f => new {
+                        id = f.Id,
+                        fileName = f.FileName,
+                        filePath = f.FilePath,
+                        contentType = f.ContentType,
+                        fileSize = f.FileSize,
+                        uploadedAt = f.UploadedAt
+                    })
+                    .ToListAsync();
+
+                System.Diagnostics.Debug.WriteLine($"GetAudioFiles: Audio files found = {audioFiles.Count}");
+
+                return Json(new { success = true, audios = audioFiles });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"GetAudioFiles Exception: {ex.Message}");
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
         public class SaveTextRequest
         {
             public string? FileName { get; set; }
@@ -760,6 +911,13 @@ namespace ADHDWebApp.Controllers
         {
             public string? FileName { get; set; }
             public string? VideoData { get; set; }
+            public string? ContentType { get; set; }
+        }
+
+        public class SaveAudioRequest
+        {
+            public string? FileName { get; set; }
+            public string? AudioData { get; set; }
             public string? ContentType { get; set; }
         }
 

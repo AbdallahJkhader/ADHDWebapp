@@ -59,6 +59,9 @@
 
     <div class="top-nav">
         <div class="left-nav d-flex align-items-center">
+            <div class="site-logo me-3">
+                <img src="~/images/logo.jpg" alt="ADHD Webapp Logo" style="height: 32px; width: auto;" />
+            </div>
             <button class="nav-btn" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">
                 <i class="bi bi-question-circle"></i>
                 <span>Help</span>
@@ -417,7 +420,7 @@
 
                     <div class="activity-item" onclick="toggleInlinePanel('profile-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon">
-                            <i class="bi bi-person"></i>
+                            <img src="~/images/profile icon.png" alt="Profile" style="width: 20px; height: 20px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Profile</div>
@@ -428,7 +431,7 @@
 
                     <div class="activity-item" onclick="openClassesInlinePanel(event)" style="cursor: pointer;">
                         <div class="activity-icon text-primary">
-                            <i class="bi bi-collection"></i>
+                            <img src="~/images/Classes icon.png" alt="Classes" style="width: 20px; height: 20px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Classes</div>
@@ -439,7 +442,7 @@
                     <!-- Notifications Button -->
                     <div class="activity-item" onclick="toggleNotificationsPanel(event)" style="cursor: pointer;">
                         <div class="activity-icon text-warning">
-                            <i class="bi bi-bell"></i>
+                            <img src="~/images/Notifications icon.png" alt="Notifications" style="width: 20px; height: 20px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Notifications</div>
@@ -450,7 +453,7 @@
                     <!-- Messages Button -->
                     <div class="activity-item" onclick="toggleInlinePanel('messages-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon text-info">
-                            <i class="bi bi-chat-dots"></i>
+                            <img src="~/images/Messages icon.png" alt="Messages" style="width: 20px; height: 20px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Messages</div>
@@ -511,56 +514,65 @@
                     </div>
 
                     <!-- Network Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="classes-panel" dir="ltr" style="direction:ltr;">
-                        <div class="dropdown-header">
-                            <i class="bi bi-collection"></i>
-                            <span>Classes</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="px-3 py-2">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="classes-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
+                        <div class="classes-banner"></div>
+                        <div class="classes-content px-4 pb-4">
+                            <div class="classes-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
+                                <img src="~/images/class icon.png" alt="Classes" style="width: 32px; height: 32px; object-fit: contain;" />
+                            </div>
+                            
+                            <h5 class="text-center mb-4 fw-bold">My Classes</h5>
+
                             <div id="network-classes-content">
                                 @if ((ViewBag.Role as string) != "Teacher")
                                 {
-                                    <div class="input-group input-group-sm mb-3 panel-section">
-                                        <span class="input-group-text">Join Code</span>
-                                        <input type="text" class="form-control" id="classes-join-code" placeholder="Enter code">
-                                        <button class="btn btn-primary" id="classes-join-btn"><i class="bi bi-box-arrow-in-right"></i></button>
+                                    <div class="mb-3">
+                                        <label class="small text-muted mb-1 ms-1">Join a Class</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" class="form-control rounded-pill-start" id="classes-join-code" placeholder="Enter code">
+                                            <button class="btn btn-primary rounded-pill-end px-3" id="classes-join-btn">
+                                                <i class="bi bi-arrow-right"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 }
                                 @if ((ViewBag.Role as string) != "Student")
                                 {
-                                    <div class="input-group input-group-sm mb-3 panel-section">
-                                        <span class="input-group-text">New Class</span>
-                                        <input type="text" class="form-control" id="classes-add-name" placeholder="Class name">
-                                        <button class="btn btn-secondary" id="classes-add-btn"><i class="bi bi-plus-circle"></i></button>
+                                    <div class="mb-3">
+                                        <label class="small text-muted mb-1 ms-1">Create New Class</label>
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" class="form-control rounded-pill-start" id="classes-add-name" placeholder="Class name">
+                                            <button class="btn btn-secondary rounded-pill-end px-3" id="classes-add-btn">
+                                                <i class="bi bi-plus-lg"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 }
-                                <div class="mb-0 panel-section">
-                                    <h6 class="mb-1 list-title">My Classes</h6>
-                                    <ul class="list-group list-group-flush" id="classes-list"></ul>
+                                <div class="mt-4">
+                                    <ul class="list-group list-group-flush gap-2" id="classes-list"></ul>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Class Details Panel (opens near user dropdown) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="class-details-panel" dir="ltr" style="direction:ltr;">
-                        <div class="dropdown-header">
-                            <i class="bi bi-people"></i>
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <strong id="cls-title" class="cls-title">Class</strong>
-                                <small id="cls-code" class="text-muted code-chip"></small>
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="class-details-panel" dir="ltr" style="direction:ltr; min-width: 340px;">
+                        <div class="class-details-banner"></div>
+                        <div class="class-details-content px-4 pb-4">
+                            <div class="class-details-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
+                                <img src="~/images/class icon.png" alt="Class Details" style="width: 32px; height: 32px; object-fit: contain;" />
                             </div>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="px-3 py-3 cls-panel-body">
                             
+                            <div class="text-center mb-4">
+                                <h5 id="cls-title" class="fw-bold mb-1">Class Name</h5>
+                                <span id="cls-code" class="badge bg-light text-dark border">Code</span>
+                            </div>
 
-                            <div class="cls-tabs mb-3">
-                                <div class="tab-btns d-flex align-items-center gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-primary tab-btn active" data-tab="info" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('info')">Information</button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary tab-btn" data-tab="files" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('files')">Files</button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary tab-btn" data-tab="options" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('options')">Options</button>
+                            <div class="cls-tabs mb-4">
+                                <div class="nav nav-pills nav-fill gap-2 p-1 bg-light rounded-3" role="tablist">
+                                    <button class="nav-link active btn-sm py-1 small fw-medium" data-tab="info" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('info')">Info</button>
+                                    <button class="nav-link btn-sm py-1 small fw-medium" data-tab="files" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('files')">Files</button>
+                                    <button class="nav-link btn-sm py-1 small fw-medium" data-tab="options" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('options')">Options</button>
                                 </div>
                             </div>
 
@@ -568,44 +580,46 @@
                                 <!-- Information Tab -->
                                 <div class="cls-tab-pane active" id="cls-tab-info">
                                     <div class="cls-section mb-3">
-                                        <div class="cls-section-title small text-uppercase text-muted mb-2">Teacher</div>
-                                        <div class="cls-teacher-card d-flex align-items-start gap-2">
-                                            <div class="cls-teacher-avatar"><i class="bi bi-person-badge"></i></div>
-                                            <div id="cls-teacher" class="small text-muted flex-grow-1">Loading...</div>
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Teacher</div>
+                                        <div class="cls-teacher-card d-flex align-items-center gap-3 p-2 border rounded-3 bg-white">
+                                            <div class="cls-teacher-avatar bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-person-badge"></i>
+                                            </div>
+                                            <div id="cls-teacher" class="small fw-medium flex-grow-1">Loading...</div>
                                         </div>
                                     </div>
                                     <div class="cls-section">
-                                        <div class="cls-section-title small text-uppercase text-muted mb-2">Students</div>
-                                        <ul id="cls-students" class="list-group list-group-flush small cls-students"></ul>
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Students</div>
+                                        <ul id="cls-students" class="list-group list-group-flush small cls-students border rounded-3 overflow-hidden"></ul>
                                     </div>
                                 </div>
 
                                 <!-- Files Tab -->
                                 <div class="cls-tab-pane d-none" id="cls-tab-files">
                                     <div class="cls-section">
-                                        <div class="cls-section-title small text-uppercase text-muted mb-2">Files</div>
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Class Files</div>
 
-                                        <div id="cls-files-upload" class="mb-2" style="display:none;">
+                                        <div id="cls-files-upload" class="mb-3" style="display:none;">
                                             <div class="input-group input-group-sm">
-                                                <input type="file" class="form-control" id="cls-file-upload" />
-                                                <button class="btn btn-primary" type="button" id="cls-upload-btn">
-                                                    <i class="bi bi-cloud-arrow-up"></i> Upload
+                                                <input type="file" class="form-control rounded-pill-start" id="cls-file-upload" />
+                                                <button class="btn btn-primary rounded-pill-end px-3" type="button" id="cls-upload-btn">
+                                                    <i class="bi bi-cloud-arrow-up"></i>
                                                 </button>
                                             </div>
                                             <div class="text-danger small mt-1" id="cls-files-error" style="display:none;"></div>
                                         </div>
-                                        <ul id="cls-files" class="list-group list-group-flush small"></ul>
+                                        <ul id="cls-files" class="list-group list-group-flush small border rounded-3 overflow-hidden"></ul>
                                     </div>
                                 </div>
 
                                 <!-- Options Tab -->
                                 <div class="cls-tab-pane d-none" id="cls-tab-options">
                                     <div class="cls-section mb-3">
-                                        <div class="cls-section-title small text-uppercase text-muted mb-2">Options</div>
-                                        <div class="mt-2 d-flex flex-column align-items-stretch gap-2">
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Management</div>
+                                        <div class="d-flex flex-column gap-2">
                                             @if ((ViewBag.Role as string) == "Teacher")
                                             {
-                                                <button type="button" id="remove-student-btn" class="btn btn-sm btn-outline-primary w-100">
+                                                <button type="button" id="remove-student-btn" class="btn btn-sm btn-outline-danger w-100 rounded-pill text-start px-3">
                                                     <i class="bi bi-person-dash"></i> Remove Student
                                                 </button>
                                             }
@@ -621,36 +635,79 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="profile-panel" dir="ltr" style="direction:ltr;">
-                        <div class="dropdown-header">
-                            <i class="bi bi-person"></i>
-                            <span>Profile</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="px-3 py-2">
-                            <div class="d-flex align-items-center mb-3">
-                                @if (!string.IsNullOrEmpty(ViewBag.AvatarUrl as string))
+                    <!-- Profile Panel -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="profile-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
+                        <div class="profile-banner"></div>
+                        <div class="profile-content text-center px-4 pb-4">
+                            <div class="profile-avatar-wrapper mb-3">
+                                @if (ViewBag.AvatarUrl != null)
                                 {
-                                    <img src="@ViewBag.AvatarUrl" alt="Avatar" class="rounded-circle me-2" style="width:40px;height:40px;object-fit:cover;" />
+                                    <img src="@ViewBag.AvatarUrl" alt="Profile" class="profile-avatar-large shadow-sm" />
                                 }
-                                <div>
-                                    <div><strong>@ViewBag.FullName</strong></div>
-                                    <div class="text-muted small">Role: @ViewBag.Role · ID: @ViewBag.UserId</div>
+                                else
+                                {
+                                    <div class="profile-avatar-large shadow-sm d-flex align-items-center justify-content-center bg-white text-primary">
+                                        <i class="bi bi-person-fill fs-1"></i>
+                                    </div>
+                                }
+                            </div>
+                            
+                            <h5 class="mb-1 fw-bold">@ViewBag.Username</h5>
+                            <p class="text-muted small mb-3">@ViewBag.Role • ID: @ViewBag.UserId</p>
+
+                            <div class="profile-stats d-flex justify-content-center gap-4 mb-4">
+                                <div class="profile-stat-item">
+                                    <div class="h5 mb-0 fw-bold text-primary">0</div>
+                                    <div class="small text-muted">Streak</div>
+                                </div>
+                                <div class="profile-stat-item">
+                                    <div class="h5 mb-0 fw-bold text-primary">
+                                        @if (ViewBag.UserFiles != null)
+                                        {
+                                            @(((List<UserFile>)ViewBag.UserFiles).Count)
+                                        }
+                                        else
+                                        {
+                                            <text>0</text>
+                                        }
+                                    </div>
+                                    <div class="small text-muted">Files</div>
+                                </div>
+                                <div class="profile-stat-item">
+                                    <div class="h5 mb-0 fw-bold text-primary">
+                                        @if (ViewBag.UserClasses != null)
+                                        {
+                                            @(((List<Class>)ViewBag.UserClasses).Count)
+                                        }
+                                        else
+                                        {
+                                            <text>0</text>
+                                        }
+                                    </div>
+                                    <div class="small text-muted">Classes</div>
                                 </div>
                             </div>
 
-                            <form method="post" enctype="multipart/form-data" asp-controller="Dashboard" asp-action="UploadAvatar" class="mb-0" id="avatar-form">
-                                <input type="file" name="avatar" accept=".png,.jpg,.jpeg,.webp" class="d-none" id="avatar-input" onchange="this.form.submit()" />
-                                <div class="mt-3 d-flex justify-content-end gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="avatar-upload-btn" onclick="document.getElementById('avatar-input').click()">
-                                        <i class="bi bi-upload"></i> Upload
+                            <div class="d-grid gap-2">
+                                <form asp-controller="Dashboard" asp-action="UpdateDateOfBirth" method="post" class="mb-2">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white"><i class="bi bi-calendar"></i></span>
+                                        <input type="date" name="dob" class="form-control" value="@(ViewBag.DateOfBirth?.ToString("yyyy-MM-dd"))" onchange="this.form.submit()" title="Change Date of Birth" />
+                                    </div>
+                                </form>
+
+                                <form asp-controller="Dashboard" asp-action="UploadAvatar" method="post" enctype="multipart/form-data">
+                                    <input type="file" name="avatar" id="avatar-upload" class="d-none" onchange="this.form.submit()" />
+                                    <button type="button" class="btn btn-outline-primary btn-sm w-100 rounded-pill" onclick="document.getElementById('avatar-upload').click()">
+                                        <i class="bi bi-camera me-2"></i>Change Photo
                                     </button>
-                                    <button type="button" id="delete-account-btn" class="btn btn-sm btn-outline-danger">
-                                        <i class="bi bi-trash"></i> Delete Account
+                                </form>
+                                <form asp-controller="Account" asp-action="Delete" method="post" onsubmit="return confirm('Are you sure you want to delete your account? This cannot be undone.');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100 rounded-pill">
+                                        <i class="bi bi-trash me-2"></i>Delete Account
                                     </button>
-                                </div>
-                            </form>
+                                </form>
+                            </div>
                         </div>
                     </div>
 
@@ -745,7 +802,7 @@
                                     @foreach (var file in ((List<UserFile>)ViewBag.UserFiles).OrderByDescending(f => f.UploadedAt))
                                     {
                                         <div class="file-card" onclick="openFile(@file.Id)" data-file-id="@file.Id" data-uploaded-at="@file.UploadedAt.Ticks">
-                                            <div class="form-check" style="position: absolute; top: 8px; left: 8px;">
+                                            <div class="form-check" style="position: absolute; top: 8px; left: 8px; z-index: 2;">
                                                 <input class="form-check-input file-select-checkbox" type="checkbox" data-file-id="@file.Id" onclick="event.stopPropagation();" onchange="onFileCheckboxChange(this)">
                                             </div>
                                             <div class="file-icon-large d-flex align-items-center justify-content-center">
@@ -759,6 +816,11 @@
                                                     }
                                                     @sizeText
                                                 </small>
+                                            </div>
+                                            <div class="file-actions">
+                                                <button class="file-action-btn btn-delete-file" onclick="deleteFile(@file.Id, event)" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     }
@@ -922,15 +984,15 @@
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
-                                <div class="upload-card text-center" id="gen-opt-ai" style="cursor:pointer;">
-                                    <div class="upload-icon"><img src="~/images/youtube.png" alt="YouTube icon" class="helper-icon"></div>
-                                    <h5>Add Video</h5>
-                                </div>
-                            </div>
-                            <div class="col-12 col-sm-6 mb-3">
                                 <div class="upload-card text-center" id="gen-opt-notes" style="cursor:pointer;">
                                     <div class="upload-icon"><img src="~/images/notes.png" alt="Notes icon" class="helper-icon"></div>
                                     <h5>Notes</h5>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 mb-3">
+                                <div class="upload-card text-center" id="gen-opt-ai" style="cursor:pointer;">
+                                    <div class="upload-icon"><img src="~/images/youtube.png" alt="YouTube icon" class="helper-icon"></div>
+                                    <h5>Add Video</h5>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 mb-3">
@@ -950,92 +1012,91 @@
                     <div id="summary-display-container" style="display: none;" class="h-100 pt-2">
                         <div class="controls-bar">
                             <div class="d-flex gap-2 align-items-center">
-                                <button onclick="window.backFromSummaryRight && window.backFromSummaryRight(); return false;" class="btn btn-primary btn-sm">
+                                <button onclick="window.backFromSummaryRight && window.backFromSummaryRight(); return false;" class="btn btn-primary btn-sm tool-btn">
                                     <i class="bi bi-arrow-left me-1"></i>
                                     Back
                                 </button>
 
-                                <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
-                                    <i class="bi bi-eye-slash"></i>
-                                </button>
-
-                                <div class="dropdown d-inline-block">
-                                    <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
-                                        <i class="bi bi-sliders me-1"></i><span class="d-none d-sm-inline">Options</span>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
-                                        <li class="dropdown-header">Text Settings</li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="adjustFontSize('increase')">
-                                                <i class="bi bi-zoom-in me-2"></i>Increase Font Size
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="adjustFontSize('decrease')">
-                                                <i class="bi bi-zoom-out me-2"></i>Decrease Font Size
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li class="dropdown-header">Alignment</li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="setTextAlign('left')">
-                                                <i class="bi bi-text-left me-2"></i>Align Left
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="setTextAlign('center')">
-                                                <i class="bi bi-text-center me-2"></i>Align Center
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="setTextAlign('right')">
-                                                <i class="bi bi-text-right me-2"></i>Align Right
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li class="dropdown-header">Layout</li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="toggleLineHeight()">
-                                                <i class="bi bi-text-spacing me-2"></i>Toggle Line Spacing
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="toggleReadingMode()">
-                                                <i class="bi bi-book me-2"></i>Reading Mode
-                                            </button>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li class="dropdown-header">File Actions</li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="downloadContent()">
-                                                <i class="bi bi-download me-2"></i>Download
-                                            </button>
-                                        </li>
-                                        <li>
-                                            <button class="dropdown-item" onclick="shareContent()">
-                                                <i class="bi bi-share me-2"></i>Share
-                                            </button>
-                                        </li>
-                                    </ul>
-            </div>
-
-                                <div class="flex-grow-1 text-center">
+                                <div class="flex-grow-1 text-center tool-header-title">
                                     <span id="summary-filename-display" class="filename-display fw-medium">Summary</span>
                                 </div>
 
-                                <div class="ms-auto d-flex gap-3 align-items-center">
+                                <div class="ms-auto d-flex gap-2 align-items-center">
+                                    <div id="summary-stats" class="d-flex gap-3 me-2 text-muted small">
+                                        <span id="summary-word-count"><i class="bi bi-hash me-1"></i>0 words</span>
+                                        <span id="summary-read-time"><i class="bi bi-clock me-1"></i>0 min</span>
+                                    </div>
+
+                                    <button type="button" class="btn btn-sm btn-outline-secondary tool-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
+                                        <i class="bi bi-eye-slash"></i>
+                                    </button>
+
                                     <button type="button"
                                             id="summary-reload-btn"
-                                            class="btn btn-sm btn-outline-primary"
+                                            class="btn btn-sm btn-outline-primary tool-btn"
                                             onclick="window.summarizeLeftToRight && window.summarizeLeftToRight();"
                                             title="Reload summary">
-                                        <i class="bi bi-arrow-repeat me-1"></i>Reload
+                                        <i class="bi bi-arrow-repeat"></i>
                                     </button>
-                                    <div id="summary-word-count" class="text-muted small">
-                                        <i class="bi bi-hash me-1"></i>0 words
-                                    </div>
-                                    <div id="summary-read-time" class="text-muted small">
-                                        <i class="bi bi-clock me-1"></i>0 min read
+
+                                    <div class="dropdown d-inline-block">
+                                        <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center tool-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
+                                            <i class="bi bi-sliders me-1"></i>Options
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                                            <li class="dropdown-header">Text Settings</li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="adjustFontSize('increase')">
+                                                    <i class="bi bi-zoom-in me-2"></i>Increase Font Size
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="adjustFontSize('decrease')">
+                                                    <i class="bi bi-zoom-out me-2"></i>Decrease Font Size
+                                                </button>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li class="dropdown-header">Alignment</li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="setTextAlign('left')">
+                                                    <i class="bi bi-text-left me-2"></i>Align Left
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="setTextAlign('center')">
+                                                    <i class="bi bi-text-center me-2"></i>Align Center
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="setTextAlign('right')">
+                                                    <i class="bi bi-text-right me-2"></i>Align Right
+                                                </button>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li class="dropdown-header">Layout</li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="toggleLineHeight()">
+                                                    <i class="bi bi-text-spacing me-2"></i>Toggle Line Spacing
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="toggleReadingMode()">
+                                                    <i class="bi bi-book me-2"></i>Reading Mode
+                                                </button>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li class="dropdown-header">File Actions</li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="downloadContent()">
+                                                    <i class="bi bi-download me-2"></i>Download
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" onclick="shareContent()">
+                                                    <i class="bi bi-share me-2"></i>Share
+                                                </button>
+                                            </li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
@@ -1052,24 +1113,25 @@
 
                     <!-- Flashcards right-pane view -->
                     <div id="flashcards-display-container" style="display: none;" class="h-100 pt-2">
-                        <div class="controls-bar d-flex align-items-center gap-2">
-                            <button onclick="window.backFromFlashcardsRight && window.backFromFlashcardsRight(); return false;" class="btn btn-primary btn-sm">
-                                <i class="bi bi-arrow-left me-1"></i>
-                                Back
-                            </button>
+                        <div class="controls-bar">
+                            <div class="d-flex align-items-center gap-2">
+                                <button onclick="window.backFromFlashcardsRight && window.backFromFlashcardsRight(); return false;" class="btn btn-primary btn-sm tool-btn">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Back
+                                </button>
 
-                            <button type="button" class="btn btn-success btn-sm" id="flashcards-add-toggle">
-                                <i class="bi bi-plus-circle me-1"></i>
-                                Add
-                            </button>
+                                <div class="flex-grow-1 text-center tool-header-title">
+                                    <span id="flashcards-title" class="filename-display fw-medium">Flashcards</span>
+                                </div>
 
-                            <div class="flex-grow-1 text-center">
-                                <span id="flashcards-title" class="filename-display fw-medium">Flashcards</span>
-                            </div>
-
-                            <div class="ms-auto d-flex gap-3 align-items-center">
-                                <div id="flashcards-count" class="text-muted small">
-                                    <i class="bi bi-collection me-1"></i>0 cards
+                                <div class="ms-auto d-flex gap-2 align-items-center">
+                                    <div id="flashcards-count" class="text-muted small me-2">
+                                        <i class="bi bi-collection me-1"></i>0 cards
+                                    </div>
+                                    <button type="button" class="btn btn-success btn-sm tool-btn" id="flashcards-add-toggle">
+                                        <i class="bi bi-plus-circle me-1"></i>
+                                        Add
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1112,8 +1174,141 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm" onclick="nextFlashcard()">Next</button>
                                     </div>
                                 </div>
-                                <div id="flashcards-empty-state" class="text-muted small d-none mt-2">
-                                    No flashcards available.
+                                <div id="flashcards-empty-state" class="empty-state d-none">
+                                    <i class="bi bi-card-text"></i>
+                                    <p>No flashcards available.</p>
+                                    <small>Click "Add" to create your first flashcard.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quizzes right-pane view -->
+                    <div id="quizzes-display-container" style="display: none;" class="h-100 pt-2">
+                        <div class="controls-bar">
+                            <div class="d-flex align-items-center gap-2">
+                                <button onclick="window.backFromQuizzesRight && window.backFromQuizzesRight(); return false;" class="btn btn-primary btn-sm tool-btn">
+                                    <i class="bi bi-arrow-left me-1"></i>
+                                    Back
+                                </button>
+
+                                <div class="flex-grow-1 text-center tool-header-title">
+                                    <span id="quizzes-title" class="filename-display fw-medium">Quizzes</span>
+                                </div>
+
+                                <button type="button" class="btn btn-success btn-sm tool-btn ms-auto" id="quizzes-add-toggle">
+                                    <i class="bi bi-plus-circle me-1"></i>
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+
+                        <hr class="divider my-2">
+
+                        <div id="quizzes-content" class="flex-grow-1 d-flex flex-column">
+                            <!-- Quiz Creation Form (hidden by default) -->
+                            <div id="quiz-creation-form" class="d-none mb-3">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Create New Quiz Question</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Question:</label>
+                                            <textarea id="quiz-question" class="form-control" rows="2" placeholder="Enter your question here..."></textarea>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Options:</label>
+                                            <div class="mb-2">
+                                                <input type="text" id="quiz-option-a" class="form-control" placeholder="Option A" />
+                                            </div>
+                                            <div class="mb-2">
+                                                <input type="text" id="quiz-option-b" class="form-control" placeholder="Option B" />
+                                            </div>
+                                            <div class="mb-2">
+                                                <input type="text" id="quiz-option-c" class="form-control" placeholder="Option C" />
+                                            </div>
+                                            <div class="mb-2">
+                                                <input type="text" id="quiz-option-d" class="form-control" placeholder="Option D" />
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Correct Answer:</label>
+                                            <select id="quiz-correct-answer" class="form-select">
+                                                <option value="">Select correct answer</option>
+                                                <option value="A">Option A</option>
+                                                <option value="B">Option B</option>
+                                                <option value="C">Option C</option>
+                                                <option value="D">Option D</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="d-flex gap-2">
+                                            <button type="button" class="btn btn-primary" onclick="saveQuizQuestion()">Save Question</button>
+                                            <button type="button" class="btn btn-secondary" onclick="cancelQuizCreation()">Cancel</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quiz Display -->
+                            <div id="quiz-display" class="flex-grow-1 d-flex flex-column">
+                                <div class="quiz-card mx-auto" style="max-width: 600px; width: 100%;">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="quiz-header mb-3">
+                                                <span class="badge bg-primary">Question <span id="quiz-current-number">1</span> of <span id="quiz-total-count">0</span></span>
+                                            </div>
+                                            <div class="quiz-question mb-4">
+                                                <h5 id="quiz-display-question">Quiz question will appear here.</h5>
+                                            </div>
+                                            <div class="quiz-options mb-4">
+                                                <div class="list-group">
+                                                    <button type="button" class="list-group-item list-group-item-action quiz-option" data-option="A" onclick="selectQuizAnswer('A')">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-secondary me-2">A</span>
+                                                            <span id="quiz-option-a-text">Option A text</span>
+                                                        </div>
+                                                    </button>
+                                                    <button type="button" class="list-group-item list-group-item-action quiz-option" data-option="B" onclick="selectQuizAnswer('B')">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-secondary me-2">B</span>
+                                                            <span id="quiz-option-b-text">Option B text</span>
+                                                        </div>
+                                                    </button>
+                                                    <button type="button" class="list-group-item list-group-item-action quiz-option" data-option="C" onclick="selectQuizAnswer('C')">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-secondary me-2">C</span>
+                                                            <span id="quiz-option-c-text">Option C text</span>
+                                                        </div>
+                                                    </button>
+                                                    <button type="button" class="list-group-item list-group-item-action quiz-option" data-option="D" onclick="selectQuizAnswer('D')">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge bg-secondary me-2">D</span>
+                                                            <span id="quiz-option-d-text">Option D text</span>
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="quiz-result mb-3 d-none" id="quiz-result">
+                                                <div class="alert" id="quiz-result-alert">
+                                                    <span id="quiz-result-text"></span>
+                                                </div>
+                                            </div>
+                                            <div class="quiz-actions d-flex justify-content-between">
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="previousQuiz()">Previous</button>
+                                                <button type="button" class="btn btn-primary btn-sm" id="quiz-submit-btn" onclick="submitQuizAnswer()">Submit Answer</button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="nextQuiz()">Next</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="quizzes-empty-state" class="empty-state d-none">
+                                    <i class="bi bi-question-circle"></i>
+                                    <p>No quizzes available.</p>
+                                    <small>Click "Add" to create your first quiz question.</small>
                                 </div>
                             </div>
                         </div>
@@ -1123,26 +1318,57 @@
                     <div id="notes-display-container" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10;" class="h-100 pt-2">
                         <div class="controls-bar">
                             <div class="d-flex gap-2 align-items-center">
-                                <button onclick="window.backFromNotesRight && window.backFromNotesRight(); return false;" class="btn btn-primary btn-sm">
+                                <button onclick="window.backFromNotesRight && window.backFromNotesRight(); return false;" class="btn btn-primary btn-sm tool-btn">
                                     <i class="bi bi-arrow-left me-1"></i>
                                     Back
                                 </button>
 
-                                <input type="color" id="whiteboard-color" class="form-control form-control-color form-control-sm" value="#111827" title="Drawing color" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; border: none; background: transparent; overflow: hidden; cursor: pointer;" />
-
-                                <input type="range" id="whiteboard-line-width" class="form-range" min="1" max="12" value="2" title="Brush size" style="width: 110px;" />
-
-                                <button type="button" class="btn btn-sm btn-outline-info" id="toggle-notes-mode" onclick="toggleNotesMode()" title="Toggle between writing and drawing">
-                                    <i class="bi bi-pencil me-1"></i>Draw
-                                </button>
-
-                                <div class="flex-grow-1 text-center">
+                                <div class="flex-grow-1 text-center tool-header-title">
                                     <span id="notes-title" class="filename-display fw-medium">Notes</span>
                                 </div>
 
-                                <button type="button" class="btn btn-sm btn-outline-danger ms-auto" id="whiteboard-clear-canvas" title="Clear all content">
-                                    <i class="bi bi-eraser me-1"></i>Clear All
-                                </button>
+                                <div class="ms-auto d-flex align-items-center">
+                                    <div class="notes-toolbar-group">
+                                        <input type="color" id="whiteboard-color" class="form-control form-control-color form-control-sm" value="#111827" title="Drawing color" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; border: none; background: transparent; overflow: hidden; cursor: pointer;" />
+                                        
+                                        <button type="button" class="btn btn-sm btn-outline-info tool-btn" id="toggle-notes-mode" onclick="toggleNotesMode()" title="Toggle between writing and drawing">
+                                            <i class="bi bi-pencil me-1"></i>Draw
+                                        </button>
+
+                                        <button type="button" class="btn btn-sm btn-outline-secondary tool-btn" id="eraser-toggle" title="Toggle eraser mode">
+                                            <i class="bi bi-eraser-fill me-1"></i>Eraser
+                                        </button>
+                                    </div>
+
+                                    <div class="notes-toolbar-group">
+                                        <div class="dropdown d-inline-block">
+                                            <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center tool-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Options">
+                                                <i class="bi bi-sliders me-1"></i>Options
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end custom-dropdown p-3" style="min-width: 250px;">
+                                                <li class="dropdown-header">Drawing Settings</li>
+                                                <li class="mb-3">
+                                                    <label class="form-label small mb-1">Brush Size</label>
+                                                    <input type="range" id="whiteboard-line-width" class="form-range" min="1" max="12" value="2" />
+                                                </li>
+                                                <li class="mb-3">
+                                                    <label class="form-label small mb-1">Drawing Opacity</label>
+                                                    <input type="range" id="drawing-opacity" class="form-range" min="10" max="100" value="100" />
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li class="dropdown-header">Text Settings</li>
+                                                <li class="mb-3">
+                                                    <label class="form-label small mb-1">Text Size</label>
+                                                    <input type="range" id="text-size" class="form-range" min="12" max="48" value="16" />
+                                                </li>
+                                                <li>
+                                                    <label class="form-label small mb-1">Text Opacity</label>
+                                                    <input type="range" id="text-opacity" class="form-range" min="10" max="100" value="100" />
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -1164,13 +1390,19 @@
                     <div id="audio-display-container" style="display: none;" class="h-100 pt-2">
                         <div class="controls-bar">
                             <div class="d-flex gap-2 align-items-center">
-                                <button onclick="window.backFromAudioRight && window.backFromAudioRight(); return false;" class="btn btn-primary btn-sm">
+                                <button onclick="window.backFromAudioRight && window.backFromAudioRight(); return false;" class="btn btn-primary btn-sm tool-btn">
                                     <i class="bi bi-arrow-left me-1"></i>
                                     Back
                                 </button>
 
-                                <div class="flex-grow-1 text-center">
+                                <div class="flex-grow-1 text-center tool-header-title">
                                     <span id="audio-title" class="filename-display fw-medium">Audio Notes</span>
+                                </div>
+
+                                <div class="ms-auto d-flex gap-2 align-items-center">
+                                    <button type="button" class="btn btn-sm btn-success tool-btn" id="save-audio-btn" onclick="saveCurrentAudio()" title="Save audio to your files" style="display: none;">
+                                        <i class="bi bi-download me-1"></i>Save
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1209,6 +1441,17 @@
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <!-- Audio Player Area (hidden by default) -->
+                                <div id="audio-player-container" class="w-100" style="display: none;">
+                                    <div class="card shadow-sm mx-auto" style="max-width: 450px;">
+                                        <div class="card-body p-3">
+                                            <audio id="audio-player" controls style="width: 100%;">
+                                                Your browser does not support the audio element.
+                                            </audio>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1217,17 +1460,19 @@
                     <div id="video-display-container" style="display: none;" class="h-100 pt-2">
                         <div class="controls-bar">
                             <div class="d-flex gap-2 align-items-center">
-                                <button onclick="window.backFromVideoRight && window.backFromVideoRight(); return false;" class="btn btn-primary btn-sm">
+                                <button onclick="window.backFromVideoRight && window.backFromVideoRight(); return false;" class="btn btn-primary btn-sm tool-btn">
                                     <i class="bi bi-arrow-left me-1"></i>
                                     Back
                                 </button>
 
-                                <button type="button" class="btn btn-sm btn-success" id="save-video-btn" onclick="saveCurrentVideo()" title="Save video to your files" style="display: none;">
-                                    <i class="bi bi-download me-1"></i>Save
-                                </button>
-
-                                <div class="flex-grow-1 text-center">
+                                <div class="flex-grow-1 text-center tool-header-title">
                                     <span id="video-title" class="filename-display fw-medium">Video Notes</span>
+                                </div>
+
+                                <div class="ms-auto d-flex gap-2 align-items-center">
+                                    <button type="button" class="btn btn-sm btn-success tool-btn" id="save-video-btn" onclick="saveCurrentVideo()" title="Save video to your files" style="display: none;">
+                                        <i class="bi bi-download me-1"></i>Save
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1237,9 +1482,10 @@
                         <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column align-items-center">
                             <!-- Video Player Area (hidden by default) -->
                             <div id="video-player-container" class="w-100 h-100" style="display: none;">
-                                <video id="video-player" controls style="width: 100%; height: 100%; min-height: 400px;" class="rounded">
+                                <video id="video-player" controls style="width: 100%; height: 100%; min-height: 400px; display: none;" class="rounded">
                                     Your browser does not support the video tag.
                                 </video>
+                                <iframe id="youtube-player" style="width: 100%; height: 100%; min-height: 400px; display: none; border: none;" class="rounded" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                             </div>
                             
                             <!-- Upload Area (shown by default) -->
