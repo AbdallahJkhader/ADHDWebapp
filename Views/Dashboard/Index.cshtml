@@ -32,6 +32,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
     <link href="~/css/dashboard.css" rel="stylesheet" />
+    <link rel="icon" href="~/images/logo.jpg" />
 
 </head>
 <body class="dashboard-page">
@@ -462,54 +463,72 @@
                     </div>
 
                     <!-- Notifications Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="notifications-panel" dir="ltr" style="direction:ltr;">
-                        <div class="dropdown-header">
-                            <i class="bi bi-bell"></i>
-                            <span>Notifications</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="px-3 py-2">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="mb-0">Notifications</h6>
-                                <a href="#" class="small" onclick="event.preventDefault(); markAllAsRead()">Mark all as read</a>
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="notifications-panel" dir="ltr" style="direction:ltr; min-width: 360px; max-height: 85vh;">
+                        <div class="notifications-banner"></div>
+                        <div class="notifications-content px-4 pb-4">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-warning mb-3">
+                                <i class="bi bi-bell-fill fs-4"></i>
                             </div>
-                            <div id="notifications-list" class="notifications-list" style="max-height: 300px; overflow-y: auto;">
-                                <div class="text-center text-muted py-4">
-                                    <i class="bi bi-bell-slash fs-1"></i>
-                                    <p class="text-muted mb-1">No notifications yet.</p>
-                                    <small class="text-muted">Upload your first file above</small>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0 fw-bold">Notifications</h5>
+                                <a href="#" class="small text-primary" onclick="event.preventDefault(); markAllAsRead()">Mark all read</a>
+                            </div>
+
+                            <div id="notifications-list" class="notifications-list" style="max-height: 400px; overflow-y: auto;">
+                                <div class="text-center text-muted py-5">
+                                    <i class="bi bi-bell-slash fs-1 mb-3 d-block"></i>
+                                    <p class="mb-1 fw-medium">No notifications</p>
+                                    <small class="text-muted">You're all caught up!</small>
                                 </div>
+                            </div>
+                            
+                            <div class="text-center mt-3 pt-3 border-top">
+                                <a href="#" class="small text-primary fw-medium" data-bs-toggle="modal" data-bs-target="#allNotificationsModal">
+                                    View all notifications <i class="bi bi-arrow-right ms-1"></i>
+                                </a>
                             </div>
                         </div>
                     </div>
 
                     <!-- Messages Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start" id="messages-panel" dir="ltr" style="direction:ltr;">
-                        <div class="dropdown-header">
-                            <i class="bi bi-chat-dots"></i>
-                            <span>Messages</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="px-3 py-2">
-                            <div class="mb-2 d-flex align-items-center gap-2">
-                                <label class="small mb-0">Class</label>
-                                <select id="chat-class-select" class="form-select form-select-sm" style="max-width: 220px;"></select>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="chat-refresh-btn"><i class="bi bi-arrow-clockwise"></i></button>
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="messages-panel" dir="ltr" style="direction:ltr; min-width: 380px; max-height: 85vh;">
+                        <div class="messages-banner"></div>
+                        <div class="messages-content px-4 pb-4">
+                            <div class="messages-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
+                                <i class="bi bi-chat-dots fs-4"></i>
+                            </div>
+                            
+                            <h5 class="text-center mb-4 fw-bold">Class Messages</h5>
+
+                            <div class="mb-3">
+                                <label class="small text-muted mb-2 ms-1">Select Class</label>
+                                <div class="input-group input-group-sm">
+                                    <select id="chat-class-select" class="form-select rounded-pill-start"></select>
+                                    <button type="button" class="btn btn-outline-secondary rounded-pill-end px-3" id="chat-refresh-btn" title="Refresh">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
                             </div>
 
-                            <div id="chat-area" class="border rounded p-2 bg-light" style="max-height: 260px; overflow-y: auto;">
-                                <div class="text-center text-muted py-4" id="chat-empty">
-                                    <i class="bi bi-chat-left-text fs-1"></i>
-                                    <p class="mt-2 mb-0">Select a class to start chatting</p>
+                            <div id="chat-area" class="border rounded-3 p-3 bg-light" style="max-height: 250px; overflow-y: auto; min-height: 120px;">
+                                <div class="text-center text-muted py-5" id="chat-empty">
+                                    <i class="bi bi-chat-left-text fs-1 mb-3 d-block"></i>
+                                    <p class="mb-1 fw-medium">No messages yet</p>
+                                    <small class="text-muted">Select a class to start chatting</small>
                                 </div>
                                 <ul class="list-group list-group-flush" id="class-chat-list" style="display:none;"></ul>
                             </div>
 
-                            <div class="mt-2 d-flex align-items-center gap-2">
-                                <input type="text" class="form-control form-control-sm" id="chat-input" placeholder="Type a message..." />
-                                <button type="button" class="btn btn-sm btn-primary" id="chat-send-btn"><i class="bi bi-send"></i></button>
+                            <div class="mt-3">
+                                <div class="input-group">
+                                    <input type="text" class="form-control rounded-pill-start" id="chat-input" placeholder="Type a message..." />
+                                    <button type="button" class="btn btn-primary rounded-pill-end px-4" id="chat-send-btn">
+                                        <img src="~/images/send icon.png" alt="Send" style="width: 18px; height: 18px; object-fit: contain;" />
+                                    </button>
+                                </div>
+                                <div class="small text-danger mt-2" id="chat-error" style="display:none;"></div>
                             </div>
-                            <div class="small text-danger mt-1" id="chat-error" style="display:none;"></div>
                         </div>
                     </div>
 
@@ -556,11 +575,17 @@
                     </div>
 
                     <!-- Class Details Panel (opens near user dropdown) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="class-details-panel" dir="ltr" style="direction:ltr; min-width: 340px;">
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="class-details-panel" dir="ltr" style="direction:ltr; min-width: 340px; max-height: 85vh;" data-width="340">
                         <div class="class-details-banner"></div>
                         <div class="class-details-content px-4 pb-4">
-                            <div class="class-details-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
-                                <img src="~/images/class icon.png" alt="Class Details" style="width: 32px; height: 32px; object-fit: contain;" />
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('class-details-panel').classList.remove('show'); toggleInlinePanel('classes-panel', event)" title="Back to Classes">
+                                    <i class="bi bi-arrow-left fs-5"></i>
+                                </button>
+                                <div class="class-details-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary">
+                                    <img src="~/images/class icon.png" alt="Class Details" style="width: 32px; height: 32px; object-fit: contain;" />
+                                </div>
+                                <div style="width: 24px;"></div> <!-- Spacer for centering -->
                             </div>
                             
                             <div class="text-center mb-4">
@@ -571,7 +596,6 @@
                             <div class="cls-tabs mb-4">
                                 <div class="nav nav-pills nav-fill gap-2 p-1 bg-light rounded-3" role="tablist">
                                     <button class="nav-link active btn-sm py-1 small fw-medium" data-tab="info" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('info')">Info</button>
-                                    <button class="nav-link btn-sm py-1 small fw-medium" data-tab="files" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('files')">Files</button>
                                     <button class="nav-link btn-sm py-1 small fw-medium" data-tab="options" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('options')">Options</button>
                                 </div>
                             </div>
@@ -579,6 +603,20 @@
                             <div class="cls-tabs-content">
                                 <!-- Information Tab -->
                                 <div class="cls-tab-pane active" id="cls-tab-info">
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <div class="cls-stat-card p-2 border rounded-3 text-center bg-white shadow-sm" onclick="toggleInlinePanel('cls-members-panel', event)" style="cursor: pointer;">
+                                                <div class="h5 m-0 fw-bold text-primary" id="cls-stat-students">0</div>
+                                                <div class="small text-muted">Students <i class="bi bi-chevron-right" style="font-size: 0.7em;"></i></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="cls-stat-card p-2 border rounded-3 text-center bg-white shadow-sm" onclick="toggleInlinePanel('cls-files-panel', event)" style="cursor: pointer;">
+                                                <div class="h5 m-0 fw-bold text-secondary" id="cls-stat-files">0</div>
+                                                <div class="small text-muted">Files <i class="bi bi-chevron-right" style="font-size: 0.7em;"></i></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="cls-section mb-3">
                                         <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Teacher</div>
                                         <div class="cls-teacher-card d-flex align-items-center gap-3 p-2 border rounded-3 bg-white">
@@ -588,45 +626,43 @@
                                             <div id="cls-teacher" class="small fw-medium flex-grow-1">Loading...</div>
                                         </div>
                                     </div>
-                                    <div class="cls-section">
-                                        <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Students</div>
-                                        <ul id="cls-students" class="list-group list-group-flush small cls-students border rounded-3 overflow-hidden"></ul>
-                                    </div>
                                 </div>
-
-                                <!-- Files Tab -->
-                                <div class="cls-tab-pane d-none" id="cls-tab-files">
-                                    <div class="cls-section">
-                                        <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Class Files</div>
-
-                                        <div id="cls-files-upload" class="mb-3" style="display:none;">
-                                            <div class="input-group input-group-sm">
-                                                <input type="file" class="form-control rounded-pill-start" id="cls-file-upload" />
-                                                <button class="btn btn-primary rounded-pill-end px-3" type="button" id="cls-upload-btn">
-                                                    <i class="bi bi-cloud-arrow-up"></i>
-                                                </button>
-                                            </div>
-                                            <div class="text-danger small mt-1" id="cls-files-error" style="display:none;"></div>
-                                        </div>
-                                        <ul id="cls-files" class="list-group list-group-flush small border rounded-3 overflow-hidden"></ul>
-                                    </div>
-                                </div>
-
                                 <!-- Options Tab -->
                                 <div class="cls-tab-pane d-none" id="cls-tab-options">
                                     <div class="cls-section mb-3">
+                                        <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Analytics & Tools</div>
+                                        <div class="d-flex flex-column gap-2 mb-3">
+                                             <button type="button" class="btn btn-sm btn-outline-primary w-100 rounded-pill text-start px-3" onclick="alert('Overall analytics coming soon')">
+                                                <i class="bi bi-graph-up-arrow"></i> Overall Student Analytics
+                                            </button>
+                                             <!-- For Teachers -->
+                                             @if ((ViewBag.Role as string) == "Teacher")
+                                             {
+                                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3" onclick="alert('Class settings coming soon')">
+                                                    <i class="bi bi-gear"></i> Class Settings
+                                                 </button>
+                                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3" onclick="alert('Export report coming soon')">
+                                                    <i class="bi bi-file-earmark-spreadsheet"></i> Export Participation
+                                                 </button>
+                                             }
+                                             <!-- For Students -->
+                                             @if ((ViewBag.Role as string) == "Student")
+                                             {
+                                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3" onclick="alert('Teacher contact coming soon')">
+                                                    <i class="bi bi-envelope"></i> Contact Teacher
+                                                 </button>
+                                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3" onclick="alert('My performance coming soon')">
+                                                    <i class="bi bi-speedometer2"></i> My Performance
+                                                 </button>
+                                             }
+                                        </div>
+                                        
                                         <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Management</div>
                                         <div class="d-flex flex-column gap-2">
-                                            @if ((ViewBag.Role as string) == "Teacher")
-                                            {
-                                                <button type="button" id="remove-student-btn" class="btn btn-sm btn-outline-danger w-100 rounded-pill text-start px-3">
-                                                    <i class="bi bi-person-dash"></i> Remove Student
-                                                </button>
-                                            }
-                                            <button type="button" id="delete-class-btn" class="btn btn-sm btn-danger w-100" style="display:none;">
+                                            <button type="button" id="delete-class-btn" class="btn btn-sm btn-danger w-100 rounded-pill text-start px-3" style="display:none;">
                                                 <i class="bi bi-trash"></i> Leave and Delete Class
                                             </button>
-                                            <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger w-100" style="display:none;">
+                                            <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger w-100 rounded-pill text-start px-3" style="display:none;">
                                                 <i class="bi bi-box-arrow-left"></i> Leave Class
                                             </button>
                                         </div>
@@ -635,6 +671,47 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Members Panel (Inline from Class Details button) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-members-panel" dir="ltr" style="direction:ltr; min-width: 300px;" data-width="320">
+                        <div class="dropdown-header d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-people me-2"></i>Class Members</span>
+                            <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-members-panel').classList.remove('show')"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                        <div class="dropdown-divider m-0"></div>
+                        <div class="p-0" style="max-height: 400px; overflow-y: auto;">
+                            <!-- Search/Filter can go here -->
+                            <ul id="cls-members-list" class="list-group list-group-flush small"></ul>
+                        </div>
+                    </div>
+
+                    <!-- Files Panel (Inline from Class Details button) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-files-panel" dir="ltr" style="direction:ltr; min-width: 320px;" data-width="360">
+                        <div class="dropdown-header d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-folder me-2"></i>Class Files</span>
+                            <div class="d-flex align-items-center gap-1">
+                                <button class="btn btn-sm btn-link text-primary p-0 me-2" onclick="if(typeof loadClassFiles === 'function' && window.__currentClassId) loadClassFiles(window.__currentClassId);" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-files-panel').classList.remove('show')"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider m-0"></div>
+                        <div class="p-3" style="max-height: 400px; overflow-y: auto;">
+                             <div id="cls-files-upload" class="mb-3" style="display:none;">
+                                <div class="input-group input-group-sm">
+                                    <input type="file" class="form-control rounded-pill-start" id="cls-file-upload" />
+                                    <button class="btn btn-primary rounded-pill-end px-3" type="button" id="cls-upload-btn">
+                                        <i class="bi bi-cloud-arrow-up"></i>
+                                    </button>
+                                </div>
+                                <div class="text-danger small mt-1" id="cls-files-error" style="display:none;"></div>
+                            </div>
+                            <div id="cls-files-grid" class="d-grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));">
+                                <!-- Files rendered here as cards -->
+                            </div>
+                            <ul id="cls-files" class="list-group list-group-flush small border rounded-3 overflow-hidden d-none"></ul>
+                        </div>
+                    </div>
+
                     <!-- Profile Panel -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="profile-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
                         <div class="profile-banner"></div>
@@ -1009,41 +1086,20 @@
                     </div>
 
                     <!-- Summary right-pane view -->
-                    <div id="summary-display-container" style="display: none;" class="h-100 pt-2">
-                        <div class="controls-bar">
-                            <div class="d-flex gap-2 align-items-center">
-                                <button onclick="window.backFromSummaryRight && window.backFromSummaryRight(); return false;" class="btn btn-primary btn-sm tool-btn">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back
-                                </button>
-
-                                <div class="flex-grow-1 text-center tool-header-title">
-                                    <span id="summary-filename-display" class="filename-display fw-medium">Summary</span>
-                                </div>
-
-                                <div class="ms-auto d-flex gap-2 align-items-center">
-                                    <div id="summary-stats" class="d-flex gap-3 me-2 text-muted small">
-                                        <span id="summary-word-count"><i class="bi bi-hash me-1"></i>0 words</span>
-                                        <span id="summary-read-time"><i class="bi bi-clock me-1"></i>0 min</span>
-                                    </div>
-
-                                    <button type="button" class="btn btn-sm btn-outline-secondary tool-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
-                                        <i class="bi bi-eye-slash"></i>
-                                    </button>
-
-                                    <button type="button"
-                                            id="summary-reload-btn"
-                                            class="btn btn-sm btn-outline-primary tool-btn"
-                                            onclick="window.summarizeLeftToRight && window.summarizeLeftToRight();"
-                                            title="Reload summary">
-                                        <i class="bi bi-arrow-repeat"></i>
+                    <div id="summary-display-container" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10;" class="h-100 pt-2">
+                        <div class="controls-bar" style="position: relative; z-index: 100;">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button onclick="window.backFromSummaryRight && window.backFromSummaryRight(); return false;" class="btn btn-primary btn-sm tool-btn">
+                                        <i class="bi bi-arrow-left me-1"></i>
+                                        Back
                                     </button>
 
                                     <div class="dropdown d-inline-block">
-                                        <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center tool-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle no-caret d-inline-flex align-items-center tool-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
                                             <i class="bi bi-sliders me-1"></i>Options
                                         </button>
-                                        <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
+                                        <ul class="dropdown-menu custom-dropdown text-start" style="right: auto; left: 0;">
                                             <li class="dropdown-header">Text Settings</li>
                                             <li>
                                                 <button class="dropdown-item" onclick="adjustFontSize('increase')">
@@ -1099,6 +1155,29 @@
                                         </ul>
                                     </div>
                                 </div>
+
+                                <div class="flex-grow-1 text-center tool-header-title overflow-hidden px-2">
+                                    <span id="summary-filename-display" class="filename-display fw-medium text-truncate d-block">Summary</span>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2">
+                                    <div id="summary-stats" class="d-flex gap-2 me-1 text-muted small d-none d-md-flex">
+                                        <span id="summary-word-count"><i class="bi bi-hash me-1"></i>0 words</span>
+                                        <span id="summary-read-time"><i class="bi bi-clock me-1"></i>0 min</span>
+                                    </div>
+
+                                    <button type="button" class="btn btn-sm btn-outline-secondary tool-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
+                                        <i class="bi bi-eye-slash me-1"></i>Hide
+                                    </button>
+
+                                    <button type="button"
+                                            id="summary-reload-btn"
+                                            class="btn btn-sm btn-outline-primary tool-btn"
+                                            onclick="window.summarizeLeftToRight && window.summarizeLeftToRight();"
+                                            title="Reload summary">
+                                        <i class="bi bi-arrow-repeat me-1"></i>Reload
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1112,20 +1191,22 @@
                     </div>
 
                     <!-- Flashcards right-pane view -->
-                    <div id="flashcards-display-container" style="display: none;" class="h-100 pt-2">
-                        <div class="controls-bar">
-                            <div class="d-flex align-items-center gap-2">
-                                <button onclick="window.backFromFlashcardsRight && window.backFromFlashcardsRight(); return false;" class="btn btn-primary btn-sm tool-btn">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back
-                                </button>
-
-                                <div class="flex-grow-1 text-center tool-header-title">
-                                    <span id="flashcards-title" class="filename-display fw-medium">Flashcards</span>
+                    <div id="flashcards-display-container" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10;" class="h-100 pt-2">
+                        <div class="controls-bar" style="position: relative; z-index: 100;">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center">
+                                    <button onclick="window.backFromFlashcardsRight && window.backFromFlashcardsRight(); return false;" class="btn btn-primary btn-sm tool-btn">
+                                        <i class="bi bi-arrow-left me-1"></i>
+                                        Back
+                                    </button>
                                 </div>
 
-                                <div class="ms-auto d-flex gap-2 align-items-center">
-                                    <div id="flashcards-count" class="text-muted small me-2">
+                                <div class="flex-grow-1 text-center tool-header-title overflow-hidden px-2">
+                                    <span id="flashcards-title" class="filename-display fw-medium text-truncate d-block">Flashcards</span>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2">
+                                    <div id="flashcards-count" class="text-muted small me-2 d-none d-sm-inline">
                                         <i class="bi bi-collection me-1"></i>0 cards
                                     </div>
                                     <button type="button" class="btn btn-success btn-sm tool-btn" id="flashcards-add-toggle">
@@ -1184,22 +1265,26 @@
                     </div>
 
                     <!-- Quizzes right-pane view -->
-                    <div id="quizzes-display-container" style="display: none;" class="h-100 pt-2">
-                        <div class="controls-bar">
-                            <div class="d-flex align-items-center gap-2">
-                                <button onclick="window.backFromQuizzesRight && window.backFromQuizzesRight(); return false;" class="btn btn-primary btn-sm tool-btn">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back
-                                </button>
-
-                                <div class="flex-grow-1 text-center tool-header-title">
-                                    <span id="quizzes-title" class="filename-display fw-medium">Quizzes</span>
+                    <div id="quizzes-display-container" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10;" class="h-100 pt-2">
+                        <div class="controls-bar" style="position: relative; z-index: 100;">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center">
+                                    <button onclick="window.backFromQuizzesRight && window.backFromQuizzesRight(); return false;" class="btn btn-primary btn-sm tool-btn">
+                                        <i class="bi bi-arrow-left me-1"></i>
+                                        Back
+                                    </button>
                                 </div>
 
-                                <button type="button" class="btn btn-success btn-sm tool-btn ms-auto" id="quizzes-add-toggle">
-                                    <i class="bi bi-plus-circle me-1"></i>
-                                    Add
-                                </button>
+                                <div class="flex-grow-1 text-center tool-header-title overflow-hidden px-2">
+                                    <span id="quizzes-title" class="filename-display fw-medium text-truncate d-block">Quizzes</span>
+                                </div>
+
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-success btn-sm tool-btn" id="quizzes-add-toggle">
+                                        <i class="bi bi-plus-circle me-1"></i>
+                                        Add
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1316,58 +1401,58 @@
 
                     <!-- Notes right-pane view -->
                     <div id="notes-display-container" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 10;" class="h-100 pt-2">
-                        <div class="controls-bar">
-                            <div class="d-flex gap-2 align-items-center">
-                                <button onclick="window.backFromNotesRight && window.backFromNotesRight(); return false;" class="btn btn-primary btn-sm tool-btn">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back
-                                </button>
+                        <div class="controls-bar" style="position: relative; z-index: 100;">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <button onclick="window.backFromNotesRight && window.backFromNotesRight(); return false;" class="btn btn-primary btn-sm tool-btn">
+                                        <i class="bi bi-arrow-left me-1"></i>
+                                        Back
+                                    </button>
 
-                                <div class="flex-grow-1 text-center tool-header-title">
-                                    <span id="notes-title" class="filename-display fw-medium">Notes</span>
+                                    <div class="dropdown d-inline-block">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle no-caret d-inline-flex align-items-center tool-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Options">
+                                            <i class="bi bi-sliders me-1"></i>Options
+                                        </button>
+                                        <ul class="dropdown-menu custom-dropdown p-3 text-start" style="min-width: 250px; right: auto; left: 0; z-index: 1050;">
+                                            <li class="dropdown-header">Drawing Settings</li>
+                                            <li class="mb-3 d-flex align-items-center justify-content-between">
+                                                <label class="form-label small mb-0">Color</label>
+                                                <input type="color" id="whiteboard-color" class="form-control form-control-color form-control-sm" value="#111827" title="Drawing color" />
+                                            </li>
+                                            <li class="mb-3">
+                                                <label class="form-label small mb-1">Brush Size</label>
+                                                <input type="range" id="whiteboard-line-width" class="form-range" min="1" max="12" value="2" />
+                                            </li>
+                                            <li class="mb-3">
+                                                <label class="form-label small mb-1">Drawing Opacity</label>
+                                                <input type="range" id="drawing-opacity" class="form-range" min="10" max="100" value="100" />
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li class="dropdown-header">Text Settings</li>
+                                            <li class="mb-3">
+                                                <label class="form-label small mb-1">Text Size</label>
+                                                <input type="range" id="text-size" class="form-range" min="12" max="48" value="16" />
+                                            </li>
+                                            <li>
+                                                <label class="form-label small mb-1">Text Opacity</label>
+                                                <input type="range" id="text-opacity" class="form-range" min="10" max="100" value="100" />
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
 
-                                <div class="ms-auto d-flex align-items-center">
-                                    <div class="notes-toolbar-group">
-                                        <input type="color" id="whiteboard-color" class="form-control form-control-color form-control-sm" value="#111827" title="Drawing color" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; border: none; background: transparent; overflow: hidden; cursor: pointer;" />
-                                        
-                                        <button type="button" class="btn btn-sm btn-outline-info tool-btn" id="toggle-notes-mode" onclick="toggleNotesMode()" title="Toggle between writing and drawing">
-                                            <i class="bi bi-pencil me-1"></i>Draw
-                                        </button>
+                                <div class="flex-grow-1 text-center tool-header-title overflow-hidden px-2">
+                                    <span id="notes-title" class="filename-display fw-medium text-truncate d-block">Notes</span>
+                                </div>
 
-                                        <button type="button" class="btn btn-sm btn-outline-secondary tool-btn" id="eraser-toggle" title="Toggle eraser mode">
-                                            <i class="bi bi-eraser-fill me-1"></i>Eraser
-                                        </button>
-                                    </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-info tool-btn" id="toggle-notes-mode" onclick="toggleNotesMode()" title="Toggle between writing and drawing">
+                                        <i class="bi bi-pencil me-1"></i>Draw
+                                    </button>
 
-                                    <div class="notes-toolbar-group">
-                                        <div class="dropdown d-inline-block">
-                                            <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center tool-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Options">
-                                                <i class="bi bi-sliders me-1"></i>Options
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end custom-dropdown p-3" style="min-width: 250px;">
-                                                <li class="dropdown-header">Drawing Settings</li>
-                                                <li class="mb-3">
-                                                    <label class="form-label small mb-1">Brush Size</label>
-                                                    <input type="range" id="whiteboard-line-width" class="form-range" min="1" max="12" value="2" />
-                                                </li>
-                                                <li class="mb-3">
-                                                    <label class="form-label small mb-1">Drawing Opacity</label>
-                                                    <input type="range" id="drawing-opacity" class="form-range" min="10" max="100" value="100" />
-                                                </li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li class="dropdown-header">Text Settings</li>
-                                                <li class="mb-3">
-                                                    <label class="form-label small mb-1">Text Size</label>
-                                                    <input type="range" id="text-size" class="form-range" min="12" max="48" value="16" />
-                                                </li>
-                                                <li>
-                                                    <label class="form-label small mb-1">Text Opacity</label>
-                                                    <input type="range" id="text-opacity" class="form-range" min="10" max="100" value="100" />
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary tool-btn" id="eraser-toggle" title="Toggle eraser mode">
+                                        <i class="bi bi-eraser-fill me-1"></i>Eraser
+                                    </button>
                                 </div>
                             </div>
                         </div>

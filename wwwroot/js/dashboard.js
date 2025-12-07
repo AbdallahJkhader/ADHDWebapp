@@ -102,11 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok || !data || data.success !== true) {
                 let msg = (data && data.error) ? data.error : `Failed (HTTP ${res.status})`;
                 if (res.status === 429) {
-                    msg = 'Rate limit exceeded. Please wait a few seconds and try again.';
+                    msg = (data && data.error) ? data.error : 'Rate limit exceeded. Please wait a few seconds and try again.';
                 }
                 if (target) target.innerHTML = `<div class="text-center p-4 text-danger"><i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i><p class="mt-2">${msg}</p></div>`;
-                // Start cooldown after an attempt (30 seconds)
-                const seconds = 30;
+                // Start cooldown after an attempt (5 seconds)
+                const seconds = 5;
                 window._summarizeCooldownUntil = Date.now() + seconds * 1000;
                 ensureCooldownTimer();
                 return;
@@ -117,8 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 target.textContent = summary;
             }
             try { updateWordCount(); } catch (_) { }
-            // Normal cooldown after success (30 seconds)
-            window._summarizeCooldownUntil = Date.now() + 30 * 1000;
+            // Normal cooldown after success (5 seconds)
+            window._summarizeCooldownUntil = Date.now() + 5 * 1000;
             ensureCooldownTimer();
         } catch (e) {
             const target = document.getElementById('summary-content-display');
@@ -414,6 +414,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (studentsUl) {
                 studentsUl.innerHTML = '';
                 const students = Array.isArray(studentsArr) ? studentsArr : [];
+                const statStudents = document.getElementById('cls-stat-students');
+                if (statStudents) statStudents.textContent = students.length;
                 if (students.length === 0) {
                     const liEmpty = document.createElement('li');
                     liEmpty.className = 'list-group-item text-muted';
@@ -815,6 +817,12 @@ function toggleInlinePanel(panelId, event, ownerHint) {
         .forEach(p => { if (p.id !== panelId) p.classList.remove('show'); });
 
     const willShow = !panel.classList.contains('show');
+
+    // Move to body FIRST to ensure visibility (outside of hidden overflows)
+    if (willShow && panel.parentElement !== document.body) {
+        document.body.appendChild(panel);
+    }
+
     panel.classList.toggle('show');
 
     // If showing, position panel relative to its owning dropdown within viewport
@@ -835,8 +843,11 @@ function toggleInlinePanel(panelId, event, ownerHint) {
         const owner = ownerId ? document.getElementById(ownerId) : null;
         if (owner) {
             // Close any other top-level dropdowns except the owner to avoid conflicts
+            // Special exemption: Do not close 'class-details-panel' if we are opening a child panel
             document.querySelectorAll('.dropdown-menu.show').forEach(dd => {
-                if (dd.id !== ownerId && dd !== panel) dd.classList.remove('show');
+                const isClassDetails = dd.id === 'class-details-panel';
+                const isOpeningChild = (panelId === 'cls-members-panel' || panelId === 'cls-files-panel');
+                if (dd.id !== ownerId && dd !== panel && !(isClassDetails && isOpeningChild)) dd.classList.remove('show');
             });
             // Ensure the owner dropdown stays open
             if (!owner.classList.contains('show')) owner.classList.add('show');
@@ -850,13 +861,32 @@ function toggleInlinePanel(panelId, event, ownerHint) {
             // Anchor to the owner dropdown rectangle (same behavior as profile panel)
             const anchorRect = owner.getBoundingClientRect();
             panel.style.position = 'fixed';
-            const panelWidth = 300;
-            const GAP_X = 20; // horizontal gap from owner dropdown
-            const GAP_Y = 12; // vertical gap from owner dropdown
-            const SCREEN_MARGIN = 8; // min distance from viewport edges
-            panel.style.top = `${Math.max(SCREEN_MARGIN, anchorRect.top + GAP_Y)}px`;
+            const panelWidth = parseInt(panel.getAttribute('data-width') || '300', 10);
 
-            const desiredLeft = anchorRect.left - panelWidth - GAP_X;
+            // Stacking logic: Determine which panel to position relative to
+            let referenceRect = anchorRect;
+
+            // Special case: class-details-panel should open next to classes-panel, not user-dropdown
+            if (panelId === 'class-details-panel') {
+                const classesPanel = document.getElementById('classes-panel');
+                if (classesPanel && classesPanel.classList.contains('show')) {
+                    referenceRect = classesPanel.getBoundingClientRect();
+                }
+            }
+            // Child panels of Class Details should offset from Class Details itself
+            else if ((panelId === 'cls-members-panel' || panelId === 'cls-files-panel')) {
+                const classDetailsPanel = document.getElementById('class-details-panel');
+                if (classDetailsPanel && classDetailsPanel.classList.contains('show')) {
+                    referenceRect = classDetailsPanel.getBoundingClientRect();
+                }
+            }
+
+            const GAP_X = 20; // horizontal gap
+            const GAP_Y = 12; // vertical gap
+            const SCREEN_MARGIN = 8; // min distance from viewport edges
+            panel.style.top = `${Math.max(SCREEN_MARGIN, referenceRect.top + GAP_Y)}px`;
+
+            const desiredLeft = referenceRect.left - panelWidth - GAP_X;
             const left = Math.max(SCREEN_MARGIN, Math.min(desiredLeft, window.innerWidth - panelWidth - SCREEN_MARGIN));
             panel.style.left = `${left}px`;
             panel.style.right = 'auto';
@@ -864,7 +894,7 @@ function toggleInlinePanel(panelId, event, ownerHint) {
             panel.style.width = `${panelWidth}px`;
             panel.style.transform = 'none';
             panel.style.zIndex = 2000;
-            panel.style.maxHeight = '70vh';
+            panel.style.maxHeight = '85vh';
             panel.style.overflow = 'auto';
             panel.style.maxWidth = `${Math.min(520, window.innerWidth - 16)}px`;
             panel.style.minWidth = '';
@@ -1143,34 +1173,54 @@ window.escapeHtml = window.escapeHtml || escapeHtml;
 async function loadClassFiles(classId) {
     try {
         const filesUl = document.getElementById('cls-files');
+        const filesGrid = document.getElementById('cls-files-grid');
         if (filesUl) filesUl.innerHTML = '';
+        if (filesGrid) filesGrid.innerHTML = '';
         const res = await fetch(`/Classes/Files?classId=${encodeURIComponent(classId)}`, { credentials: 'same-origin' });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Failed to load files');
         const files = Array.isArray(data.files) ? data.files : [];
         if (!filesUl) return;
+        const statFiles = document.getElementById('cls-stat-files');
+        if (statFiles) statFiles.textContent = files.length;
+
         if (files.length === 0) {
+            filesGrid.style.display = 'none';
+            filesUl.classList.remove('d-none');
             const li = document.createElement('li');
             li.className = 'list-group-item text-muted';
             li.textContent = 'No files yet';
             filesUl.appendChild(li);
             return;
         }
+
+        // Show grid, hide fallback UL (unless we want list mode, but design called for improvement)
+        filesGrid.style.display = 'grid';
+        filesUl.classList.add('d-none');
+
         files.forEach(f => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            const name = document.createElement('a');
-            name.href = f.url;
-            name.target = '_blank';
-            name.rel = 'noopener';
-            name.textContent = f.name || 'File';
-            const meta = document.createElement('small');
-            const sizeTxt = (typeof f.size === 'number' && f.size >= 0) ? `, ${formatFileSize(f.size)}` : '';
-            meta.className = 'text-muted';
-            meta.textContent = `${(new Date(f.uploadedAt)).toLocaleString()}${sizeTxt}`;
-            li.appendChild(name);
-            li.appendChild(meta);
-            filesUl.appendChild(li);
+            // Grid Card
+            const card = document.createElement('div');
+            card.className = 'cls-file-card p-2 border rounded-3 bg-white shadow-sm d-flex flex-column align-items-center justify-content-center text-center position-relative';
+            card.style.cursor = 'pointer';
+            card.title = f.name;
+
+            // Icon
+            const name = (f.name || '').toLowerCase();
+            let icon = 'bi-file-earmark';
+            let colorClass = 'text-secondary';
+            if (/\.(pdf)$/i.test(name)) { icon = 'bi-file-earmark-pdf'; colorClass = 'text-danger'; }
+            else if (/\.(docx|doc)$/i.test(name)) { icon = 'bi-file-earmark-word'; colorClass = 'text-primary'; }
+            else if (/\.(png|jpg|jpeg|gif)$/i.test(name)) { icon = 'bi-file-earmark-image'; colorClass = 'text-warning'; }
+            else if (/\.(txt)$/i.test(name)) { icon = 'bi-file-earmark-text'; colorClass = 'text-muted'; }
+
+            card.innerHTML = `
+                <div class="fs-1 mb-2 ${colorClass}"><i class="bi ${icon}"></i></div>
+                <div class="small fw-bold text-truncate w-100">${f.name}</div>
+                <div class="small text-muted" style="font-size: 0.75rem;">${formatFileSize(f.size || 0)}</div>
+                <a href="${f.url}" target="_blank" class="stretched-link"></a>
+            `;
+            filesGrid.appendChild(card);
         });
     } catch (e) {
         const errEl = document.getElementById('cls-files-error');
@@ -2129,6 +2179,144 @@ function openClassesInlinePanel(event) {
                     classesList.innerHTML = '<li class="activity-item small text-muted"><i class="bi bi-collection me-2"></i> No classes yet.</li>';
                     return;
                 }
+
+                const openClassDetails = async (id) => {
+                    if (!id) return;
+                    const titleEl = document.getElementById('cls-title');
+                    const codeEl = document.getElementById('cls-code');
+                    const teacherEl = document.getElementById('cls-teacher');
+                    const studentsUl = document.getElementById('cls-students');
+                    if (teacherEl) teacherEl.textContent = 'Loading...';
+                    if (titleEl) titleEl.textContent = 'Class';
+                    if (codeEl) codeEl.textContent = '';
+                    if (studentsUl) studentsUl.innerHTML = '';
+
+                    const myPanel = document.getElementById('classes-panel');
+                    const userDropdown = document.getElementById('user-dropdown');
+                    if (userDropdown && !userDropdown.classList.contains('show')) userDropdown.classList.add('show');
+
+                    // Open class-details-panel positioned relative to classes-panel (not user-dropdown)
+                    // We need to ensure classes-panel is still visible when we calculate position
+                    // So we call toggleInlinePanel BEFORE hiding classes-panel
+                    toggleInlinePanel('class-details-panel', null, 'user-dropdown');
+
+                    if (window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab('info');
+
+                    // Now hide classes-panel after details panel is positioned
+                    if (myPanel) myPanel.classList.remove('show');
+                    try {
+                        const res = await fetch(`/Classes/Details?id=${id}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.error || 'Failed to load class');
+                        const klass = data.Class || data.class;
+                        const teacher = data.Teacher || data.teacher;
+                        const studentsArr = data.Students || data.students;
+
+                        const currentUserId = parseInt(userDropdown?.getAttribute('data-user-id') || '', 10);
+                        const canCompare = !Number.isNaN(currentUserId) && currentUserId > 0;
+                        const isOwner = canCompare && teacher && (teacher.id === currentUserId);
+
+                        if (titleEl) titleEl.textContent = klass?.name || 'Class';
+                        if (codeEl) codeEl.textContent = klass?.code ? `(Code: ${klass.code})` : '';
+                        if (teacherEl) teacherEl.textContent = teacher ? `${teacher.name} (${teacher.email})` : '—';
+
+                        const membersPanelUl = document.getElementById('cls-members-list');
+                        if (membersPanelUl) {
+                            membersPanelUl.innerHTML = '';
+                            const students = Array.isArray(studentsArr) ? studentsArr : [];
+                            if (students.length === 0) {
+                                membersPanelUl.innerHTML = '<li class="list-group-item text-muted small">No students in this class.</li>';
+                            } else {
+                                students.forEach(s => {
+                                    const isMe = s.id === currentUserId;
+                                    const showRemove = isOwner && !isMe;
+                                    const li = document.createElement('li');
+                                    li.className = 'list-group-item d-flex justify-content-between align-items-center py-2 px-3';
+                                    li.innerHTML = `
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center text-primary" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                                <i class="bi bi-person-fill"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark" style="font-size: 0.9rem;">${esc(s.name)}</div>
+                                                <div class="text-muted" style="font-size: 0.75rem;">ID: ${s.id}</div>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-light rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="bi bi-three-dots-vertical"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="font-size: 0.85rem;">
+                                                <li><a class="dropdown-item" href="#" onclick="alert('Student analytics coming soon for ${esc(s.name)}'); return false;"><i class="bi bi-graph-up me-2 text-primary"></i>Analytics</a></li>
+                                                ${showRemove ? `<li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="removeStudent(${klass.id}, ${s.id}, '${esc(s.name)}'); return false;"><i class="bi bi-person-dash me-2"></i>Remove</a></li>` : ''}
+                                            </ul>
+                                        </div>
+                                    `;
+                                    membersPanelUl.appendChild(li);
+                                });
+                            }
+
+                            // Update student count stat card
+                            const studentCountEl = document.getElementById('cls-stat-students');
+                            if (studentCountEl) {
+                                studentCountEl.textContent = students.length;
+                            }
+                        }
+
+                        try {
+                            const filesUl = document.getElementById('cls-files');
+                            if (filesUl) filesUl.innerHTML = '';
+                            window.__currentClassId = klass?.id || null;
+                            const uploadWrap = document.getElementById('cls-files-upload');
+                            if (uploadWrap) uploadWrap.style.display = isOwner ? '' : 'none';
+                            if (typeof setupClassUpload === 'function') setupClassUpload(isOwner);
+                            if (klass?.id && typeof loadClassFiles === 'function') await loadClassFiles(klass.id);
+                        } catch { }
+
+                        const leaveBtn = document.getElementById('leave-class-btn');
+                        const deleteBtn = document.getElementById('delete-class-btn');
+                        try {
+                            if (leaveBtn) {
+                                leaveBtn.style.display = (!klass?.id || isOwner) ? 'none' : '';
+                                leaveBtn.onclick = async (ev) => {
+                                    ev.preventDefault(); ev.stopPropagation();
+                                    if (!klass?.id) return;
+                                    if (!confirm('Leave this class?')) return;
+                                    try {
+                                        leaveBtn.disabled = true;
+                                        const res = await fetch('/Classes/Leave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: klass.id }) });
+                                        const resp = await res.json();
+                                        if (!resp.success) throw new Error(resp.error || 'Failed to leave');
+                                        const detailsPanel = document.getElementById('class-details-panel');
+                                        if (detailsPanel) detailsPanel.classList.remove('show');
+                                        toggleInlinePanel('classes-panel');
+                                    } catch (er) { alert(er?.message || 'Failed to leave class'); } finally { leaveBtn.disabled = false; }
+                                };
+                            }
+                            if (deleteBtn) {
+                                deleteBtn.style.display = (klass?.id && isOwner) ? '' : 'none';
+                                deleteBtn.onclick = async (ev) => {
+                                    ev.preventDefault(); ev.stopPropagation();
+                                    if (!klass?.id) return;
+                                    if (!confirm('Delete this class? This will remove the class and all memberships.')) return;
+                                    try {
+                                        deleteBtn.disabled = true;
+                                        const res = await fetch('/Classes/Delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: klass.id }) });
+                                        const resp = await res.json();
+                                        if (!resp.success) throw new Error(resp.error || 'Failed to delete class');
+                                        const detailsPanel = document.getElementById('class-details-panel');
+                                        if (detailsPanel) detailsPanel.classList.remove('show');
+                                        toggleInlinePanel('classes-panel');
+                                    } catch (er) { alert(er?.message || 'Failed to delete class'); } finally { deleteBtn.disabled = false; }
+                                };
+                            }
+                        } catch { }
+                    } catch (err) {
+                        if (teacherEl) teacherEl.textContent = 'Error loading class';
+                    }
+                };
+
                 classesList.innerHTML = '';
                 data.classes.forEach(c => {
                     const li = document.createElement('li');
@@ -2138,14 +2326,20 @@ function openClassesInlinePanel(event) {
                     li.tabIndex = 0;
                     li.setAttribute('title', 'Open class details');
                     li.innerHTML = `<div class="d-inline-flex align-items-center gap-2 text-truncate">
-                        <div class="avatar-initial"><i class="bi bi-collection"></i></div>
+                        <img src="/images/class icon.png" alt="Class" style="width: 28px; height: 28px; object-fit: contain;" />
                         <div class="text-truncate"><div><strong>${esc(c.name)}</strong></div>
                         <div class="small text-muted">Code: <span class="code-chip">${esc(c.code)}</span></div></div>
                     </div>
                     <div class="item-actions">
-                        <button class="btn btn-sm btn-primary me-1" data-action="view-class" data-id="${c.id}" title="View"><i class="bi bi-eye"></i></button>
                         <button class="btn btn-sm btn-outline-secondary" data-action="copy-code" data-code="${esc(c.code)}" title="Copy Code"><i class="bi bi-clipboard"></i></button>
                     </div>`;
+
+                    li.onclick = (ev) => {
+                        ev.stopPropagation();
+                        if (ev.target.closest('button')) return;
+                        openClassDetails(c.id);
+                    };
+
                     // Keyboard support: Enter opens details
                     li.addEventListener('keydown', (ev) => {
                         if (ev.key === 'Enter') li.click();
@@ -2165,156 +2359,7 @@ function openClassesInlinePanel(event) {
                         }
                     });
                 });
-                // Bind view-class buttons
-                classesList.querySelectorAll('[data-action="view-class"]').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const id = parseInt(btn.getAttribute('data-id'));
-                        if (!id) return;
-                        // Populate and open details panel using same logic as LI click
-                        const titleEl = document.getElementById('cls-title');
-                        const codeEl = document.getElementById('cls-code');
-                        const teacherEl = document.getElementById('cls-teacher');
-                        const studentsUl = document.getElementById('cls-students');
-                        if (teacherEl) teacherEl.textContent = 'Loading...';
-                        if (titleEl) titleEl.textContent = 'Class';
-                        if (codeEl) codeEl.textContent = '';
-                        if (studentsUl) studentsUl.innerHTML = '';
-                        // Hide classes panel, ensure user dropdown open, show details panel immediately
-                        const myPanel = document.getElementById('classes-panel');
-                        if (myPanel) myPanel.classList.remove('show');
-                        const userDropdown = document.getElementById('user-dropdown');
-                        if (userDropdown && !userDropdown.classList.contains('show')) userDropdown.classList.add('show');
-                        toggleInlinePanel('class-details-panel', e);
-                        if (window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab('info');
-                        // Fallback: if not visible, force show with basic positioning
-                        const detailsPanel = document.getElementById('class-details-panel');
-                        if (detailsPanel && !detailsPanel.classList.contains('show')) {
-                            detailsPanel.classList.add('show');
-                            const owner = document.getElementById('user-dropdown');
-                            const rect = owner ? owner.getBoundingClientRect() : { top: 56, right: window.innerWidth - 8 };
-                            detailsPanel.style.position = 'fixed';
-                            detailsPanel.style.top = `${Math.max(8, rect.top)}px`;
-                            detailsPanel.style.right = '8px';
-                            detailsPanel.style.left = 'auto';
-                            detailsPanel.style.zIndex = 2000;
-                            detailsPanel.style.maxHeight = '70vh';
-                            detailsPanel.style.overflow = 'auto';
-                        }
-                        try {
-                            const res = await fetch(`/Classes/Details?id=${id}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
-                            const data = await res.json();
-                            if (!data.success) throw new Error(data.error || 'Failed to load class');
-                            const klass = data.Class || data.class;
-                            const teacher = data.Teacher || data.teacher;
-                            const studentsArr = data.Students || data.students;
-                            if (titleEl) titleEl.textContent = klass?.name || 'Class';
-                            if (codeEl) codeEl.textContent = klass?.code ? `(Code: ${klass.code})` : '';
-                            if (teacherEl) teacherEl.textContent = teacher ? `${teacher.name} (${teacher.email})` : '—';
-                            if (studentsUl) {
-                                studentsUl.innerHTML = '';
-                                const students = Array.isArray(studentsArr) ? studentsArr : [];
-                                if (students.length === 0) {
-                                    const liEmpty = document.createElement('li');
-                                    liEmpty.className = 'list-group-item text-muted';
-                                    liEmpty.textContent = 'No students yet';
-                                    studentsUl.appendChild(liEmpty);
-                                } else {
-                                    students.forEach(s => {
-                                        const liItem = document.createElement('li');
-                                        liItem.className = 'list-group-item';
-                                        liItem.textContent = `${s.name} (${s.email})`;
-                                        studentsUl.appendChild(liItem);
-                                    });
-                                }
 
-                                // Prepare Files tab (mirror logic from list item handler)
-                                try {
-                                    const filesUl = document.getElementById('cls-files');
-                                    if (filesUl) filesUl.innerHTML = '';
-                                    window.__currentClassId = klass?.id || null;
-                                    const userDropdown2 = document.getElementById('user-dropdown');
-                                    const currentUserId2 = parseInt(userDropdown2?.getAttribute('data-user-id') || '', 10);
-                                    const isOwner2 = !!klass?.id && !Number.isNaN(currentUserId2) && teacher && (teacher.id === currentUserId2);
-                                    const uploadWrap = document.getElementById('cls-files-upload');
-                                    if (uploadWrap) uploadWrap.style.display = isOwner2 ? '' : 'none';
-                                    if (typeof setupClassUpload === 'function') setupClassUpload(isOwner2);
-                                    if (klass?.id && typeof loadClassFiles === 'function') await loadClassFiles(klass.id);
-                                } catch { }
-
-                                // Show/Hide action buttons based on ownership
-                                const leaveBtn = document.getElementById('leave-class-btn');
-                                const deleteBtn = document.getElementById('delete-class-btn');
-                                try {
-                                    const userDropdown = document.getElementById('user-dropdown');
-                                    const currentUserId = parseInt(userDropdown?.getAttribute('data-user-id') || '', 10);
-                                    const canCompare = !Number.isNaN(currentUserId) && currentUserId > 0;
-                                    const isOwner = canCompare && teacher && (teacher.id === currentUserId);
-                                    // Leave button for non-owners only
-                                    if (leaveBtn) {
-                                        leaveBtn.style.display = (!klass?.id || isOwner) ? 'none' : '';
-                                        leaveBtn.onclick = async (ev) => {
-                                            ev.preventDefault(); ev.stopPropagation();
-                                            if (!klass?.id) return;
-                                            if (!confirm('Leave this class?')) return;
-                                            try {
-                                                leaveBtn.disabled = true;
-                                                const res = await fetch('/Classes/Leave', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    credentials: 'same-origin',
-                                                    body: JSON.stringify({ id: klass.id })
-                                                });
-                                                const resp = await res.json();
-                                                if (!resp.success) throw new Error(resp.error || 'Failed to leave');
-                                                const detailsPanel = document.getElementById('class-details-panel');
-                                                if (detailsPanel) detailsPanel.classList.remove('show');
-                                                // Reopen classes panel and refresh list
-                                                toggleInlinePanel('classes-panel');
-                                            } catch (er) {
-                                                alert(er?.message || 'Failed to leave class');
-                                            } finally {
-                                                leaveBtn.disabled = false;
-                                            }
-                                        };
-                                    }
-                                    // Delete button for owner only
-                                    if (deleteBtn) {
-                                        deleteBtn.style.display = (klass?.id && isOwner) ? '' : 'none';
-                                        deleteBtn.onclick = async (ev) => {
-                                            ev.preventDefault(); ev.stopPropagation();
-                                            if (!klass?.id) return;
-                                            if (!confirm('Delete this class? This will remove the class and all memberships.')) return;
-                                            try {
-                                                deleteBtn.disabled = true;
-                                                const res = await fetch('/Classes/Delete', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    credentials: 'same-origin',
-                                                    body: JSON.stringify({ id: klass.id })
-                                                });
-                                                const resp = await res.json();
-                                                if (!resp.success) throw new Error(resp.error || 'Failed to delete class');
-                                                const detailsPanel = document.getElementById('class-details-panel');
-                                                if (detailsPanel) detailsPanel.classList.remove('show');
-                                                // Reopen classes panel and refresh list
-                                                toggleInlinePanel('classes-panel');
-                                            } catch (er) {
-                                                alert(er?.message || 'Failed to delete class');
-                                            } finally {
-                                                deleteBtn.disabled = false;
-                                            }
-                                        };
-                                    }
-                                } catch { }
-                            }
-                        } catch (err) {
-                            if (teacherEl) teacherEl.textContent = 'Error loading class';
-                            // Keep panel open with error message
-                        }
-                    });
-                });
             } catch (err) {
                 console.error('Load classes error', err);
                 const msg = (err && err.message) ? err.message : 'Failed to load classes';
@@ -5135,3 +5180,26 @@ function addSessionVideoToList(rec) {
 
     container.appendChild(item);
 }
+
+// Expose tab switcher globally for Class Details
+window.__setClassDetailsActiveTab = function (tabId) {
+    // Buttons
+    document.querySelectorAll('.cls-tabs .nav-link').forEach(b => {
+        if (b.getAttribute('data-tab') === tabId) b.classList.add('active');
+        else b.classList.remove('active');
+    });
+
+    // Panes
+    ['info', 'options'].forEach(t => {
+        const pane = document.getElementById(`cls-tab-${t}`);
+        if (pane) {
+            if (t === tabId) {
+                pane.classList.remove('d-none');
+                pane.classList.add('active');
+            } else {
+                pane.classList.add('d-none');
+                pane.classList.remove('active');
+            }
+        }
+    });
+};

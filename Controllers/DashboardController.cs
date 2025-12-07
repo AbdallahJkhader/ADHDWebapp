@@ -9,8 +9,7 @@ using System.Text.Json;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
-using OpenAI;
-using OpenAI.Chat;
+
 
 
 
@@ -47,22 +46,29 @@ namespace ADHDWebApp.Controllers
                 var lastStr = HttpContext.Session.GetString("SummarizeLastAt");
                 if (DateTime.TryParse(lastStr, out var lastAt))
                 {
+                    // Ensure robust comparison by converting to UTC if parsed as Local
+                    if (lastAt.Kind == DateTimeKind.Local) lastAt = lastAt.ToUniversalTime();
+                    
                     var diff = now - lastAt;
-                    const int CooldownSeconds = 15;
-                    if (diff.TotalSeconds < CooldownSeconds)
+                    // If lastAt is in the future (negative diff), treat as invalid/expired -> allow request
+                    if (diff.TotalSeconds >= 0) 
                     {
-                        var remaining = Math.Ceiling(CooldownSeconds - diff.TotalSeconds);
-                        Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
-                        return Json(new { success = false, error = $"Please wait {remaining} seconds before trying again." });
+                        const int CooldownSeconds = 5;
+                        if (diff.TotalSeconds < CooldownSeconds)
+                        {
+                            var remaining = Math.Ceiling(CooldownSeconds - diff.TotalSeconds);
+                            Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
+                            return Json(new { success = false, error = $"Please wait {remaining} seconds before trying again." });
+                        }
                     }
                 }
                 HttpContext.Session.SetString("SummarizeLastAt", now.ToString("o"));
 
-                // Prefer appsettings (OpenAI:ApiKey), fall back to environment variable only if not set.
-                var apiKey = _config["OpenAI:ApiKey"]
-                             ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+                // Prefer appsettings (Groq:ApiKey), fall back to environment variable only if not set.
+                var apiKey = _config["Groq:ApiKey"]
+                             ?? Environment.GetEnvironmentVariable("GROQ_API_KEY");
                 if (string.IsNullOrWhiteSpace(apiKey))
-                    return Json(new { success = false, error = "OpenAI API key not configured" });
+                    return Json(new { success = false, error = "Groq API key not configured" });
 
                 var text = req.Text;
                 const int MAX_CHARS = 12000; 
@@ -73,7 +79,7 @@ namespace ADHDWebApp.Controllers
 
                 var payload = new
                 {
-                    model = _config["OpenAI:Model"] ?? "gpt-4o-mini",
+                    model = _config["Groq:Model"] ?? "llama-3.3-70b-versatile",
                     temperature = 0.3,
                     messages = new object[]
                     {
@@ -88,9 +94,11 @@ namespace ADHDWebApp.Controllers
                 HttpResponseMessage? resp = null;
                 string? respBody = null;
                 const int maxAttempts = 3;
+                var endpoint = _config["Groq:BaseUrl"] ?? "https://api.groq.com/openai/v1/chat/completions";
+
                 for (int attempt = 1; attempt <= maxAttempts; attempt++)
                 {
-                    resp = await http.PostAsync("https://api.openai.com/v1/chat/completions", content);
+                    resp = await http.PostAsync(endpoint, content);
                     if (resp.StatusCode == HttpStatusCode.TooManyRequests || resp.StatusCode == HttpStatusCode.ServiceUnavailable)
                     {
                         var retryAfter = resp.Headers.RetryAfter?.Delta ?? TimeSpan.Zero;
@@ -108,7 +116,7 @@ namespace ADHDWebApp.Controllers
                     var is429 = resp?.StatusCode == HttpStatusCode.TooManyRequests;
                     var msg = is429
                         ? "Rate limit exceeded. Please wait a few seconds and try again."
-                        : $"OpenAI error: {(int)(resp?.StatusCode ?? 0)} {resp?.ReasonPhrase}";
+                        : $"Groq error: {(int)(resp?.StatusCode ?? 0)} {resp?.ReasonPhrase}. Details: {respBody}";
                     return Json(new { success = false, error = msg, body = respBody });
                 }
                 using var doc = JsonDocument.Parse(respBody);
