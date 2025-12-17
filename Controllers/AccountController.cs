@@ -67,6 +67,29 @@ namespace ADHDWebApp.Controllers
                 HttpContext.Session.SetString("FullName", user.FullName);
                 HttpContext.Session.SetString("UserEmail", user.Email);
                
+                // Track Login Activity
+                try
+                {
+                    var today = DateTime.UtcNow.Date;
+                    // Check if already logged in today to avoid duplicate daily streak entries if that's desired, 
+                    // or just log every login. Let's log every login but streak calculation handles unique days.
+                    var activity = new UserActivity
+                    {
+                        UserId = user.Id,
+                        ActivityType = "login",
+                        SubjectName = "System",
+                        Timestamp = DateTime.UtcNow,
+                        Duration = 0
+                    };
+                    _context.UserActivities.Add(activity);
+                    _context.SaveChanges();
+                }
+                catch (Exception ex)
+                {
+                    // meaningful error logging in production
+                    Console.WriteLine("Error logging activity: " + ex.Message);
+                }
+           
                 return RedirectToAction("Index", "Dashboard");
             }
             else

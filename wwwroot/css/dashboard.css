@@ -3639,4 +3639,7 @@ body.dashboard-page {
     font-size: 0.75rem;
     color: #adb5bd;
     margin-top: 0.25rem;
+}/* Hide chat area initially until class is selected */
+#chat-area {
+    display: none;
 }

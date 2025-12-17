@@ -265,17 +265,17 @@
                     <div class="dropdown-divider"></div>
 
                     <div class="activity-item" onclick="toggleInlinePanel('tools-calculator-panel', event, 'tools-dropdown')" style="cursor: pointer;">
-                        <div class="activity-icon">
-                            <i class="bi bi-calculator"></i>
+                        <div class="activity-icon text-info">
+                            <img src="~/images/calculator.png" alt="Calculator" style="width: 20px; height: 20px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Calculator</div>
                             <div class="activity-desc">Quick arithmetic calculator</div>
                         </div>
                     </div>
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <i class="bi bi-translate"></i>
+                    <div class="activity-item" onclick="toggleInlinePanel('tools-translation-panel', event, 'tools-dropdown')" style="cursor: pointer;">
+                        <div class="activity-icon text-success">
+                            <img src="~/images/translation.png" alt="Translation" style="width: 20px; height: 20px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Translation</div>
@@ -284,8 +284,8 @@
                     </div>
 
                     <div class="activity-item" onclick="toggleInlinePanel('tools-progress-panel', event, 'tools-dropdown')" style="cursor: pointer;">
-                        <div class="activity-icon">
-                            <i class="bi bi-graph-up"></i>
+                        <div class="activity-icon text-primary">
+                            <img src="~/images/progress.png" alt="Progress" style="width: 20px; height: 20px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Progress Tracker</div>
@@ -293,9 +293,9 @@
                         </div>
                     </div>
 
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <i class="bi bi-calendar-check"></i>
+                    <div class="activity-item" onclick="toggleInlinePanel('tools-planner-panel', event, 'tools-dropdown')" style="cursor: pointer;">
+                        <div class="activity-icon text-warning">
+                            <img src="~/images/Study Planner.png" alt="Study Planner" style="width: 20px; height: 20px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Study Planner</div>
@@ -357,14 +357,14 @@
                     <span>Progress Tracker</span>
                 </div>
                 <div class="dropdown-divider"></div>
-                <div class="px-3 py-2" style="width:300px;">
+                <div id="progress-tracker-panel" class="px-3 py-2" style="width:300px;">
                     <div class="activity-item">
                         <div class="activity-icon">
                             <i class="bi bi-bar-chart"></i>
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Streak</div>
-                            <div class="activity-desc">0 days</div>
+                            <div class="activity-desc" id="progress-streak">0 days</div>
                         </div>
                     </div>
                     <div class="activity-item">
@@ -373,7 +373,7 @@
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Weekly Browsing Time</div>
-                            <div class="activity-desc">0h 0m this week</div>
+                            <div class="activity-desc" id="progress-browsing">0h 0m this week</div>
                         </div>
                     </div>
                     <div class="activity-item">
@@ -382,7 +382,7 @@
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Weekly Subjects Studied</div>
-                            <div class="activity-desc">0 subjects</div>
+                            <div class="activity-desc" id="progress-subjects">0 subjects</div>
                         </div>
                     </div>
                     <div class="activity-item">
@@ -391,10 +391,104 @@
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Weekly Focus Minutes</div>
-                            <div class="activity-desc">0 min</div>
+                            <div class="activity-desc" id="progress-focus">0 min</div>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Translation panel positioned relative to Tools dropdown (top-left) -->
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-translation-panel" dir="ltr" style="direction:ltr;">
+                <div class="dropdown-header">
+                    <img src="~/images/translation.png" alt="Translation" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
+                    <span>Translation</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="px-3 py-2" style="width:320px;">
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium">Text to translate:</label>
+                        <textarea class="form-control form-control-sm" id="translation-input" rows="3" placeholder="Enter text here..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium">Target language:</label>
+                        <select class="form-select form-select-sm" id="translation-target-lang">
+                            <option value="ar">Arabic (العربية)</option>
+                            <option value="en" selected>English</option>
+                            <option value="es">Spanish (Español)</option>
+                            <option value="fr">French (Français)</option>
+                            <option value="de">German (Deutsch)</option>
+                            <option value="it">Italian (Italiano)</option>
+                            <option value="pt">Portuguese (Português)</option>
+                            <option value="ru">Russian (Русский)</option>
+                            <option value="ja">Japanese (日本語)</option>
+                            <option value="ko">Korean (한국어)</option>
+                            <option value="zh">Chinese (中文)</option>
+                            <option value="tr">Turkish (Türkçe)</option>
+                            <option value="hi">Hindi (हिन्दी)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm w-100 mb-2" id="translation-translate-btn">
+                        <i class="bi bi-translate me-1"></i> Translate
+                    </button>
+                    <div class="mb-2" id="translation-result-container" style="display:none;">
+                        <label class="form-label small fw-medium">Translation:</label>
+                        <div class="p-2 border rounded bg-light small" id="translation-result" style="min-height: 60px; white-space: pre-wrap;"></div>
+                    </div>
+                    <div class="small text-danger" id="translation-error" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- Study Planner panel positioned relative to Tools dropdown (top-left) -->
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-planner-panel" dir="ltr" style="direction:ltr;">
+                <div class="dropdown-header">
+                    <img src="~/images/Study Planner.png" alt="Study Planner" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
+                    <span>Study Planner</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="px-3 py-2" style="width:380px; max-height:500px; overflow-y:auto;">
+                    <!-- Add Session Form -->
+                    <div class="mb-3" id="planner-form-container">
+                        <button class="btn btn-primary btn-sm w-100 mb-2" id="planner-toggle-form-btn">
+                            <i class="bi bi-plus-lg me-1"></i> Add New Session
+                        </button>
+                        <div id="planner-form" class="d-none">
+                            <div class="mb-2">
+                                <input type="text" class="form-control form-control-sm" id="planner-title" placeholder="Main title *" required />
+                            </div>
+                            <div class="mb-2">
+                                <input type="text" class="form-control form-control-sm" id="planner-subject" placeholder="Subtitle (optional)" />
+                            </div>
+                            <div class="mb-2">
+                                <input type="date" class="form-control form-control-sm" id="planner-date" required />
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-success btn-sm flex-fill" id="planner-save-btn">
+                                    <i class="bi bi-check-lg"></i> Save
+                                </button>
+                                <button class="btn btn-secondary btn-sm" id="planner-cancel-btn">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upcoming Sessions -->
+                    <div class="mb-3">
+                        <h6 class="small fw-bold text-muted mb-2">Upcoming Sessions</h6>
+                        <div id="planner-upcoming-list" class="d-flex flex-column gap-2">
+                            <div class="text-muted small text-center py-2">No upcoming sessions</div>
+                        </div>
+                    </div>
+
+                    <!-- Completed Sessions -->
+                    <div>
+                        <h6 class="small fw-bold text-muted mb-2">Completed Sessions</h6>
+                        <div id="planner-completed-list" class="d-flex flex-column gap-2">
+                            <div class="text-muted small text-center py-2">No completed sessions</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="small text-danger px-3 pb-2" id="planner-error" style="display:none;"></div>
             </div>
 
 
@@ -511,7 +605,7 @@
                                 </div>
                             </div>
 
-                            <div id="chat-area" class="border rounded-3 p-3 bg-light" style="max-height: 250px; overflow-y: auto; min-height: 120px;">
+                            <div id="chat-area" class="border rounded-3 p-3 bg-light" style="display:none; max-height: 250px; overflow-y: auto; min-height: 120px;">
                                 <div class="text-center text-muted py-5" id="chat-empty">
                                     <i class="bi bi-chat-left-text fs-1 mb-3 d-block"></i>
                                     <p class="mb-1 fw-medium">No messages yet</p>
@@ -675,8 +769,9 @@
                     <!-- Members Panel (Inline from Class Details button) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-members-panel" dir="ltr" style="direction:ltr; min-width: 300px;" data-width="320">
                         <div class="dropdown-header d-flex justify-content-between align-items-center">
+                            <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-members-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details"><i class="bi bi-arrow-left fs-5"></i></button>
                             <span><i class="bi bi-people me-2"></i>Class Members</span>
-                            <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-members-panel').classList.remove('show')"><i class="bi bi-x-lg"></i></button>
+                            <div style="width: 24px;"></div>
                         </div>
                         <div class="dropdown-divider m-0"></div>
                         <div class="p-0" style="max-height: 400px; overflow-y: auto;">
@@ -688,11 +783,9 @@
                     <!-- Files Panel (Inline from Class Details button) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-files-panel" dir="ltr" style="direction:ltr; min-width: 320px;" data-width="360">
                         <div class="dropdown-header d-flex justify-content-between align-items-center">
+                            <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-files-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details"><i class="bi bi-arrow-left fs-5"></i></button>
                             <span><i class="bi bi-folder me-2"></i>Class Files</span>
-                            <div class="d-flex align-items-center gap-1">
-                                <button class="btn btn-sm btn-link text-primary p-0 me-2" onclick="if(typeof loadClassFiles === 'function' && window.__currentClassId) loadClassFiles(window.__currentClassId);" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
-                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-files-panel').classList.remove('show')"><i class="bi bi-x-lg"></i></button>
-                            </div>
+                            <button class="btn btn-sm btn-link text-primary p-0" onclick="if(typeof loadClassFiles === 'function' && window.__currentClassId) loadClassFiles(window.__currentClassId);" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
                         </div>
                         <div class="dropdown-divider m-0"></div>
                         <div class="p-3" style="max-height: 400px; overflow-y: auto;">
@@ -1722,5 +1815,6 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/dashboard.js"></script>
+    <script src="~/js/planner.js"></script>
 </body>
 </html>

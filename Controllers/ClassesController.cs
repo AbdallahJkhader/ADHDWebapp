@@ -52,6 +52,41 @@ namespace ADHDWebApp.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> RemoveMember([FromBody] RemoveMemberDto dto)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                    return Json(new { success = false, error = "Not logged in" });
+                var userId = sessionUserId.Value;
+
+                var cls = await _context.Classes.FirstOrDefaultAsync(c => c.Id == dto.ClassId);
+                if (cls == null)
+                    return Json(new { success = false, error = "Class not found" });
+
+                if (cls.OwnerId != userId)
+                    return Json(new { success = false, error = "Only the class owner can remove members" });
+
+                if (dto.UserId == cls.OwnerId)
+                    return Json(new { success = false, error = "Cannot remove the class owner" });
+
+                var membership = await _context.ClassMemberships.FirstOrDefaultAsync(m => m.UserId == dto.UserId && m.ClassId == cls.Id);
+                if (membership == null)
+                    return Json(new { success = false, error = "User is not a member of this class" });
+
+                _context.ClassMemberships.Remove(membership);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> Delete([FromBody] DeleteClassDto dto)
         {
             try
@@ -340,6 +375,7 @@ namespace ADHDWebApp.Controllers
         public class JoinClassDto { public string Code { get; set; } = string.Empty; }
         public class DeleteClassDto { public int Id { get; set; } }
         public class LeaveClassDto { public int Id { get; set; } }
+        public class RemoveMemberDto { public int ClassId { get; set; } public int UserId { get; set; } }
 
         // ===== Class Chat Endpoints =====
         [HttpGet]

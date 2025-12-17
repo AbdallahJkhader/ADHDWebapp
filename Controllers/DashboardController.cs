@@ -499,6 +499,25 @@ namespace ADHDWebApp.Controllers
             if (file == null)
                 return Json(new { success = false, error = "File not found" });
 
+            // Record File View Activity
+            try
+            {
+                var activity = new UserActivity
+                {
+                    UserId = file.User.Id, // Use file.User.Id as the user object is not directly retrieved here
+                    ActivityType = "file_view",
+                    SubjectName = file.FileName, // Use filename as subject/context
+                    Timestamp = DateTime.UtcNow,
+                    Duration = 0 // View events might not have duration, or could track "time open" separately
+                };
+                _context.UserActivities.Add(activity);
+                await _context.SaveChangesAsync(); // Use await for async SaveChanges
+            }
+            catch (Exception ex)
+            {
+                 Console.WriteLine("Error recording file view: " + ex.Message);
+            }
+
             // المسار الفعلي للملف
             var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", file.FilePath.TrimStart('/'));
             if (!System.IO.File.Exists(fullPath))
@@ -1062,5 +1081,125 @@ namespace ADHDWebApp.Controllers
                 return Json(new { success = false, error = ex.Message });
             }
         }
+
+        // GET: Get progress data for current user
+        [HttpGet]
+        [Route("Dashboard/GetProgress")]
+        [HttpGet]
+        public async Task<IActionResult> GetProgress(int? targetUserId)
+        {
+            try
+            {
+                var sessionUserId = HttpContext.Session.GetInt32("UserId");
+                if (sessionUserId == null)
+                {
+                    return Json(new { success = false, error = "Not authenticated" });
+                }
+
+                // If targetUserId is provided, use it (allows teachers to view student progress)
+                // In a stricter implementation, we'd verify the relationship here.
+                var userId = targetUserId.HasValue ? targetUserId : sessionUserId;
+
+                var startOfWeek = DateTime.UtcNow.Date.AddDays(-(int)DateTime.UtcNow.DayOfWeek);
+                startOfWeek = new DateTime(startOfWeek.Year, startOfWeek.Month, startOfWeek.Day, 0, 0, 0);
+
+                // Calculate streak (consecutive login days)
+                var allActivities = await _context.UserActivities
+                    .Where(a => a.UserId == userId.Value && a.ActivityType == "login")
+                    .OrderByDescending(a => a.Timestamp)
+                    .Select(a => a.Timestamp.Date)
+                    .Distinct()
+                    .ToListAsync();
+
+                int streak = 0;
+                if (allActivities.Any())
+                {
+                    var checkDate = DateTime.Now.Date;
+                    while (allActivities.Contains(checkDate))
+                    {
+                        streak++;
+                        checkDate = checkDate.AddDays(-1);
+                    }
+                }
+
+                // Weekly browsing time (file views)
+                var weeklyBrowsingMinutes = await _context.UserActivities
+                    .Where(a => a.UserId == userId.Value && 
+                                a.ActivityType == "file_view" && 
+                                a.Timestamp >= startOfWeek)
+                    .SumAsync(a => a.Duration);
+
+                var hours = weeklyBrowsingMinutes / 60;
+                var minutes = weeklyBrowsingMinutes % 60;
+                var browsingTime = $"{hours}h {minutes}m this week";
+
+                // Weekly subjects studied
+                var weeklySubjects = await _context.UserActivities
+                    .Where(a => a.UserId == userId.Value && 
+                                a.Timestamp >= startOfWeek && 
+                                !string.IsNullOrEmpty(a.SubjectName))
+                    .Select(a => a.SubjectName)
+                    .Distinct()
+                    .CountAsync();
+
+                // Weekly focus minutes
+                var weeklyFocusMinutes = await _context.UserActivities
+                    .Where(a => a.UserId == userId.Value && 
+                                a.ActivityType == "focus_session" && 
+                                a.Timestamp >= startOfWeek)
+                    .SumAsync(a => a.Duration);
+
+                return Json(new
+                {
+                    success = true,
+                    streak = streak,
+                    browsingTime = browsingTime,
+                    weeklySubjects = weeklySubjects,
+                    weeklyFocusMinutes = weeklyFocusMinutes
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+    [HttpPost]
+    [Route("Dashboard/RecordFocusSession")]
+    public async Task<IActionResult> RecordFocusSession([FromBody] UserActivity request)
+    {
+        try
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
+            {
+                return Json(new { success = false, error = "Not authenticated" });
+            }
+
+            if (request.Duration <= 0)
+            {
+                 return Json(new { success = false, error = "Invalid duration" });
+            }
+
+            var activity = new UserActivity
+            {
+                UserId = userId.Value,
+                ActivityType = "focus_session",
+                SubjectName = string.IsNullOrWhiteSpace(request.SubjectName) ? "General Focus" : request.SubjectName,
+                Duration = request.Duration,
+                Timestamp = DateTime.UtcNow
+            };
+
+            _context.UserActivities.Add(activity);
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = "Focus session recorded" });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, error = ex.Message });
+        }
     }
 }
+}
+

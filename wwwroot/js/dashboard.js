@@ -422,10 +422,60 @@ document.addEventListener('DOMContentLoaded', () => {
                     liEmpty.textContent = 'No students yet';
                     studentsUl.appendChild(liEmpty);
                 } else {
+                    const teacherData = teacher; // capture closure
                     students.forEach(s => {
                         const liItem = document.createElement('li');
-                        liItem.className = 'list-group-item';
-                        liItem.textContent = `${s.name} (${s.email})`;
+                        liItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+                        // Student Info
+                        const divInfo = document.createElement('div');
+                        divInfo.innerHTML = `${s.name} <small class="text-muted">(${s.email})</small>`;
+                        liItem.appendChild(divInfo);
+
+                        // Actions (only for owner)
+                        const userUserDropdown = document.getElementById('user-dropdown');
+                        const currentLoggedInId = parseInt(userUserDropdown?.getAttribute('data-user-id') || '0', 10);
+                        const iAmOwner = teacherData && (teacherData.id === currentLoggedInId);
+
+                        if (iAmOwner) {
+                            const divActions = document.createElement('div');
+                            divActions.className = 'd-flex gap-2';
+
+                            // Progress Button
+                            const btnProgress = document.createElement('button');
+                            btnProgress.className = 'btn btn-sm btn-outline-info';
+                            btnProgress.innerHTML = '<i class="bi bi-graph-up"></i>';
+                            btnProgress.title = "View Progress";
+                            btnProgress.onclick = (e) => {
+                                e.stopPropagation();
+                                if (typeof window.viewStudentProgress === 'function') {
+                                    window.viewStudentProgress(s.id, s.name);
+                                } else {
+                                    alert('Progress function not ready');
+                                }
+                            };
+                            divActions.appendChild(btnProgress);
+
+                            // Remove Button
+                            const btnRemove = document.createElement('button');
+                            btnRemove.className = 'btn btn-sm btn-outline-danger';
+                            btnRemove.innerHTML = '<i class="bi bi-person-x"></i>';
+                            btnRemove.title = "Remove Student";
+                            btnRemove.onclick = async (e) => {
+                                e.stopPropagation();
+                                if (typeof window.removeStudent === 'function') {
+                                    await window.removeStudent(id, s.id, s.name);
+                                    // Refresh list? The handler usually handles UI update or reload
+                                    // But we might need to reload class details here if removeStudent doesn't auto-reload
+                                    // Re-trigger click to reload details is easiest or just expect removeStudent to handle it
+                                    // Ideally removeStudent should return success/fail
+                                }
+                            };
+                            divActions.appendChild(btnRemove);
+
+                            liItem.appendChild(divActions);
+                        }
+
                         studentsUl.appendChild(liItem);
                     });
                 }
@@ -1095,6 +1145,33 @@ function startTimer() {
         if (TIMER.remainingMs <= 0) {
             stopTimerInterval();
             TIMER.running = false;
+
+            // Record focus session
+            const durationMinutes = Math.round(TIMER.durationMs / 60000);
+            if (durationMinutes > 0) {
+                fetch('/Dashboard/RecordFocusSession', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        duration: durationMinutes,
+                        subjectName: 'Focus Session', // Could be dynamic if we add subject selection to timer
+                        activityType: 'focus_session'
+                    })
+                }).then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('Focus session recorded:', durationMinutes + ' min');
+                            // Reload progress if panel is open
+                            if (typeof loadProgressData === 'function') loadProgressData();
+                        }
+                    })
+                    .catch(err => console.error('Error recording focus session:', err));
+            }
+
+            // Play notification sound
+            const audio = new Audio('/sounds/alarm.mp3'); // Ensure this file exists or use a default
+            audio.play().catch(e => console.log('Audio play failed', e));
+            alert("Time's up! Great focus session.");
         }
     }, 250);
 }
@@ -3124,11 +3201,16 @@ document.addEventListener('DOMContentLoaded', function () {
         currentClassId = parseInt(classSelect.value || '0', 10) || 0;
         chatList.innerHTML = '';
         lastMsgId = 0;
+
+        const chatArea = document.getElementById('chat-area');
         if (!currentClassId) {
             chatEmpty.style.display = '';
             chatList.style.display = 'none';
+            if (chatArea) chatArea.style.display = 'none'; // Hide chat area when no class selected
             return;
         }
+
+        if (chatArea) chatArea.style.display = ''; // Show chat area when class is selected
         await loadMessages(true);
     });
 
@@ -5202,4 +5284,129 @@ window.__setClassDetailsActiveTab = function (tabId) {
             }
         }
     });
+};
+// ===== Translation Tool =====
+document.addEventListener('DOMContentLoaded', () => {
+    const translateBtn = document.getElementById('translation-translate-btn');
+    const inputTextarea = document.getElementById('translation-input');
+    const targetLangSelect = document.getElementById('translation-target-lang');
+    const resultContainer = document.getElementById('translation-result-container');
+    const resultDiv = document.getElementById('translation-result');
+    const errorDiv = document.getElementById('translation-error');
+
+    if (translateBtn) {
+        translateBtn.addEventListener('click', async () => {
+            const text = inputTextarea?.value?.trim();
+            const targetLang = targetLangSelect?.value || 'en';
+
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+                errorDiv.textContent = '';
+            }
+            if (resultContainer) resultContainer.style.display = 'none';
+
+            if (!text) {
+                if (errorDiv) {
+                    errorDiv.textContent = 'Please enter text to translate';
+                    errorDiv.style.display = '';
+                }
+                return;
+            }
+
+            translateBtn.disabled = true;
+            const originalText = translateBtn.innerHTML;
+            translateBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Translating...';
+
+            try {
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error('Translation service unavailable');
+                }
+
+                const data = await response.json();
+                let translatedText = '';
+                if (data && data[0]) {
+                    for (let i = 0; i < data[0].length; i++) {
+                        if (data[0][i][0]) {
+                            translatedText += data[0][i][0];
+                        }
+                    }
+                }
+
+                if (!translatedText) {
+                    throw new Error('Translation failed');
+                }
+
+                if (resultDiv) resultDiv.textContent = translatedText;
+                if (resultContainer) resultContainer.style.display = '';
+
+            } catch (error) {
+                if (errorDiv) {
+                    errorDiv.textContent = error.message || 'Translation failed. Please try again.';
+                    errorDiv.style.display = '';
+                }
+            } finally {
+                translateBtn.disabled = false;
+                translateBtn.innerHTML = originalText;
+            }
+        });
+    }
+});
+
+// ===== Student Management Functions for Teachers =====
+
+window.removeStudent = async function (classId, studentId, studentName) {
+    if (!confirm(`Are you sure you want to remove ${studentName} from this class?`)) return;
+
+    try {
+        const response = await fetch('/Classes/RemoveMember', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classId: classId, userId: studentId })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Reload list using existing mechanism if possible
+            const btn = document.querySelector('[onclick="openClassesInlinePanel(event)"]');
+            if (btn) btn.click();
+
+            // Also close details to refresh state if needed, or just let the reload handle it
+            // Ideally we should reload the class details directly.
+            // But triggering the main classes panel open will reload the list, 
+            // verifying the student is gone from the count.
+            // To be safe, let's also close the class details panel
+            const details = document.getElementById('class-details-panel');
+            if (details) details.classList.remove('show');
+            const classesPanel = document.getElementById('classes-panel');
+            if (classesPanel) classesPanel.classList.add('show');
+
+        } else {
+            alert(data.error || 'Failed to remove student');
+        }
+    } catch (error) {
+        console.error('Error removing student:', error);
+        alert('An error occurred while removing the student');
+    }
+};
+
+window.viewStudentProgress = function (studentId, studentName) {
+    const panel = document.getElementById('tools-progress-panel');
+    if (panel) {
+        // Ensure panel is visible
+        if (!panel.classList.contains('show')) {
+            panel.classList.add('show');
+            // Also ensure it's positioned correctly if falling back to default styling
+            // But usually styling handles it.
+        }
+
+        const headerSpan = panel.querySelector('.dropdown-header span');
+        if (headerSpan) headerSpan.innerHTML = `Progress: <strong>${studentName}</strong>`;
+
+        // Pass studentId to loadProgressData
+        if (typeof loadProgressData === 'function') loadProgressData(studentId);
+    }
 };
