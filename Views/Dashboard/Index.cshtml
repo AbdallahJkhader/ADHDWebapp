@@ -38,25 +38,6 @@
 <body class="dashboard-page">
 
 
-    <div class="modal fade" id="allNotificationsModal" tabindex="-1" aria-labelledby="allNotificationsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="allNotificationsModalLabel">All Notifications</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body" id="all-notifications-list">
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-bell-slash fs-1"></i>
-                        <p class="mt-2">No notifications yet.</p>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <div class="top-nav">
         <div class="left-nav d-flex align-items-center">
@@ -209,7 +190,7 @@
                     <!-- Upload New (نفس ستايل الباقي) -->
                     <div class="activity-item" onclick="document.getElementById('file-upload').click()" style="cursor: pointer;">
                         <div class="activity-icon text-primary">
-                            <i class="bi bi-cloud-arrow-up"></i>
+                            <img src="~/images/upload.png" alt="Upload" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Upload New</div>
@@ -219,7 +200,7 @@
 
                     <div class="activity-item" onclick="showMyFiles();" style="cursor: pointer;">
                         <div class="activity-icon">
-                            <i class="bi bi-collection"></i>
+                            <img src="~/images/folder.png" alt="Folder" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">My Files</div>
@@ -229,7 +210,7 @@
 
                     <div class="activity-item" onclick="showRecentFiles();" style="cursor: pointer;">
                         <div class="activity-icon">
-                            <i class="bi bi-stars"></i>
+                            <img src="~/images/recent.png" alt="Recent" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Recent Files</div>
@@ -239,7 +220,7 @@
 
                     <div class="activity-item">
                         <div class="activity-icon">
-                            <i class="bi bi-share"></i>
+                            <img src="~/images/shared.png" alt="Shared" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Shared With Me</div>
@@ -439,13 +420,13 @@
             </div>
 
             <!-- Study Planner panel positioned relative to Tools dropdown (top-left) -->
-            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-planner-panel" dir="ltr" style="direction:ltr;">
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-planner-panel" dir="ltr" style="direction:ltr; min-width: 380px; min-height: 500px;">
                 <div class="dropdown-header">
                     <img src="~/images/Study Planner.png" alt="Study Planner" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
                     <span>Study Planner</span>
                 </div>
                 <div class="dropdown-divider"></div>
-                <div class="px-3 py-2" style="width:380px; max-height:500px; overflow-y:auto;">
+                <div class="px-3 py-2" style="max-height: 450px; overflow-y:auto;">
                     <!-- Add Session Form -->
                     <div class="mb-3" id="planner-form-container">
                         <button class="btn btn-primary btn-sm w-100 mb-2" id="planner-toggle-form-btn">
@@ -577,11 +558,7 @@
                                 </div>
                             </div>
                             
-                            <div class="text-center mt-3 pt-3 border-top">
-                                <a href="#" class="small text-primary fw-medium" data-bs-toggle="modal" data-bs-target="#allNotificationsModal">
-                                    View all notifications <i class="bi bi-arrow-right ms-1"></i>
-                                </a>
-                            </div>
+
                         </div>
                     </div>
 
@@ -726,26 +703,26 @@
                                     <div class="cls-section mb-3">
                                         <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Analytics & Tools</div>
                                         <div class="d-flex flex-column gap-2 mb-3">
-                                             <button type="button" class="btn btn-sm btn-outline-primary w-100 rounded-pill text-start px-3" onclick="alert('Overall analytics coming soon')">
+                                             <button type="button" id="btn-cls-analytics" class="btn btn-sm btn-outline-primary w-100 rounded-pill text-start px-3">
                                                 <i class="bi bi-graph-up-arrow"></i> Overall Student Analytics
                                             </button>
                                              <!-- For Teachers -->
                                              @if ((ViewBag.Role as string) == "Teacher")
                                              {
-                                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3" onclick="alert('Class settings coming soon')">
-                                                    <i class="bi bi-gear"></i> Class Settings
+                                                 <button type="button" id="btn-cls-privacy" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3">
+                                                    <i class="bi bi-shield-lock"></i> Class Privacy
                                                  </button>
-                                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3" onclick="alert('Export report coming soon')">
-                                                    <i class="bi bi-file-earmark-spreadsheet"></i> Export Participation
+                                                 <button type="button" id="btn-cls-invite" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3">
+                                                    <i class="bi bi-person-plus"></i> Invite Member
                                                  </button>
                                              }
                                              <!-- For Students -->
                                              @if ((ViewBag.Role as string) == "Student")
                                              {
-                                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3" onclick="alert('Teacher contact coming soon')">
+                                                 <button type="button" id="btn-cls-contact" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3">
                                                     <i class="bi bi-envelope"></i> Contact Teacher
                                                  </button>
-                                                 <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3" onclick="alert('My performance coming soon')">
+                                                 <button type="button" id="btn-cls-performance" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3">
                                                     <i class="bi bi-speedometer2"></i> My Performance
                                                  </button>
                                              }
@@ -767,14 +744,20 @@
                     </div>
 
                     <!-- Members Panel (Inline from Class Details button) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-members-panel" dir="ltr" style="direction:ltr; min-width: 300px;" data-width="320">
-                        <div class="dropdown-header d-flex justify-content-between align-items-center">
-                            <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-members-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details"><i class="bi bi-arrow-left fs-5"></i></button>
-                            <span><i class="bi bi-people me-2"></i>Class Members</span>
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-members-panel" dir="ltr" style="direction:ltr; min-width: 380px; min-height: 500px;" data-width="380">
+                        <div class="class-details-banner"></div> <!-- Added banner for consistency -->
+                        <div class="class-details-content px-4 pb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-members-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details">
+                                    <i class="bi bi-arrow-left fs-5"></i>
+                                </button>
+                                <span class="fw-bold text-primary"><i class="bi bi-people me-2"></i>Class Members</span>
+                                <div style="width: 24px;"></div> <!-- Spacer -->
+                            </div>
                             <div style="width: 24px;"></div>
                         </div>
                         <div class="dropdown-divider m-0"></div>
-                        <div class="p-0" style="max-height: 400px; overflow-y: auto;">
+                        <div class="p-0" style="max-height: 75vh; overflow-y: auto;">
                             <!-- Search/Filter can go here -->
                             <ul id="cls-members-list" class="list-group list-group-flush small"></ul>
                         </div>
@@ -805,6 +788,155 @@
                         </div>
                     </div>
 
+                    <!-- Privacy Panel (Inline from Class Details Options) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-privacy-panel" dir="ltr" style="direction:ltr; min-width: 360px;" data-width="360">
+                        <div class="class-details-banner"></div>
+                        <div class="class-details-content px-4 pb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-privacy-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details">
+                                    <i class="bi bi-arrow-left fs-5"></i>
+                                </button>
+                                <span class="fw-bold text-primary"><i class="bi bi-shield-lock me-2"></i>Class Privacy</span>
+                                <div style="width: 24px;"></div> <!-- Spacer -->
+                            </div>
+
+                            <div class="dropdown-divider mb-3"></div>
+
+                            <!-- Current Status -->
+                            <div class="mb-4">
+                                <div class="d-flex align-items-center justify-content-between p-3 border rounded-3 bg-light">
+                                    <div>
+                                        <div class="fw-medium">Allow New Members</div>
+                                        <small class="text-muted">Control who can join this class</small>
+                                    </div>
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="cls-privacy-toggle" style="width: 3em; height: 1.5em; cursor: pointer;">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Join Code Display -->
+                            <div class="mb-4">
+                                <label class="form-label small fw-medium text-muted">Join Code</label>
+                                <div class="p-3 border rounded-3 bg-white text-center">
+                                    <div class="display-6 fw-bold text-primary tracking-wider" id="cls-privacy-code">------</div>
+                                    <small class="text-muted d-block mt-2" id="cls-privacy-status">Loading...</small>
+                                </div>
+                            </div>
+
+                            <!-- Privacy Info -->
+                            <div class="alert alert-info small mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <span id="cls-privacy-info">
+                                    When enabled, anyone with the join code can join this class. When disabled, new members cannot join.
+                                </span>
+                            </div>
+
+                            <!-- Save Button -->
+                            <button type="button" class="btn btn-primary w-100" id="cls-privacy-save-btn">
+                                <i class="bi bi-check-lg me-2"></i>Save Changes
+                            </button>
+
+                            <div class="text-danger small mt-2" id="cls-privacy-error" style="display:none;"></div>
+                            <div class="text-success small mt-2" id="cls-privacy-success" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Panel -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-analytics-panel" dir="ltr" style="direction:ltr; min-width: 400px;" data-width="400">
+                        <div class="class-details-banner"></div>
+                        <div class="class-details-content px-4 pb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-analytics-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back">
+                                    <i class="bi bi-arrow-left fs-5"></i>
+                                </button>
+                                <span class="fw-bold text-primary"><i class="bi bi-graph-up-arrow me-2"></i>Class Analytics</span>
+                                <div style="width: 24px;"></div>
+                            </div>
+                            <div class="dropdown-divider mb-3"></div>
+                            
+                            <!-- Stats Cards -->
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body p-2 text-center">
+                                            <div class="h4 mb-0 text-primary" id="analytics-total-students">0</div>
+                                            <small class="text-muted">Students</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body p-2 text-center">
+                                            <div class="h4 mb-0 text-success" id="analytics-total-minutes">0</div>
+                                            <small class="text-muted">Focus Mins</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body p-2 text-center">
+                                            <div class="h4 mb-0 text-info" id="analytics-total-sessions">0</div>
+                                            <small class="text-muted">Sessions</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="card border-0 bg-light">
+                                        <div class="card-body p-2 text-center">
+                                            <div class="h4 mb-0 text-warning" id="analytics-avg-streak">0</div>
+                                            <small class="text-muted">Avg Streak</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Student List -->
+                            <div class="mb-2"><small class="fw-medium text-muted">Student Progress</small></div>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                <ul id="analytics-students-list" class="list-group list-group-flush small"></ul>
+                            </div>
+                            <div class="text-danger small mt-2" id="analytics-error" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Invite Panel -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-invite-panel" dir="ltr" style="direction:ltr; min-width: 380px;" data-width="380">
+                        <div class="class-details-banner"></div>
+                        <div class="class-details-content px-4 pb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-invite-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back">
+                                    <i class="bi bi-arrow-left fs-5"></i>
+                                </button>
+                                <span class="fw-bold text-primary"><i class="bi bi-person-plus me-2"></i>Invite Members</span>
+                                <div style="width: 24px;"></div>
+                            </div>
+                            <div class="dropdown-divider mb-3"></div>
+
+                            <!-- Search -->
+                            <div class="mb-3">
+                                <label class="form-label small fw-medium">Search by Email</label>
+                                <div class="input-group">
+                                    <input type="email" class="form-control" id="invite-search-input" placeholder="user@example.com">
+                                    <button class="btn btn-primary" type="button" id="invite-search-btn">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Results -->
+                            <div id="invite-results-container" style="display:none;">
+                                <div class="mb-2"><small class="fw-medium text-muted">Search Results</small></div>
+                                <div style="max-height: 300px; overflow-y: auto;">
+                                    <ul id="invite-results-list" class="list-group list-group-flush small"></ul>
+                                </div>
+                            </div>
+
+                            <div class="text-danger small mt-2" id="invite-error" style="display:none;"></div>
+                            <div class="text-success small mt-2" id="invite-success" style="display:none;"></div>
+                        </div>
+                    </div>
+
                     <!-- Profile Panel -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="profile-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
                         <div class="profile-banner"></div>
@@ -827,7 +959,7 @@
 
                             <div class="profile-stats d-flex justify-content-center gap-4 mb-4">
                                 <div class="profile-stat-item">
-                                    <div class="h5 mb-0 fw-bold text-primary">0</div>
+                                    <div class="h5 mb-0 fw-bold text-primary">@ViewBag.Streak</div>
                                     <div class="small text-muted">Streak</div>
                                 </div>
                                 <div class="profile-stat-item">
@@ -1814,7 +1946,11 @@
         };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="~/js/dashboard.js"></script>
     <script src="~/js/planner.js"></script>
+    <script src="~/js/class_options.js" asp-append-version="true"></script>
+    <script src="~/js/class_listeners.js" asp-append-version="true"></script>
 </body>
 </html>

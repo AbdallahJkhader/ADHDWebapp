@@ -19,6 +19,7 @@ namespace ADHDWebApp.Data
         public DbSet<Flashcard> Flashcards { get; set; }
         public DbSet<StudySession> StudySessions { get; set; }
         public DbSet<UserActivity> UserActivities { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -11,6 +11,7 @@ namespace ADHDWebApp.Models
         public int OwnerId { get; set; }
         public User? Owner { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public bool AllowJoin { get; set; } = true;
 
         public List<ClassMembership> Members { get; set; } = new List<ClassMembership>();
     }

@@ -1,4 +1,5 @@
 ﻿using ADHDWebApp.Data;
+using ADHDWebApp.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,8 +9,17 @@ builder.Services.AddControllersWithViews();
 
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer("Server=DESKTOP-7AL3KF4\\SQLEXPRESS;Database=ADHDwebDB;Trusted_Connection=True;TrustServerCertificate=True;Max Pool Size=100;"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Register Services
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IClassesService, ClassesService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IFlashcardService, FlashcardService>();
+builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddScoped<ISharedFileService, SharedFileService>();
+builder.Services.AddScoped<IStudyPlannerService, StudyPlannerService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ADHDWebApp.Data;
 using ADHDWebApp.Models;
+using ADHDWebApp.Services;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,82 +9,52 @@ namespace ADHDWebApp.Controllers
 {
     public class StudyPlannerController : Controller
     {
-        private readonly AppDbContext _context;
+        private readonly IStudyPlannerService _plannerService;
 
-        public StudyPlannerController(AppDbContext context)
+        public StudyPlannerController(IStudyPlannerService plannerService)
         {
-            _context = context;
+            _plannerService = plannerService;
         }
 
         // GET: Get all study sessions for the current user
         [HttpGet]
         public async Task<IActionResult> GetSessions()
         {
-            try
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
             {
-                var userId = HttpContext.Session.GetInt32("UserId");
-                if (userId == null)
-                {
-                    return Json(new { success = false, error = "Not authenticated" });
-                }
-
-                var sessions = await _context.StudySessions
-                    .Where(s => s.UserId == userId.Value)
-                    .OrderBy(s => s.StartTime)
-                    .Select(s => new
-                    {
-                        s.Id,
-                        s.Title,
-                        s.Description,
-                        s.SubjectName,
-                        StartTime = s.StartTime.ToString("yyyy-MM-ddTHH:mm"),
-                        EndTime = s.EndTime.ToString("yyyy-MM-ddTHH:mm"),
-                        s.IsCompleted,
-                        s.CreatedAt
-                    })
-                    .ToListAsync();
-
-                return Json(new { success = true, sessions });
+                return Json(new { success = false, error = "Not authenticated" });
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+
+            var result = await _plannerService.GetSessionsAsync(userId.Value);
+            
+            if (result.Success)
+                 return Json(new { success = true, sessions = result.Sessions });
+            
+            return Json(new { success = false, error = result.Error });
         }
 
         // POST: Add new study session
         [HttpPost]
         public async Task<IActionResult> AddSession([FromBody] StudySessionRequest request)
         {
-            try
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
             {
-                var userId = HttpContext.Session.GetInt32("UserId");
-                if (userId == null)
-                {
-                    return Json(new { success = false, error = "Not authenticated" });
-                }
+                return Json(new { success = false, error = "Not authenticated" });
+            }
 
-                if (string.IsNullOrWhiteSpace(request.Title))
-                {
-                    return Json(new { success = false, error = "Title is required" });
-                }
+            if (request == null || string.IsNullOrWhiteSpace(request.Title))
+            {
+                return Json(new { success = false, error = "Title is required" });
+            }
 
-                var session = new StudySession
-                {
-                    UserId = userId.Value,
-                    Title = request.Title,
-                    Description = request.Description,
-                    SubjectName = request.SubjectName,
-                    StartTime = request.StartTime,
-                    EndTime = request.EndTime,
-                    IsCompleted = false,
-                    CreatedAt = DateTime.Now
-                };
+            var result = await _plannerService.AddSessionAsync(userId.Value, request.Title, request.Description, request.SubjectName, request.StartTime, request.EndTime);
 
-                _context.StudySessions.Add(session);
-                await _context.SaveChangesAsync();
-
-                return Json(new
+            if (result.Success && result.Session != null)
+            {
+                var session = result.Session;
+                 return Json(new
                 {
                     success = true,
                     session = new
@@ -100,108 +69,71 @@ namespace ADHDWebApp.Controllers
                     }
                 });
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+
+            return Json(new { success = false, error = result.Error });
         }
 
         // POST: Update study session
         [HttpPost]
         public async Task<IActionResult> UpdateSession([FromBody] StudySessionUpdateRequest request)
         {
-            try
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
             {
-                var userId = HttpContext.Session.GetInt32("UserId");
-                if (userId == null)
-                {
-                    return Json(new { success = false, error = "Not authenticated" });
-                }
-
-                var session = await _context.StudySessions
-                    .FirstOrDefaultAsync(s => s.Id == request.Id && s.UserId == userId.Value);
-
-                if (session == null)
-                {
-                    return Json(new { success = false, error = "Session not found" });
-                }
-
-                session.Title = request.Title;
-                session.Description = request.Description;
-                session.SubjectName = request.SubjectName;
-                session.StartTime = request.StartTime;
-                session.EndTime = request.EndTime;
-
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, message = "Session updated successfully" });
+                return Json(new { success = false, error = "Not authenticated" });
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+
+            if (request == null)
+                 return Json(new { success = false, error = "Invalid data" });
+
+            var result = await _plannerService.UpdateSessionAsync(userId.Value, request.Id, request.Title, request.Description, request.SubjectName, request.StartTime, request.EndTime);
+
+            if (result.Success)
+                 return Json(new { success = true, message = "Session updated successfully" });
+
+            return Json(new { success = false, error = result.Error });
         }
 
         // POST: Delete study session
         [HttpPost]
         public async Task<IActionResult> DeleteSession([FromBody] DeleteSessionRequest request)
         {
-            try
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
             {
-                var userId = HttpContext.Session.GetInt32("UserId");
-                if (userId == null)
-                {
-                    return Json(new { success = false, error = "Not authenticated" });
-                }
-
-                var session = await _context.StudySessions
-                    .FirstOrDefaultAsync(s => s.Id == request.Id && s.UserId == userId.Value);
-
-                if (session == null)
-                {
-                    return Json(new { success = false, error = "Session not found" });
-                }
-
-                _context.StudySessions.Remove(session);
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, message = "Session deleted successfully" });
+                return Json(new { success = false, error = "Not authenticated" });
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+
+            if (request == null)
+                 return Json(new { success = false, error = "Invalid data" });
+
+            var result = await _plannerService.DeleteSessionAsync(userId.Value, request.Id);
+
+            if (result.Success)
+                 return Json(new { success = true, message = "Session deleted successfully" });
+
+            return Json(new { success = false, error = result.Error });
         }
 
         // POST: Mark session as complete/incomplete
         [HttpPost]
         public async Task<IActionResult> MarkComplete([FromBody] MarkCompleteRequest request)
         {
-            try
+             var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null)
             {
-                var userId = HttpContext.Session.GetInt32("UserId");
-                if (userId == null)
-                {
-                    return Json(new { success = false, error = "Not authenticated" });
-                }
-
-                var session = await _context.StudySessions
-                    .FirstOrDefaultAsync(s => s.Id == request.Id && s.UserId == userId.Value);
-
-                if (session == null)
-                {
-                    return Json(new { success = false, error = "Session not found" });
-                }
-
-                session.IsCompleted = request.IsCompleted;
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, message = "Session status updated" });
+                return Json(new { success = false, error = "Not authenticated" });
             }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+
+            if (request == null)
+                 return Json(new { success = false, error = "Invalid data" });
+
+            var result = await _plannerService.MarkCompleteAsync(userId.Value, request.Id, request.IsCompleted);
+
+            if (result.Success)
+                 return Json(new { success = true, message = "Session status updated" });
+
+            return Json(new { success = false, error = result.Error });
         }
 
         // Request classes

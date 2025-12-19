@@ -1,32 +1,28 @@
-using ADHDWebApp.Data;
 using ADHDWebApp.Models;
-using DocumentFormat.OpenXml.Packaging; 
-using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Canvas.Parser;
+using ADHDWebApp.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
+
 using System.Net;
-using System.Net.Http.Headers;
-using System.Text;
-
-
-
+using Microsoft.AspNetCore.Hosting;
 
 namespace ADHDWebApp.Controllers
 {
     public class DashboardController : Controller
     {
-        private readonly AppDbContext _context;
+        private readonly IDashboardService _dashboardService;
+        private readonly IClassesService _classesService;
         private readonly IConfiguration _config;
+        private readonly IWebHostEnvironment _env;
 
-        public DashboardController(AppDbContext context, IConfiguration config)
+        public DashboardController(IDashboardService dashboardService, IClassesService classesService, IConfiguration config, IWebHostEnvironment env)
         {
-            _context = context;
+            _dashboardService = dashboardService;
+            _classesService = classesService;
             _config = config;
+            _env = env;
         }
 
-      
         public class SummarizeRequest { public string? Text { get; set; } }
 
         [HttpPost]
@@ -46,89 +42,27 @@ namespace ADHDWebApp.Controllers
                 var lastStr = HttpContext.Session.GetString("SummarizeLastAt");
                 if (DateTime.TryParse(lastStr, out var lastAt))
                 {
-                    // Ensure robust comparison by converting to UTC if parsed as Local
                     if (lastAt.Kind == DateTimeKind.Local) lastAt = lastAt.ToUniversalTime();
-                    
                     var diff = now - lastAt;
-                    // If lastAt is in the future (negative diff), treat as invalid/expired -> allow request
-                    if (diff.TotalSeconds >= 0) 
+                    if (diff.TotalSeconds >= 0 && diff.TotalSeconds < 5)
                     {
-                        const int CooldownSeconds = 5;
-                        if (diff.TotalSeconds < CooldownSeconds)
-                        {
-                            var remaining = Math.Ceiling(CooldownSeconds - diff.TotalSeconds);
-                            Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
-                            return Json(new { success = false, error = $"Please wait {remaining} seconds before trying again." });
-                        }
+                        var remaining = Math.Ceiling(5 - diff.TotalSeconds);
+                        Response.StatusCode = (int)HttpStatusCode.TooManyRequests;
+                        return Json(new { success = false, error = $"Please wait {remaining} seconds before trying again." });
                     }
                 }
                 HttpContext.Session.SetString("SummarizeLastAt", now.ToString("o"));
 
-                // Prefer appsettings (Groq:ApiKey), fall back to environment variable only if not set.
-                var apiKey = _config["Groq:ApiKey"]
-                             ?? Environment.GetEnvironmentVariable("GROQ_API_KEY");
-                if (string.IsNullOrWhiteSpace(apiKey))
-                    return Json(new { success = false, error = "Groq API key not configured" });
+                var apiKey = _config["Groq:ApiKey"] ?? Environment.GetEnvironmentVariable("GROQ_API_KEY");
+                var model = _config["Groq:Model"];
+                var baseUrl = _config["Groq:BaseUrl"];
 
-                var text = req.Text;
-                const int MAX_CHARS = 12000; 
-                if (text.Length > MAX_CHARS) text = text.Substring(0, MAX_CHARS);
-
-                var http = new HttpClient();
-                http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
-                var payload = new
-                {
-                    model = _config["Groq:Model"] ?? "llama-3.3-70b-versatile",
-                    temperature = 0.3,
-                    messages = new object[]
-                    {
-                        new { role = "system", content = "You are a helpful assistant that writes concise, clear summaries." },
-                        new { role = "user", content = "Summarize the following text in bullet points and keep it concise:\n\n" + text }
-                    }
-                };
-
-                var json = JsonSerializer.Serialize(payload);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                HttpResponseMessage? resp = null;
-                string? respBody = null;
-                const int maxAttempts = 3;
-                var endpoint = _config["Groq:BaseUrl"] ?? "https://api.groq.com/openai/v1/chat/completions";
-
-                for (int attempt = 1; attempt <= maxAttempts; attempt++)
-                {
-                    resp = await http.PostAsync(endpoint, content);
-                    if (resp.StatusCode == HttpStatusCode.TooManyRequests || resp.StatusCode == HttpStatusCode.ServiceUnavailable)
-                    {
-                        var retryAfter = resp.Headers.RetryAfter?.Delta ?? TimeSpan.Zero;
-                        var delay = retryAfter > TimeSpan.Zero ? retryAfter : TimeSpan.FromMilliseconds(Math.Pow(2, attempt - 1) * 1000);
-                        await Task.Delay(delay);
-                        content = new StringContent(json, Encoding.UTF8, "application/json");
-                        continue;
-                    }
-                    break;
-                }
-
-                respBody = await (resp?.Content.ReadAsStringAsync() ?? Task.FromResult(string.Empty));
-                if (resp == null || !resp.IsSuccessStatusCode)
-                {
-                    var is429 = resp?.StatusCode == HttpStatusCode.TooManyRequests;
-                    var msg = is429
-                        ? "Rate limit exceeded. Please wait a few seconds and try again."
-                        : $"Groq error: {(int)(resp?.StatusCode ?? 0)} {resp?.ReasonPhrase}. Details: {respBody}";
-                    return Json(new { success = false, error = msg, body = respBody });
-                }
-                using var doc = JsonDocument.Parse(respBody);
-                var root = doc.RootElement;
-                string? summary = null;
-                try
-                {
-                    summary = root.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
-                }
-                catch { summary = null; }
-                if (string.IsNullOrWhiteSpace(summary)) summary = "No summary produced.";
-                return Json(new { success = true, summary });
+                var result = await _dashboardService.SummarizeTextAsync(req.Text, apiKey, model, baseUrl);
+                
+                if (result.Success)
+                     return Json(new { success = true, summary = result.Summary });
+                
+                return Json(new { success = false, error = result.Error });
             }
             catch (Exception ex)
             {
@@ -139,12 +73,8 @@ namespace ADHDWebApp.Controllers
         [HttpPost]
         public async Task<IActionResult> UploadAvatar(IFormFile avatar)
         {
-            var userEmail = HttpContext.Session.GetString("UserEmail");
-            if (string.IsNullOrEmpty(userEmail))
-            {
-                TempData["Error"] = "Please log in to update your profile.";
-                return RedirectToAction("Login", "Account");
-            }
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return RedirectToAction("Login", "Account");
 
             if (avatar == null || avatar.Length == 0)
             {
@@ -156,130 +86,114 @@ namespace ADHDWebApp.Controllers
             var allowed = new HashSet<string> { ".png", ".jpg", ".jpeg", ".webp" };
             if (!allowed.Contains(ext))
             {
-                TempData["Error"] = "Unsupported image type. Allowed: PNG, JPG, JPEG, WEBP.";
+                TempData["Error"] = "Unsupported image type.";
                 return RedirectToAction("Index");
             }
 
-            try
+            using (var stream = avatar.OpenReadStream())
             {
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null)
-                {
-                    TempData["Error"] = "User not found.";
-                    return RedirectToAction("Index");
-                }
-
-                var avatarsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
-                if (!Directory.Exists(avatarsFolder)) Directory.CreateDirectory(avatarsFolder);
-
-                foreach (var e in new[] { ".png", ".jpg", ".jpeg", ".webp" })
-                {
-                    var existing = Path.Combine(avatarsFolder, $"user_{user.Id}{e}");
-                    if (System.IO.File.Exists(existing)) System.IO.File.Delete(existing);
-                }
-
-                var targetPath = Path.Combine(avatarsFolder, $"user_{user.Id}{ext}");
-                using (var fs = new FileStream(targetPath, FileMode.Create))
-                {
-                    await avatar.CopyToAsync(fs);
-                }
-
-                TempData["Success"] = "Profile image updated.";
-                return RedirectToAction("Index");
+                var result = await _dashboardService.UpdateAvatarAsync(sessionUserId.Value, ext, stream, _env.WebRootPath);
+                if (result.Success)
+                    TempData["Success"] = "Profile image updated.";
+                else
+                    TempData["Error"] = result.Error;
             }
-            catch (Exception ex)
-            {
-                TempData["Error"] = $"Error uploading image: {ex.Message}";
-                return RedirectToAction("Index");
-            }
+
+            return RedirectToAction("Index");
         }
 
         public async Task<IActionResult> IndexAsync()
         {
-            try
+            var userEmail = HttpContext.Session.GetString("UserEmail");
+            var fullName = HttpContext.Session.GetString("FullName");
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+
+            if (string.IsNullOrEmpty(userEmail) || sessionUserId == null)
             {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                var fullName = HttpContext.Session.GetString("FullName");
-
-                if (string.IsNullOrEmpty(userEmail) || string.IsNullOrEmpty(fullName))
-                {
-                    TempData["Error"] = "Please log in to access the dashboard.";
-                    return RedirectToAction("Login", "Account");
-                }
-
-                if (TempData["UploadedText"] != null)
-                {
-                    ViewBag.ShowLeftPanel = true;
-                    ViewBag.UploadedText = TempData["UploadedText"];
-                    ViewBag.FileName = TempData["FileName"];
-                    ViewBag.FileId = TempData["FileId"];
-                }
-                
-                if (TempData["ShowLeftPanel"] != null)
-                {
-                    ViewBag.ShowLeftPanel = TempData["ShowLeftPanel"].ToString() == "true";
-                }
-
-                ViewBag.UserEmail = userEmail;
-                ViewBag.FullName = fullName;
-
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                List<UserFile> userFiles = new List<UserFile>();
-                
-                if (user != null)
-                {
-                    userFiles = await _context.UserFiles
-                        .Where(f => f.UserId == user.Id && !f.ContentType.StartsWith("audio/"))
-                        .OrderByDescending(f => f.UploadedAt)
-                        .ToListAsync();
-                }
-                
-                ViewBag.UserFiles = userFiles;
-                ViewBag.UserId = user?.Id ?? 0;
-                ViewBag.Role = user?.Role;
-
-                string? avatarUrl = null;
-                if (user != null)
-                {
-                    var avatarsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
-                    if (!Directory.Exists(avatarsFolder)) Directory.CreateDirectory(avatarsFolder);
-                    var candidates = new[] { 
-                        Path.Combine(avatarsFolder, $"user_{user.Id}.png"),
-                        Path.Combine(avatarsFolder, $"user_{user.Id}.jpg"),
-                        Path.Combine(avatarsFolder, $"user_{user.Id}.jpeg"),
-                        Path.Combine(avatarsFolder, $"user_{user.Id}.webp")
-                    };
-                    var found = candidates.FirstOrDefault(System.IO.File.Exists);
-                    if (found != null)
-                    {
-                        avatarUrl = "/avatars/" + Path.GetFileName(found);
-                    }
-                }
-                ViewBag.AvatarUrl = avatarUrl;
-                ViewBag.DateOfBirth = user?.DateOfBirth;
-
-                return View();
-            }
-            catch (Exception)
-            {
-                TempData["Error"] = "An error occurred while accessing the dashboard. Please try logging in again.";
+                TempData["Error"] = "Please log in.";
                 return RedirectToAction("Login", "Account");
             }
+
+            if (TempData["UploadedText"] != null)
+            {
+                ViewBag.ShowLeftPanel = true;
+                ViewBag.UploadedText = TempData["UploadedText"];
+                ViewBag.FileName = TempData["FileName"];
+                ViewBag.FileId = TempData["FileId"];
+            }
+            if (TempData["ShowLeftPanel"] != null)
+                ViewBag.ShowLeftPanel = TempData["ShowLeftPanel"].ToString() == "true";
+
+            ViewBag.UserEmail = userEmail;
+            ViewBag.FullName = fullName;
+            ViewBag.UserId = sessionUserId.Value;
+            ViewBag.Role = HttpContext.Session.GetString("Role");
+
+            var result = await _dashboardService.GetUserFilesAsync(sessionUserId.Value);
+            ViewBag.UserFiles = result.Success ? result.Files : new List<UserFile>();
+            
+            // Avatar URL logic
+            var avatarsFolder = Path.Combine(_env.WebRootPath, "avatars");
+            string? avatarUrl = null;
+            if (Directory.Exists(avatarsFolder))
+            {
+                var candidates = new[] { ".png", ".jpg", ".jpeg", ".webp" };
+                foreach(var ext in candidates) {
+                    if (System.IO.File.Exists(Path.Combine(avatarsFolder, $"user_{sessionUserId}{ext}"))) {
+                        avatarUrl = $"/avatars/user_{sessionUserId}{ext}";
+                        break;
+                    }
+                }
+            }
+            // Fetch additional profile data
+            var user = await _dashboardService.GetUserAsync(sessionUserId.Value);
+            ViewBag.DateOfBirth = user?.DateOfBirth;
+
+            // Fallback: If Role is missing in session (e.g. old login), use the one from DB
+            if (string.IsNullOrEmpty(ViewBag.Role as string) && user != null)
+            {
+                ViewBag.Role = user.Role;
+                if (!string.IsNullOrEmpty(user.Role)) HttpContext.Session.SetString("Role", user.Role);
+            }
+
+            var progressResult = await _dashboardService.GetProgressAsync(sessionUserId.Value, null);
+            if (progressResult.Success && progressResult.Progress != null)
+            {
+                // Use reflection or dynamic to get Streak if it's an anonymous object
+                // Or simplified: just cast to dynamic
+                dynamic prog = progressResult.Progress;
+                ViewBag.Streak = prog.GetType().GetProperty("streak")?.GetValue(prog, null) ?? 0;
+            }
+            else
+            {
+                ViewBag.Streak = 0;
+            }
+
+            // Files for count
+            var filesResult = await _dashboardService.GetUserFilesAsync(sessionUserId.Value);
+            ViewBag.UserFiles = filesResult.Success ? filesResult.Files : new List<UserFile>(); // Used for count and list
+
+            // Classes for count
+            var classesResult = await _classesService.GetUserClassesAsync(sessionUserId.Value);
+            ViewBag.UserClasses = classesResult.Classes?.Select(c => 
+            {
+                dynamic d = c;
+                return new Class { Id = d.id, Name = d.name };
+            }).ToList() ?? new List<Class>();
+
+            ViewBag.AvatarUrl = avatarUrl;
+            
+            return View();
         }
 
         [HttpPost]
         public async Task<IActionResult> UpdateDateOfBirth(DateTime dob)
         {
-            var userEmail = HttpContext.Session.GetString("UserEmail");
-            if (string.IsNullOrEmpty(userEmail)) return RedirectToAction("Login", "Account");
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return RedirectToAction("Login", "Account");
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-            if (user != null)
-            {
-                user.DateOfBirth = dob;
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "Date of Birth updated.";
-            }
+            await _dashboardService.UpdateDateOfBirthAsync(sessionUserId.Value, dob);
+            TempData["Success"] = "Date of Birth updated.";
             return RedirectToAction("Index");
         }
 
@@ -287,768 +201,244 @@ namespace ADHDWebApp.Controllers
         [Route("Dashboard/DeleteFiles")]
         public async Task<IActionResult> DeleteFiles([FromBody] List<int> ids)
         {
-            try
-            {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                if (string.IsNullOrEmpty(userEmail))
-                    return Json(new { success = false, error = "Not logged in" });
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+             if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
 
-                if (ids == null || ids.Count == 0)
-                    return Json(new { success = false, error = "No files selected" });
-
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null)
-                    return Json(new { success = false, error = "User not found" });
-
-                var files = await _context.UserFiles
-                    .Where(f => f.UserId == user.Id && ids.Contains(f.Id))
-                    .ToListAsync();
-
-                foreach (var file in files)
-                {
-                    try
-                    {
-                        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", file.FilePath.TrimStart('/'));
-                        if (System.IO.File.Exists(fullPath))
-                        {
-                            System.IO.File.Delete(fullPath);
-                        }
-                        _context.UserFiles.Remove(file);
-                    }
-                    catch (Exception)
-                    {
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                return Json(new { success = true, deleted = files.Select(f => f.Id).ToList() });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+            var result = await _dashboardService.DeleteFilesAsync(sessionUserId.Value, ids);
+            if (result.Success) return Json(new { success = true, deleted = ids });
+            return Json(new { success = false, error = result.Error });
         }
-      
 
         [HttpPost]
         public async Task<IActionResult> UploadDocument(IFormFile file)
         {
-            var userEmail = HttpContext.Session.GetString("UserEmail");
-            if (string.IsNullOrEmpty(userEmail))
-            {
-                TempData["Error"] = "Please log in to upload documents.";
-                return RedirectToAction("Login", "Account");
-            }
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return RedirectToAction("Login", "Account");
 
-            if (file == null || file.Length == 0)
-            {
+             if (file == null || file.Length == 0) {
                 TempData["InlineError"] = "No file uploaded.";
                 return RedirectToAction("Index");
             }
 
-            var ext = Path.GetExtension(file.FileName).ToLower();
-            var allowed = new HashSet<string> { ".txt", ".docx", ".pdf", ".png", ".jpg", ".jpeg", ".gif" };
-            if (!allowed.Contains(ext))
-            {
-                TempData["InlineError"] = "Unsupported file type. Allowed: PDF, DOCX, TXT, PNG, JPG, JPEG, GIF.";
-                return RedirectToAction("Index");
+            var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+            
+            var fileName = Path.GetFileName(file.FileName);
+            var filePath = Path.Combine(uploadsFolder, fileName);
+            
+            using (var stream = new FileStream(filePath, FileMode.Create)) {
+                await file.CopyToAsync(stream);
             }
 
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
-
-            var filePath = Path.Combine(uploadsFolder, file.FileName);
-
-            try
-            {
-                // احضار المستخدم من قاعدة البيانات
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null)
-                {
-                    TempData["Error"] = "User not found.";
-                    return RedirectToAction("Index");
-                }
-
-                // التحقق إذا الملف موجود مسبقًا لنفس المستخدم
-                var existingFile = await _context.UserFiles
-                    .FirstOrDefaultAsync(f => f.UserId == user.Id && f.FileName == file.FileName);
-
-                if (existingFile != null)
-                {
-                    return RedirectToAction("ReadandDisplayFile", new { fileId = existingFile.Id });
-                }
-
-                // حفظ الملف على السيرفر
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await file.CopyToAsync(stream);
-                }
-
-                // إنشاء سجل UserFile
-                var userFile = new UserFile
-                {
-                    FileName = file.FileName,
-                    FilePath = "/uploads/" + file.FileName,  // رابط للعرض
-                    ContentType = file.ContentType,
-                    FileSize = file.Length,
-                    UploadedAt = DateTime.Now,
-                    UserId = user.Id,
-                    User = user // <-- Fix: Set the required User property
-                };
-
-                _context.UserFiles.Add(userFile);
-                await _context.SaveChangesAsync();
-
-                return RedirectToAction("ReadandDisplayFile", new { fileId = userFile.Id });
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = $"Error uploading file: {ex.Message}";
-                return RedirectToAction("Index");
-            }
+            var result = await _dashboardService.SaveUserFileAsync(sessionUserId.Value, fileName, "/uploads/" + fileName, file.ContentType, file.Length);
+            
+            if (result.Success)
+                 return RedirectToAction("ReadandDisplayFile", new { fileId = result.FileId });
+            
+            TempData["Error"] = result.Error;
+            return RedirectToAction("Index");
         }
 
         public async Task<IActionResult> ReadandDisplayFile(int fileId)
         {
-            // التحقق من تسجيل دخول المستخدم
-            var userEmail = HttpContext.Session.GetString("UserEmail");
-            if (string.IsNullOrEmpty(userEmail))
-                return RedirectToAction("Login", "Account");
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return RedirectToAction("Login", "Account");
 
-            // جلب الملف من قاعدة البيانات وربطه بالمستخدم الحالي
-            var file = await _context.UserFiles
-                .Include(f => f.User)
-                .FirstOrDefaultAsync(f => f.Id == fileId && f.User.Email == userEmail);
+            var result = await _dashboardService.GetFileContentAsync(sessionUserId.Value, fileId, _env.WebRootPath);
 
-            if (file == null)
-                return NotFound();
+            if (!result.Success) return NotFound();
 
-            // المسار الفعلي للملف
-            var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", file.FilePath.TrimStart('/'));
-            if (!System.IO.File.Exists(fullPath))
-                return NotFound();
-
-            // تحديد نوع العرض
-            var extension = Path.GetExtension(file.FileName).ToLower();
-            string contentText = null;
-            string displayType = "other";
-
-            switch (extension)
-            {
-                case ".txt":
-                    using (var reader = new StreamReader(fullPath))
-                        contentText = await reader.ReadToEndAsync();
-                    break;
-
-                case ".pdf": 
-                    using (var pdfReader = new PdfReader(fullPath))
-                    using (var pdfDoc = new PdfDocument(pdfReader))
-                    {
-                        contentText = "";
-                        for (int i = 1; i <= pdfDoc.GetNumberOfPages(); i++)
-                            contentText += PdfTextExtractor.GetTextFromPage(pdfDoc.GetPage(i)) + "\n";
-                    }
-                    displayType = "text";
-                    break;
-
-                case ".docx":
-                    using (var wordDoc = WordprocessingDocument.Open(fullPath, false))
-                        contentText = wordDoc.MainDocumentPart.Document.Body.InnerText;
-                    displayType = "text";
-                    break;
-
-                case ".jpg":
-                case ".jpeg":
-                case ".png":
-                case ".gif":
-                    displayType = "image";
-                    break;
-
-                default:
-                    displayType = "other";
-                    break;
-            }
-
-            // Set TempData to show the file in the main dashboard
             TempData["ShowLeftPanel"] = "true";
-            TempData["UploadedText"] = contentText;
-            TempData["FileName"] = file.FileName;
-            TempData["FileId"] = file.Id.ToString();
+            TempData["UploadedText"] = result.Content;
+            TempData["FileName"] = result.File!.FileName;
+            TempData["FileId"] = result.File.Id.ToString();
 
-            // Redirect to the main dashboard with file data
             return RedirectToAction("Index");
         }
 
-        // New method to return file content as JSON for AJAX calls
         [HttpGet]
         [Route("Dashboard/GetFileContent")]
-        [Route("Dashboard/GetFileContent/{fileId}")]
         public async Task<IActionResult> GetFileContent(int fileId)
         {
-            // التحقق من تسجيل دخول المستخدم
-            var userEmail = HttpContext.Session.GetString("UserEmail");
-            if (string.IsNullOrEmpty(userEmail))
-                return Json(new { success = false, error = "Not logged in" });
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
 
-            // جلب الملف من قاعدة البيانات وربطه بالمستخدم الحالي
-            var file = await _context.UserFiles
-                .Include(f => f.User)
-                .FirstOrDefaultAsync(f => f.Id == fileId && f.User.Email == userEmail);
+            var result = await _dashboardService.GetFileContentAsync(sessionUserId.Value, fileId, _env.WebRootPath);
+            
+            if (!result.Success) return Json(new { success = false, error = result.Error });
 
-            if (file == null)
-                return Json(new { success = false, error = "File not found" });
+            var url = result.File?.FilePath; 
+            if (!string.IsNullOrEmpty(url) && !url.StartsWith("/")) url = "/" + url;
+            
+            var contentToSend = (result.DisplayType == "text") ? result.Content : url;
 
-            // Record File View Activity
-            try
-            {
-                var activity = new UserActivity
-                {
-                    UserId = file.User.Id, // Use file.User.Id as the user object is not directly retrieved here
-                    ActivityType = "file_view",
-                    SubjectName = file.FileName, // Use filename as subject/context
-                    Timestamp = DateTime.UtcNow,
-                    Duration = 0 // View events might not have duration, or could track "time open" separately
-                };
-                _context.UserActivities.Add(activity);
-                await _context.SaveChangesAsync(); // Use await for async SaveChanges
-            }
-            catch (Exception ex)
-            {
-                 Console.WriteLine("Error recording file view: " + ex.Message);
-            }
-
-            // المسار الفعلي للملف
-            var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", file.FilePath.TrimStart('/'));
-            if (!System.IO.File.Exists(fullPath))
-                return Json(new { success = false, error = "File not found on disk" });
-
-            // تحديد نوع العرض
-            var extension = Path.GetExtension(file.FileName).ToLower();
-            string contentText = null;
-            string displayType = "other";
-            bool truncated = false;
-
-            try
-            {
-                switch (extension)
-                {
-                    case ".txt":
-                        using (var reader = new StreamReader(fullPath))
-                        {
-                            contentText = await reader.ReadToEndAsync();
-                            // Truncate very large text for performance (~200KB)
-                            const int MAX_CHARS = 200_000;
-                            if (contentText?.Length > MAX_CHARS)
-                            {
-                                contentText = contentText.Substring(0, MAX_CHARS);
-                                truncated = true;
-                            }
-                        }
-                        displayType = "text";
-                        break;
-
-                    case ".pdf":
-                        // Return the URL to allow inline PDF viewing in the browser
-                        contentText = Url.Content(file.FilePath);
-                        displayType = "pdf";
-                        break;
-
-                    case ".docx":
-                        using (var wordDoc = WordprocessingDocument.Open(fullPath, false))
-                            contentText = wordDoc.MainDocumentPart.Document.Body.InnerText;
-                        displayType = "text";
-                        break;
-
-                    case ".jpg":
-                    case ".jpeg":
-                    case ".png":
-                    case ".gif":
-                        displayType = "image";
-                        // Return app-resolved URL so it works under virtual directories
-                        contentText = Url.Content(file.FilePath);
-                        break;
-
-                    default:
-                        displayType = "other";
-                        contentText = "File type not supported for preview";
-                        break;
-                }
-
-                return Json(new { 
-                    success = true, 
-                    fileName = file.FileName,
-                    content = contentText,
-                    displayType = displayType,
-                    fileSize = file.FileSize,
-                    uploadedAt = file.UploadedAt.ToString("MMM dd, yyyy"),
-                    truncated = truncated
-                });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = $"Error reading file: {ex.Message}" });
-            }
+            return Json(new { 
+                success = true, 
+                fileName = result.File!.FileName,
+                content = contentToSend,
+                displayType = result.DisplayType,
+                fileSize = result.File.FileSize,
+                uploadedAt = result.File.UploadedAt.ToString("MMM dd, yyyy"),
+                truncated = result.Truncated
+            });
         }
+        
+        public class SaveTextRequest { public string? FileName { get; set; } public string? Content { get; set; } }
 
-        // Helper method to format file size
-        private string FormatFileSize(long bytes)
-        {
-            string[] sizes = { "B", "KB", "MB", "GB" };
-            double len = bytes;
-            int order = 0;
-            while (len >= 1024 && order < sizes.Length - 1)
-            {
-                order++;
-                len = len / 1024;
-            }
-            return $"{len:0.##} {sizes[order]}";
-        }
-
-        // Save plain text content as a new file for the current user
         [HttpPost]
         [Route("Dashboard/SaveText")]
         public async Task<IActionResult> SaveText([FromBody] SaveTextRequest req)
         {
-            try
-            {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                if (string.IsNullOrEmpty(userEmail))
-                    return Json(new { success = false, error = "Not logged in" });
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
+            if (req == null) return Json(new { success = false, error = "Invalid request" });
 
-                if (req == null)
-                    return Json(new { success = false, error = "Invalid request" });
+            var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "Untitled.txt" : req.FileName.Trim();
+            if (!fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) fileName += ".txt";
+            
+            var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+            
+            var targetPath = Path.Combine(uploadsFolder, fileName); // Note: Should ideally ensure uniqueness to avoid overwrite, but simple logic for now
+            await System.IO.File.WriteAllTextAsync(targetPath, req.Content ?? "");
 
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null)
-                    return Json(new { success = false, error = "User not found" });
-
-                var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "Untitled.txt" : req.FileName.Trim();
-                if (!fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
-                {
-                    fileName += ".txt";
-                }
-
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-                // Ensure unique filename for this user folder (global uploads for now)
-                string MakeSafeName(string name)
-                {
-                    foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
-                    return name;
-                }
-
-                fileName = MakeSafeName(fileName);
-                var targetPath = Path.Combine(uploadsFolder, fileName);
-                if (System.IO.File.Exists(targetPath))
-                {
-                    var baseName = Path.GetFileNameWithoutExtension(fileName);
-                    var ext = Path.GetExtension(fileName);
-                    int i = 1;
-                    do
-                    {
-                        fileName = $"{baseName} ({i++}){ext}";
-                        targetPath = Path.Combine(uploadsFolder, fileName);
-                    } while (System.IO.File.Exists(targetPath));
-                }
-
-                // Write text content
-                var content = req.Content ?? string.Empty;
-                await System.IO.File.WriteAllTextAsync(targetPath, content);
-
-                var userFile = new UserFile
-                {
-                    FileName = fileName,
-                    FilePath = "/uploads/" + fileName,
-                    ContentType = "text/plain",
-                    FileSize = new FileInfo(targetPath).Length,
-                    UploadedAt = DateTime.Now,
-                    UserId = user.Id,
-                    User = user
-                };
-                _context.UserFiles.Add(userFile);
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, fileId = userFile.Id, fileName = userFile.FileName });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+            var result = await _dashboardService.SaveUserFileAsync(sessionUserId.Value, fileName, "/uploads/" + fileName, "text/plain", new FileInfo(targetPath).Length);
+            
+            if (result.Success) return Json(new { success = true, fileId = result.FileId, fileName = fileName });
+            return Json(new { success = false, error = result.Error });
         }
 
-        // Save video file for the current user
+        public class SaveVideoRequest { public string? FileName { get; set; } public string? VideoData { get; set; } public string? ContentType { get; set; } }
+
         [HttpPost]
         [Route("Dashboard/SaveVideo")]
         public async Task<IActionResult> SaveVideo([FromBody] SaveVideoRequest req)
         {
-            try
-            {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                if (string.IsNullOrEmpty(userEmail))
-                    return Json(new { success = false, error = "Not logged in" });
+             var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
+            
+             if (string.IsNullOrWhiteSpace(req.VideoData)) return Json(new { success = false, error = "No data" });
+             
+             var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "video.mp4" : req.FileName;
+             var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
+             if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
 
-                if (req == null)
-                    return Json(new { success = false, error = "Invalid request" });
-
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null)
-                    return Json(new { success = false, error = "User not found" });
-
-                var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "video.mp4" : req.FileName.Trim();
-                if (!fileName.Contains('.', StringComparison.OrdinalIgnoreCase))
-                {
-                    fileName += ".mp4";
-                }
-
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-                // Ensure unique filename for this user folder
-                string MakeSafeName(string name)
-                {
-                    foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
-                    return name;
-                }
-
-                fileName = MakeSafeName(fileName);
-                var targetPath = Path.Combine(uploadsFolder, fileName);
-                if (System.IO.File.Exists(targetPath))
-                {
-                    var baseName = Path.GetFileNameWithoutExtension(fileName);
-                    var ext = Path.GetExtension(fileName);
-                    int i = 1;
-                    do
-                    {
-                        fileName = $"{baseName} ({i++}){ext}";
-                        targetPath = Path.Combine(uploadsFolder, fileName);
-                    } while (System.IO.File.Exists(targetPath));
-                }
-
-                // Convert base64 to video file
-                if (!string.IsNullOrWhiteSpace(req.VideoData))
-                {
-                    var videoBytes = Convert.FromBase64String(req.VideoData.Split(',')[1] ?? req.VideoData);
-                    await System.IO.File.WriteAllBytesAsync(targetPath, videoBytes);
-                }
-                else
-                {
-                    return Json(new { success = false, error = "No video data provided" });
-                }
-
-                var userFile = new UserFile
-                {
-                    FileName = fileName,
-                    FilePath = "/uploads/" + fileName,
-                    ContentType = req.ContentType ?? "video/mp4",
-                    FileSize = new FileInfo(targetPath).Length,
-                    UploadedAt = DateTime.Now,
-                    UserId = user.Id,
-                    User = user
-                };
-                _context.UserFiles.Add(userFile);
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, fileId = userFile.Id, fileName = userFile.FileName });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+             var targetPath = Path.Combine(uploadsFolder, fileName);
+             try {
+                 var base64Data = req.VideoData.Contains(",") ? req.VideoData.Split(',')[1] : req.VideoData;
+                 var videoBytes = Convert.FromBase64String(base64Data);
+                 await System.IO.File.WriteAllBytesAsync(targetPath, videoBytes);
+                 
+                 var mime = string.IsNullOrWhiteSpace(req.ContentType) ? "video/mp4" : req.ContentType;
+                 var result = await _dashboardService.SaveUserFileAsync(sessionUserId.Value, fileName, "/uploads/"+fileName, mime, videoBytes.Length);
+                 
+                 if (result.Success) return Json(new { success = true, fileId = result.FileId });
+                 return Json(new { success = false, error = result.Error });
+             }
+             catch(Exception ex) { return Json(new {success=false, error=ex.Message}); }
         }
 
-        // Save audio file for the current user
+        public class SaveAudioRequest { public string? FileName { get; set; } public string? AudioData { get; set; } public string? ContentType { get; set; } }
+        
         [HttpPost]
         [Route("Dashboard/SaveAudio")]
         public async Task<IActionResult> SaveAudio([FromBody] SaveAudioRequest req)
         {
-            try
-            {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                if (string.IsNullOrEmpty(userEmail))
-                    return Json(new { success = false, error = "Not logged in" });
+             var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
+            
+             if (string.IsNullOrWhiteSpace(req.AudioData)) return Json(new { success = false, error = "No data" });
+             
+             var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "audio.mp3" : req.FileName;
+             var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
+             if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
 
-                if (req == null)
-                    return Json(new { success = false, error = "Invalid request" });
-
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null)
-                    return Json(new { success = false, error = "User not found" });
-
-                var fileName = string.IsNullOrWhiteSpace(req.FileName) ? "audio.mp3" : req.FileName.Trim();
-                if (!fileName.Contains('.', StringComparison.OrdinalIgnoreCase))
-                {
-                    fileName += ".mp3";
-                }
-
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-                // Ensure unique filename for this user folder
-                string MakeSafeName(string name)
-                {
-                    foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
-                    return name;
-                }
-
-                fileName = MakeSafeName(fileName);
-                var targetPath = Path.Combine(uploadsFolder, fileName);
-                if (System.IO.File.Exists(targetPath))
-                {
-                    var baseName = Path.GetFileNameWithoutExtension(fileName);
-                    var ext = Path.GetExtension(fileName);
-                    int i = 1;
-                    do
-                    {
-                        fileName = $"{baseName} ({i++}){ext}";
-                        targetPath = Path.Combine(uploadsFolder, fileName);
-                    } while (System.IO.File.Exists(targetPath));
-                }
-
-                // Convert base64 to audio file
-                if (!string.IsNullOrWhiteSpace(req.AudioData))
-                {
-                    var audioBytes = Convert.FromBase64String(req.AudioData.Split(',')[1] ?? req.AudioData);
-                    await System.IO.File.WriteAllBytesAsync(targetPath, audioBytes);
-                }
-                else
-                {
-                    return Json(new { success = false, error = "No audio data provided" });
-                }
-
-                var userFile = new UserFile
-                {
-                    FileName = fileName,
-                    FilePath = "/uploads/" + fileName,
-                    ContentType = req.ContentType ?? "audio/mp3",
-                    FileSize = new FileInfo(targetPath).Length,
-                    UploadedAt = DateTime.Now,
-                    UserId = user.Id,
-                    User = user
-                };
-                _context.UserFiles.Add(userFile);
-                await _context.SaveChangesAsync();
-
-                return Json(new { success = true, fileId = userFile.Id, fileName = userFile.FileName });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+             var targetPath = Path.Combine(uploadsFolder, fileName);
+             try {
+                 var base64Data = req.AudioData.Contains(",") ? req.AudioData.Split(',')[1] : req.AudioData;
+                 var audioBytes = Convert.FromBase64String(base64Data);
+                 await System.IO.File.WriteAllBytesAsync(targetPath, audioBytes);
+                 
+                 var mime = string.IsNullOrWhiteSpace(req.ContentType) ? "audio/mpeg" : req.ContentType;
+                 var result = await _dashboardService.SaveUserFileAsync(sessionUserId.Value, fileName, "/uploads/"+fileName, mime, audioBytes.Length);
+                 
+                 if (result.Success) return Json(new { success = true, fileId = result.FileId });
+                 return Json(new { success = false, error = result.Error });
+             }
+             catch(Exception ex) { return Json(new {success=false, error=ex.Message}); }
         }
 
-        // Get video files for the current user
         [HttpGet]
         [Route("Dashboard/GetVideoFiles")]
         public async Task<IActionResult> GetVideoFiles()
         {
-            try
-            {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                if (string.IsNullOrEmpty(userEmail))
-                    return Json(new { success = false, error = "Not logged in" });
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
 
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null)
-                    return Json(new { success = false, error = "User not found" });
+            var result = await _dashboardService.GetUserFilesByTypeAsync(sessionUserId.Value, "video/");
+            if (!result.Success) return Json(new { success = false, error = result.Error });
 
-                var videoFiles = await _context.UserFiles
-                    .Where(f => f.UserId == user.Id && f.ContentType.StartsWith("video/"))
-                    .OrderByDescending(f => f.UploadedAt)
-                    .Select(f => new {
-                        id = f.Id,
-                        fileName = f.FileName,
-                        filePath = f.FilePath,
-                        contentType = f.ContentType,
-                        fileSize = f.FileSize,
-                        uploadedAt = f.UploadedAt
-                    })
-                    .ToListAsync();
-
-                return Json(new { success = true, videos = videoFiles });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+            var videoFiles = result.Files.Select(f => new {
+                id = f.Id,
+                fileName = f.FileName,
+                filePath = f.FilePath,
+                contentType = f.ContentType,
+                fileSize = f.FileSize,
+                uploadedAt = f.UploadedAt
+            });
+            return Json(new { success = true, videos = videoFiles });
         }
 
-        // Get audio files for the current user
         [HttpGet]
         [Route("Dashboard/GetAudioFiles")]
         public async Task<IActionResult> GetAudioFiles()
         {
-            try
-            {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                System.Diagnostics.Debug.WriteLine($"GetAudioFiles: UserEmail = {userEmail}");
-                
-                if (string.IsNullOrEmpty(userEmail))
-                    return Json(new { success = false, error = "Not logged in" });
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
 
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                System.Diagnostics.Debug.WriteLine($"GetAudioFiles: User found = {user != null}, UserId = {user?.Id}");
-                
-                if (user == null)
-                    return Json(new { success = false, error = "User not found" });
-
-                var allUserFiles = await _context.UserFiles
-                    .Where(f => f.UserId == user.Id)
-                    .ToListAsync();
-                
-                System.Diagnostics.Debug.WriteLine($"GetAudioFiles: Total user files = {allUserFiles.Count}");
-                
-                foreach (var file in allUserFiles)
-                {
-                    System.Diagnostics.Debug.WriteLine($"GetAudioFiles: File = {file.FileName}, ContentType = {file.ContentType}");
-                }
-
-                var audioFiles = await _context.UserFiles
-                    .Where(f => f.UserId == user.Id && f.ContentType.StartsWith("audio/"))
-                    .OrderByDescending(f => f.UploadedAt)
-                    .Select(f => new {
-                        id = f.Id,
-                        fileName = f.FileName,
-                        filePath = f.FilePath,
-                        contentType = f.ContentType,
-                        fileSize = f.FileSize,
-                        uploadedAt = f.UploadedAt
-                    })
-                    .ToListAsync();
-
-                System.Diagnostics.Debug.WriteLine($"GetAudioFiles: Audio files found = {audioFiles.Count}");
-
-                return Json(new { success = true, audios = audioFiles });
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"GetAudioFiles Exception: {ex.Message}");
-                return Json(new { success = false, error = ex.Message });
-            }
+            var result = await _dashboardService.GetUserFilesByTypeAsync(sessionUserId.Value, "audio/");
+            if (!result.Success) return Json(new { success = false, error = result.Error });
+            
+            var audioFiles = result.Files.Select(f => new {
+                id = f.Id,
+                fileName = f.FileName,
+                filePath = f.FilePath,
+                contentType = f.ContentType,
+                fileSize = f.FileSize,
+                uploadedAt = f.UploadedAt
+            });
+            return Json(new { success = true, audios = audioFiles });
         }
 
-        public class SaveTextRequest
-        {
-            public string? FileName { get; set; }
-            public string? Content { get; set; }
-        }
-
-        public class SaveVideoRequest
-        {
-            public string? FileName { get; set; }
-            public string? VideoData { get; set; }
-            public string? ContentType { get; set; }
-        }
-
-        public class SaveAudioRequest
-        {
-            public string? FileName { get; set; }
-            public string? AudioData { get; set; }
-            public string? ContentType { get; set; }
-        }
-
-        // ===== File Groups (persisted per user in JSON) =====
-        private string GetGroupsFolder()
-        {
-            var root = Directory.GetCurrentDirectory();
-            var folder = Path.Combine(root, "App_Data", "groups");
-            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
-            return folder;
-        }
-
-        private string GetUserGroupsPath(int userId)
-        {
-            return Path.Combine(GetGroupsFolder(), $"user_{userId}.json");
-        }
-
-        private class GroupsModel
-        {
-            public Dictionary<string, List<int>> Groups { get; set; } = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        private async Task<GroupsModel> LoadUserGroupsAsync(int userId)
-        {
-            try
-            {
-                var path = GetUserGroupsPath(userId);
-                if (!System.IO.File.Exists(path)) return new GroupsModel();
-                var json = await System.IO.File.ReadAllTextAsync(path);
-                var model = JsonSerializer.Deserialize<GroupsModel>(json) ?? new GroupsModel();
-                // Normalize nulls
-                model.Groups = model.Groups ?? new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-                return model;
-            }
-            catch { return new GroupsModel(); }
-        }
-
-        private async Task SaveUserGroupsAsync(int userId, GroupsModel model)
-        {
-            var path = GetUserGroupsPath(userId);
-            var json = JsonSerializer.Serialize(model, new JsonSerializerOptions { WriteIndented = true });
-            await System.IO.File.WriteAllTextAsync(path, json);
-        }
-
-        public class SaveGroupRequest
-        {
-            public string? Name { get; set; }
-            public List<int>? FileIds { get; set; }
-        }
+        // ===== Group Methods =====
 
         [HttpGet]
         [Route("Dashboard/GetGroups")]
         public async Task<IActionResult> GetGroups()
         {
-            var userEmail = HttpContext.Session.GetString("UserEmail");
-            if (string.IsNullOrEmpty(userEmail))
-                return Json(new { success = false, error = "Not logged in" });
-
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-            if (user == null) return Json(new { success = false, error = "User not found" });
-
-            var model = await LoadUserGroupsAsync(user.Id);
-            return Json(new { success = true, groups = model.Groups });
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
+            
+            var result = await _dashboardService.GetFileGroupsAsync(sessionUserId.Value);
+            if (!result.Success) return Json(new { success = false, error = result.Error });
+            return Json(new { success = true, groups = result.Groups });
         }
+
+        public class SaveGroupRequest { public string? Name { get; set; } public List<int>? FileIds { get; set; } }
 
         [HttpPost]
         [Route("Dashboard/SaveGroup")]
         public async Task<IActionResult> SaveGroup([FromBody] SaveGroupRequest req)
         {
-            try
-            {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                if (string.IsNullOrEmpty(userEmail))
-                    return Json(new { success = false, error = "Not logged in" });
+             var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
 
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null)
-                    return Json(new { success = false, error = "User not found" });
-
-                if (req == null || string.IsNullOrWhiteSpace(req.Name) || req.FileIds == null || req.FileIds.Count == 0)
-                    return Json(new { success = false, error = "Invalid request" });
-
-                // Ensure files belong to user
-                var userFileIds = await _context.UserFiles
-                    .Where(f => f.UserId == user.Id && req.FileIds.Contains(f.Id))
-                    .Select(f => f.Id)
-                    .ToListAsync();
-
-                if (userFileIds.Count == 0)
-                    return Json(new { success = false, error = "No valid files" });
-
-                var model = await LoadUserGroupsAsync(user.Id);
-                var name = req.Name.Trim();
-                if (!model.Groups.ContainsKey(name)) model.Groups[name] = new List<int>();
-                // Overwrite group with provided list (distinct)
-                model.Groups[name] = userFileIds.Distinct().ToList();
-
-                await SaveUserGroupsAsync(user.Id, model);
-                return Json(new { success = true, name = name, fileIds = model.Groups[name] });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+            if (req == null || string.IsNullOrWhiteSpace(req.Name) || req.FileIds == null)
+                return Json(new { success = false, error = "Invalid request" });
+                
+            var result = await _dashboardService.SaveFileGroupAsync(sessionUserId.Value, req.Name.Trim(), req.FileIds);
+            if (result.Success) return Json(new { success = true, name = req.Name, fileIds = req.FileIds });
+            return Json(new { success = false, error = result.Error });
         }
 
         public class DeleteGroupRequest { public string? Name { get; set; } }
@@ -1057,149 +447,41 @@ namespace ADHDWebApp.Controllers
         [Route("Dashboard/DeleteGroup")]
         public async Task<IActionResult> DeleteGroup([FromBody] DeleteGroupRequest req)
         {
-            try
-            {
-                var userEmail = HttpContext.Session.GetString("UserEmail");
-                if (string.IsNullOrEmpty(userEmail))
-                    return Json(new { success = false, error = "Not logged in" });
-
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userEmail);
-                if (user == null) return Json(new { success = false, error = "User not found" });
-
-                if (req == null || string.IsNullOrWhiteSpace(req.Name))
+             var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
+            
+            if (req == null || string.IsNullOrWhiteSpace(req.Name))
                     return Json(new { success = false, error = "Invalid request" });
 
-                var model = await LoadUserGroupsAsync(user.Id);
-                if (model.Groups.Remove(req.Name.Trim()))
-                {
-                    await SaveUserGroupsAsync(user.Id, model);
-                }
-                return Json(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+            var result = await _dashboardService.DeleteFileGroupAsync(sessionUserId.Value, req.Name.Trim());
+            if (result.Success) return Json(new { success = true });
+            return Json(new { success = false, error = result.Error });
         }
 
-        // GET: Get progress data for current user
+        // ===== Progress/Focus =====
+
         [HttpGet]
         [Route("Dashboard/GetProgress")]
-        [HttpGet]
         public async Task<IActionResult> GetProgress(int? targetUserId)
         {
-            try
-            {
-                var sessionUserId = HttpContext.Session.GetInt32("UserId");
-                if (sessionUserId == null)
-                {
-                    return Json(new { success = false, error = "Not authenticated" });
-                }
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not authenticated" });
 
-                // If targetUserId is provided, use it (allows teachers to view student progress)
-                // In a stricter implementation, we'd verify the relationship here.
-                var userId = targetUserId.HasValue ? targetUserId : sessionUserId;
-
-                var startOfWeek = DateTime.UtcNow.Date.AddDays(-(int)DateTime.UtcNow.DayOfWeek);
-                startOfWeek = new DateTime(startOfWeek.Year, startOfWeek.Month, startOfWeek.Day, 0, 0, 0);
-
-                // Calculate streak (consecutive login days)
-                var allActivities = await _context.UserActivities
-                    .Where(a => a.UserId == userId.Value && a.ActivityType == "login")
-                    .OrderByDescending(a => a.Timestamp)
-                    .Select(a => a.Timestamp.Date)
-                    .Distinct()
-                    .ToListAsync();
-
-                int streak = 0;
-                if (allActivities.Any())
-                {
-                    var checkDate = DateTime.Now.Date;
-                    while (allActivities.Contains(checkDate))
-                    {
-                        streak++;
-                        checkDate = checkDate.AddDays(-1);
-                    }
-                }
-
-                // Weekly browsing time (file views)
-                var weeklyBrowsingMinutes = await _context.UserActivities
-                    .Where(a => a.UserId == userId.Value && 
-                                a.ActivityType == "file_view" && 
-                                a.Timestamp >= startOfWeek)
-                    .SumAsync(a => a.Duration);
-
-                var hours = weeklyBrowsingMinutes / 60;
-                var minutes = weeklyBrowsingMinutes % 60;
-                var browsingTime = $"{hours}h {minutes}m this week";
-
-                // Weekly subjects studied
-                var weeklySubjects = await _context.UserActivities
-                    .Where(a => a.UserId == userId.Value && 
-                                a.Timestamp >= startOfWeek && 
-                                !string.IsNullOrEmpty(a.SubjectName))
-                    .Select(a => a.SubjectName)
-                    .Distinct()
-                    .CountAsync();
-
-                // Weekly focus minutes
-                var weeklyFocusMinutes = await _context.UserActivities
-                    .Where(a => a.UserId == userId.Value && 
-                                a.ActivityType == "focus_session" && 
-                                a.Timestamp >= startOfWeek)
-                    .SumAsync(a => a.Duration);
-
-                return Json(new
-                {
-                    success = true,
-                    streak = streak,
-                    browsingTime = browsingTime,
-                    weeklySubjects = weeklySubjects,
-                    weeklyFocusMinutes = weeklyFocusMinutes
-                });
-            }
-            catch (Exception ex)
-            {
-                return Json(new { success = false, error = ex.Message });
-            }
+            var result = await _dashboardService.GetProgressAsync(sessionUserId.Value, targetUserId);
+            if (result.Success) return Json(result.Progress);
+            return Json(new { success = false, error = result.Error });
         }
 
-    [HttpPost]
-    [Route("Dashboard/RecordFocusSession")]
-    public async Task<IActionResult> RecordFocusSession([FromBody] UserActivity request)
-    {
-        try
+        [HttpPost]
+        [Route("Dashboard/RecordFocusSession")]
+        public async Task<IActionResult> RecordFocusSession([FromBody] UserActivity request)
         {
             var userId = HttpContext.Session.GetInt32("UserId");
-            if (userId == null)
-            {
-                return Json(new { success = false, error = "Not authenticated" });
-            }
+            if (userId == null) return Json(new { success = false, error = "Not authenticated" });
 
-            if (request.Duration <= 0)
-            {
-                 return Json(new { success = false, error = "Invalid duration" });
-            }
-
-            var activity = new UserActivity
-            {
-                UserId = userId.Value,
-                ActivityType = "focus_session",
-                SubjectName = string.IsNullOrWhiteSpace(request.SubjectName) ? "General Focus" : request.SubjectName,
-                Duration = request.Duration,
-                Timestamp = DateTime.UtcNow
-            };
-
-            _context.UserActivities.Add(activity);
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Focus session recorded" });
-        }
-        catch (Exception ex)
-        {
-            return Json(new { success = false, error = ex.Message });
+            var result = await _dashboardService.RecordFocusSessionAsync(userId.Value, request.Duration, request.SubjectName);
+            if (result.Success) return Json(new { success = true, message = "Focus session recorded" });
+            return Json(new { success = false, error = result.Error });
         }
     }
 }
-}
-

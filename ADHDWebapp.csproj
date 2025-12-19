@@ -17,11 +17,6 @@
 
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Controllers\NewFolder1\" />
-    <Folder Include="Controllers\NewFolder\" />
-    <Folder Include="NewFolder\" />
-    <Folder Include="wwwroot\css\NewFolder\" />
-  </ItemGroup>
+
 
 </Project>

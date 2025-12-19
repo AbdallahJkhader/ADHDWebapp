@@ -408,6 +408,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const teacher = data.Teacher || data.teacher;
             const studentsArr = data.Students || data.students;
 
+            // Store class privacy data for privacy panel
+            window.__currentClassPrivacy = {
+                classId: klass?.id || null,
+                joinCode: klass?.code || null,
+                allowJoin: klass?.allowJoin !== undefined ? klass.allowJoin : false
+            };
+
             if (titleEl) titleEl.textContent = klass?.name || 'Class';
             if (codeEl) codeEl.textContent = klass?.code ? `(Code: ${klass.code})` : '';
             if (teacherEl) teacherEl.textContent = teacher ? `${teacher.name} (${teacher.email})` : '—';
@@ -2319,16 +2326,15 @@ function openClassesInlinePanel(event) {
                                                 <div class="text-muted" style="font-size: 0.75rem;">ID: ${s.id}</div>
                                             </div>
                                         </div>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-light rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="font-size: 0.85rem;">
-                                                <li><a class="dropdown-item" href="#" onclick="alert('Student analytics coming soon for ${esc(s.name)}'); return false;"><i class="bi bi-graph-up me-2 text-primary"></i>Analytics</a></li>
-                                                ${showRemove ? `<li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item text-danger" href="#" onclick="removeStudent(${klass.id}, ${s.id}, '${esc(s.name)}'); return false;"><i class="bi bi-person-dash me-2"></i>Remove</a></li>` : ''}
-                                            </ul>
-                                        </div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-info" title="Analyze" onclick="viewStudentProgress(${s.id}, '${esc(s.name)}'); event.stopPropagation();">
+                                            <i class="bi bi-graph-up"></i>
+                                        </button>
+                                        ${showRemove ? `
+                                        <button class="btn btn-sm btn-outline-danger" title="Remove" onclick="removeStudent(${klass.id}, ${s.id}, '${esc(s.name)}'); event.stopPropagation();">
+                                            <i class="bi bi-person-x"></i>
+                                        </button>` : ''}
+                                    </div>
                                     `;
                                     membersPanelUl.appendChild(li);
                                 });
@@ -3132,6 +3138,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 opt.textContent = `${c.name} (${c.code})`;
                 classSelect.appendChild(opt);
             });
+
+            // Auto-select first class if available
+            if (data.classes && data.classes.length > 0) {
+                classSelect.value = data.classes[0].id;
+                classSelect.dispatchEvent(new Event('change'));
+            }
         } catch (e) {
             if (chatErr) { chatErr.style.display = ''; chatErr.textContent = e?.message || 'Failed to load classes'; }
         }
@@ -3144,12 +3156,14 @@ document.addEventListener('DOMContentLoaded', function () {
         msgs.forEach(m => {
             const li = document.createElement('li');
             li.className = 'list-group-item py-2';
-            li.innerHTML = `<div class="d-flex justify-content-between">
-                <div><strong>${escapeHtml(m.senderName || 'User')}:</strong> ${escapeHtml(m.content || '')}</div>
-                <small class="text-muted">${new Date(m.sentAt).toLocaleTimeString()}</small>
-            </div>`;
-            chatList.appendChild(li);
-            lastMsgId = Math.max(lastMsgId, m.id || 0);
+            try {
+                li.innerHTML = `<div class="d-flex justify-content-between">
+                    <div><strong>${escapeHtml(m.senderName || 'User')}:</strong> ${escapeHtml(m.content || '')}</div>
+                    <small class="text-muted">${new Date(m.sentAt).toLocaleTimeString()}</small>
+                </div>`;
+                chatList.appendChild(li);
+                lastMsgId = Math.max(lastMsgId, m.id || 0);
+            } catch (err) { console.error('Error rendering message:', err); }
         });
         // scroll to bottom
         const area = document.getElementById('chat-area');
@@ -3203,10 +3217,13 @@ document.addEventListener('DOMContentLoaded', function () {
         lastMsgId = 0;
 
         const chatArea = document.getElementById('chat-area');
-        if (!currentClassId) {
+        // Force show panel to ensure visibility
+        if (currentClassId) {
+            chatEmpty.style.display = 'none';
+            if (chatArea) chatArea.style.display = 'block';
+        } else {
+            if (chatArea) chatArea.style.display = 'none';
             chatEmpty.style.display = '';
-            chatList.style.display = 'none';
-            if (chatArea) chatArea.style.display = 'none'; // Hide chat area when no class selected
             return;
         }
 

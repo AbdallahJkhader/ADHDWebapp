@@ -5,19 +5,18 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ADHDWebApp.Data;
 using ADHDWebApp.Models;
+using ADHDWebApp.Services;
 
 namespace ADHDWebApp.Controllers
 {
     public class FlashcardsController : Controller
     {
-        private readonly AppDbContext _context;
+        private readonly IFlashcardService _flashcardService;
 
-        public FlashcardsController(AppDbContext context)
+        public FlashcardsController(IFlashcardService flashcardService)
         {
-            _context = context;
+            _flashcardService = flashcardService;
         }
 
         // GET: Flashcards
@@ -29,14 +28,8 @@ namespace ADHDWebApp.Controllers
                 return RedirectToAction("EnterEmail", "Account");
             }
 
-            var userId = sessionUserId.Value;
-
-            var flashcards = await _context.Flashcards
-                .Where(f => f.UserId == userId)
-                .OrderByDescending(f => f.CreatedAt)
-                .ToListAsync();
-
-            return View(flashcards);
+            var result = await _flashcardService.GetUserFlashcardsAsync(sessionUserId.Value);
+            return View(result.Flashcards);
         }
 
         // GET: Flashcards/Create
@@ -58,12 +51,12 @@ namespace ADHDWebApp.Controllers
                     return RedirectToAction("EnterEmail", "Account");
                 }
 
-                flashcard.UserId = sessionUserId.Value;
-                flashcard.CreatedAt = DateTime.UtcNow;
-
-                _context.Add(flashcard);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                var result = await _flashcardService.CreateFlashcardAsync(sessionUserId.Value, flashcard.Question, flashcard.Answer);
+                if (result.Success)
+                {
+                    return RedirectToAction(nameof(Index));
+                }
+                ModelState.AddModelError("", result.Error);
             }
             return View(flashcard);
         }
@@ -71,29 +64,21 @@ namespace ADHDWebApp.Controllers
         // GET: Flashcards/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var flashcard = await _context.Flashcards.FindAsync(id);
-            if (flashcard == null)
-            {
-                return NotFound();
-            }
+            if (id == null) return NotFound();
 
             var sessionUserId = HttpContext.Session.GetInt32("UserId");
-            if (sessionUserId == null)
+            if (sessionUserId == null) return RedirectToAction("EnterEmail", "Account");
+
+            var result = await _flashcardService.GetFlashcardAsync(id.Value, sessionUserId.Value);
+            
+            if (!result.Success || result.Flashcard == null)
             {
-                return RedirectToAction("EnterEmail", "Account");
+                if (result.Error == "Not found") return NotFound();
+                if (result.Error == "Unauthorized") return Forbid();
+                return NotFound();
             }
 
-            if (flashcard.UserId != sessionUserId.Value)
-            {
-                return Forbid();
-            }
-
-            return View(flashcard);
+            return View(result.Flashcard);
         }
 
         // POST: Flashcards/Edit/5
@@ -101,50 +86,23 @@ namespace ADHDWebApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Question,Answer")] Flashcard flashcard)
         {
-            if (id != flashcard.Id)
-            {
-                return NotFound();
-            }
+            if (id != flashcard.Id) return NotFound();
 
             if (ModelState.IsValid)
             {
-                var existingFlashcard = await _context.Flashcards.FindAsync(id);
-                if (existingFlashcard == null)
-                {
-                    return NotFound();
-                }
-
                 var sessionUserId = HttpContext.Session.GetInt32("UserId");
-                if (sessionUserId == null)
+                if (sessionUserId == null) return RedirectToAction("EnterEmail", "Account");
+
+                var result = await _flashcardService.UpdateFlashcardAsync(id, sessionUserId.Value, flashcard.Question, flashcard.Answer);
+                
+                if (result.Success)
                 {
-                    return RedirectToAction("EnterEmail", "Account");
+                    return RedirectToAction(nameof(Index));
                 }
 
-                if (existingFlashcard.UserId != sessionUserId.Value)
-                {
-                    return Forbid();
-                }
-
-                existingFlashcard.Question = flashcard.Question;
-                existingFlashcard.Answer = flashcard.Answer;
-
-                try
-                {
-                    _context.Update(existingFlashcard);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!FlashcardExists(flashcard.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                if (result.Error == "Not found") return NotFound();
+                if (result.Error == "Unauthorized") return Forbid();
+                ModelState.AddModelError("", result.Error);
             }
             return View(flashcard);
         }
@@ -154,25 +112,15 @@ namespace ADHDWebApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var flashcard = await _context.Flashcards.FindAsync(id);
-            if (flashcard == null)
-            {
-                return NotFound();
-            }
-
             var sessionUserId = HttpContext.Session.GetInt32("UserId");
-            if (sessionUserId == null)
-            {
-                return RedirectToAction("EnterEmail", "Account");
-            }
+            if (sessionUserId == null) return RedirectToAction("EnterEmail", "Account");
 
-            if (flashcard.UserId != sessionUserId.Value)
+            var result = await _flashcardService.DeleteFlashcardAsync(id, sessionUserId.Value);
+            
+            if (!result.Success)
             {
-                return Forbid();
+                 // Handle error appropriately, potentially redirect with error
             }
-
-            _context.Flashcards.Remove(flashcard);
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
@@ -181,20 +129,13 @@ namespace ADHDWebApp.Controllers
         public async Task<IActionResult> GetUserFlashcards()
         {
             var sessionUserId = HttpContext.Session.GetInt32("UserId");
-            if (sessionUserId == null)
-            {
-                return Unauthorized();
-            }
+            if (sessionUserId == null) return Unauthorized();
 
-            var userId = sessionUserId.Value;
-
-            var flashcards = await _context.Flashcards
-                .Where(f => f.UserId == userId)
-                .OrderBy(f => f.Id)
-                .Select(f => new { f.Question, f.Answer })
-                .ToListAsync();
-
-            return Json(flashcards);
+            var result = await _flashcardService.GetUserFlashcardsAsync(sessionUserId.Value);
+            
+            // Map to anonymous object as before if needed, or return full object
+            var mapped = result.Flashcards.Select(f => new { f.Question, f.Answer });
+            return Json(mapped);
         }
 
         public class CreateFlashcardDto
@@ -207,12 +148,8 @@ namespace ADHDWebApp.Controllers
         public async Task<IActionResult> CreateFromDashboard([FromBody] CreateFlashcardDto dto)
         {
             var sessionUserId = HttpContext.Session.GetInt32("UserId");
-            if (sessionUserId == null)
-            {
-                return Unauthorized();
-            }
+            if (sessionUserId == null) return Unauthorized();
 
-            var userId = sessionUserId.Value;
             var question = (dto?.Question ?? string.Empty).Trim();
             var answer = (dto?.Answer ?? string.Empty).Trim();
 
@@ -221,23 +158,20 @@ namespace ADHDWebApp.Controllers
                 return BadRequest("Question and Answer are required.");
             }
 
-            var flashcard = new Flashcard
+            var result = await _flashcardService.CreateFlashcardAsync(sessionUserId.Value, question, answer);
+            
+            if (result.Success && result.Flashcard != null)
             {
-                UserId = userId,
-                Question = question,
-                Answer = answer,
-                CreatedAt = DateTime.UtcNow
-            };
+                return Json(new { success = true, id = result.Flashcard.Id, question = result.Flashcard.Question, answer = result.Flashcard.Answer });
+            }
 
-            _context.Flashcards.Add(flashcard);
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, id = flashcard.Id, question = flashcard.Question, answer = flashcard.Answer });
+            return Json(new { success = false, error = result.Error });
         }
 
         private bool FlashcardExists(int id)
         {
-            return _context.Flashcards.Any(e => e.Id == id);
+            // Logic moved to service, essentially checked during Update
+            return true;
         }
     }
 }
