@@ -44,7 +44,8 @@ namespace ADHDWebApp.Services
                 int streak = 0;
                 if (allActivities.Any())
                 {
-                    var checkDate = DateTime.Now.Date;
+                    // Use UtcNow for consistency
+                    var checkDate = DateTime.UtcNow.Date;
                     while (allActivities.Contains(checkDate))
                     {
                         streak++;
@@ -58,9 +59,11 @@ namespace ADHDWebApp.Services
                                 a.Timestamp >= startOfWeek)
                     .SumAsync(a => a.Duration);
 
-                var hours = weeklyBrowsingMinutes / 60;
-                var minutes = weeklyBrowsingMinutes % 60;
-                var browsingTime = $"{hours}h {minutes}m this week";
+                var browsingHours = weeklyBrowsingMinutes / 60;
+                var browsingMins = weeklyBrowsingMinutes % 60;
+                var browsingTime = weeklyBrowsingMinutes > 0 
+                    ? $"{browsingHours}h {browsingMins}m this week" 
+                    : "0m this week";
 
                 var weeklySubjects = await _context.UserActivities
                     .Where(a => a.UserId == effectiveUserId && 
@@ -70,11 +73,18 @@ namespace ADHDWebApp.Services
                     .Distinct()
                     .CountAsync();
 
+                var targetId = effectiveUserId; // Store in local variable for EF translation
                 var weeklyFocusMinutes = await _context.UserActivities
-                    .Where(a => a.UserId == effectiveUserId && 
+                    .Where(a => a.UserId == targetId && 
                                 a.ActivityType == "focus_session" && 
                                 a.Timestamp >= startOfWeek)
                     .SumAsync(a => a.Duration);
+
+                var focusHours = weeklyFocusMinutes / 60;
+                var focusMins = weeklyFocusMinutes % 60;
+                var focusTime = weeklyFocusMinutes > 0
+                    ? $"{focusHours}h {focusMins}m"
+                    : "0m";
 
                 var result = new
                 {
@@ -82,7 +92,8 @@ namespace ADHDWebApp.Services
                     streak = streak,
                     browsingTime = browsingTime,
                     weeklySubjects = weeklySubjects,
-                    weeklyFocusMinutes = weeklyFocusMinutes
+                    weeklyFocusMinutes = weeklyFocusMinutes,
+                    focusTime = focusTime // Add formatted focus time
                 };
 
                 return (true, string.Empty, result);
@@ -381,32 +392,31 @@ namespace ADHDWebApp.Services
             }
         }
 
-        // ===== Group Methods =====
-
-        private string GetGroupsFolder()
-        {
-            var root = Directory.GetCurrentDirectory();
-            var folder = Path.Combine(root, "App_Data", "groups");
-            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
-            return folder;
-        }
-
-        private string GetUserGroupsPath(int userId) => Path.Combine(GetGroupsFolder(), $"user_{userId}.json");
-
-        private class GroupsModel
-        {
-            public Dictionary<string, List<int>> Groups { get; set; } = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-        }
+        // ===== Group (Folder) Methods =====
 
         public async Task<(bool Success, string Error, Dictionary<string, List<int>> Groups)> GetFileGroupsAsync(int userId)
         {
             try
             {
-                var path = GetUserGroupsPath(userId);
-                if (!File.Exists(path)) return (true, null, new Dictionary<string, List<int>>());
-                var json = await File.ReadAllTextAsync(path);
-                var model = JsonSerializer.Deserialize<GroupsModel>(json) ?? new GroupsModel();
-                return (true, null, model.Groups ?? new Dictionary<string, List<int>>());
+                var folders = await _context.Folders
+                    .Include(f => f.User)
+                    .Where(f => f.UserId == userId)
+                    .ToListAsync();
+
+                var result = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var folder in folders)
+                {
+                    // Get file IDs for this folder
+                    var fileIds = await _context.UserFiles
+                        .Where(f => f.FolderId == folder.Id && f.UserId == userId)
+                        .Select(f => f.Id)
+                        .ToListAsync();
+                    
+                    result[folder.Name] = fileIds;
+                }
+
+                return (true, null, result);
             }
             catch (Exception ex)
             {
@@ -426,19 +436,39 @@ namespace ADHDWebApp.Services
                 if (userFileIds.Count == 0 && fileIds.Count > 0) 
                     return (false, "No valid files found belonging to user");
 
-                var path = GetUserGroupsPath(userId);
-                GroupsModel model = new GroupsModel();
-                if (File.Exists(path))
+                // Check if folder exists
+                var folder = await _context.Folders
+                    .FirstOrDefaultAsync(f => f.UserId == userId && f.Name == groupName);
+
+                if (folder == null)
                 {
-                     var json = await File.ReadAllTextAsync(path);
-                     model = JsonSerializer.Deserialize<GroupsModel>(json) ?? new GroupsModel();
+                    folder = new Folder
+                    {
+                        Name = groupName,
+                        UserId = userId,
+                        User = await _context.Users.FindAsync(userId) ?? throw new Exception("User not found")
+                    };
+                    _context.Folders.Add(folder);
+                    await _context.SaveChangesAsync();
                 }
-                if (model.Groups == null) model.Groups = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+
+                // Update files to point to this folder
+                // First, UNGROUP files that might be in this folder but not in the new list?
+                // The requirement for "SaveFileGroup" usually implies "Set the contents of this group to these files".
+                // So, finding files currently in this folder and removing them if not in new list?
+                // Or is it just "Add these files to this group"?
+                // Based on previous JSON implementation: `model.Groups[groupName] = userFileIds.Distinct().ToList();`
+                // This means "Overwrite group contents".
                 
-                model.Groups[groupName] = userFileIds.Distinct().ToList();
+                // 1. Clear FolderId for all files currently in this folder
+                var existingFiles = await _context.UserFiles.Where(f => f.FolderId == folder.Id).ToListAsync();
+                foreach (var f in existingFiles) f.FolderId = null;
                 
-                var outJson = JsonSerializer.Serialize(model, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(path, outJson);
+                // 2. Set FolderId for new files
+                var newFiles = await _context.UserFiles.Where(f => userFileIds.Contains(f.Id)).ToListAsync();
+                foreach (var f in newFiles) f.FolderId = folder.Id;
+
+                await _context.SaveChangesAsync();
                 
                 return (true, null);
             }
@@ -452,16 +482,17 @@ namespace ADHDWebApp.Services
         {
              try
             {
-                var path = GetUserGroupsPath(userId);
-                if (!File.Exists(path)) return (true, null);
+                var folder = await _context.Folders
+                    .FirstOrDefaultAsync(f => f.UserId == userId && f.Name == groupName);
 
-                var json = await File.ReadAllTextAsync(path);
-                var model = JsonSerializer.Deserialize<GroupsModel>(json) ?? new GroupsModel();
-                
-                if (model.Groups != null && model.Groups.Remove(groupName))
+                if (folder != null)
                 {
-                    var outJson = JsonSerializer.Serialize(model, new JsonSerializerOptions { WriteIndented = true });
-                    await File.WriteAllTextAsync(path, outJson);
+                    // Set FolderId to null for all files in this folder (Ungroup)
+                    var files = await _context.UserFiles.Where(f => f.FolderId == folder.Id).ToListAsync();
+                    foreach (var f in files) f.FolderId = null;
+
+                    _context.Folders.Remove(folder);
+                    await _context.SaveChangesAsync();
                 }
                 return (true, null);
             }

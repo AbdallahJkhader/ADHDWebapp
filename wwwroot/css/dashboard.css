@@ -146,6 +146,179 @@
     color: #fff;
 }
 
+/* Enhanced Student Card */
+.cls-student-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border-light);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+    margin-bottom: 8px;
+}
+
+.cls-student-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 131, 143, 0.2);
+}
+
+.cls-student-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cls-student-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%);
+    color: var(--color-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+.cls-student-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.cls-student-name {
+    font-weight: 600;
+    color: var(--color-text);
+    font-size: 0.95rem;
+}
+
+.cls-student-email {
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+}
+
+.cls-student-actions {
+    opacity: 0;
+    transform: translateX(10px);
+    transition: all 0.2s ease;
+    display: flex;
+    gap: 8px;
+}
+
+.cls-student-card:hover .cls-student-actions {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Enhanced File Card */
+.cls-file-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border-light);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.2s ease;
+    position: relative;
+    height: 100%;
+    min-height: 140px;
+}
+
+.cls-file-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.cls-file-icon-wrapper {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    font-size: 1.75rem;
+    transition: transform 0.2s ease;
+}
+
+.cls-file-card:hover .cls-file-icon-wrapper {
+    transform: scale(1.1);
+}
+
+.cls-file-icon-pdf {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.cls-file-icon-word {
+    background: #dbeafe;
+    color: #3b82f6;
+}
+
+.cls-file-icon-image {
+    background: #fef3c7;
+    color: #f59e0b;
+}
+
+.cls-file-icon-default {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.cls-file-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-text);
+    margin-bottom: 4px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cls-file-size {
+    font-size: 0.75rem;
+    color: var(--color-text-light);
+}
+
+.cls-file-download-overlay {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 2;
+}
+
+.cls-file-card:hover .cls-file-download-overlay {
+    opacity: 1;
+}
+
+.btn-icon-soft {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--color-text);
+    transition: all 0.2s;
+}
+
+.btn-icon-soft:hover {
+    background: var(--color-secondary);
+    color: #fff;
+}
+
+
 #class-details-panel .cls-tabs-content {
     border-top: 1px solid var(--color-border-light);
     padding-top: 10px;
@@ -432,6 +605,7 @@ body.dashboard-page {
 
 #file-display-container {
     height: 100%;
+    flex: 1;
     display: flex;
     flex-direction: column;
 }
@@ -3403,6 +3577,11 @@ body.dashboard-page {
     border: 3px solid #fff;
 }
 
+.class-details-content {
+    position: relative;
+    z-index: 1;
+}
+
 .cls-stat-card {
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(10px);
@@ -3639,7 +3818,121 @@ body.dashboard-page {
     font-size: 0.75rem;
     color: #adb5bd;
     margin-top: 0.25rem;
-}/* Hide chat area initially until class is selected */
+}
+
+/* Hide chat area initially until class is selected */
 #chat-area {
     display: none;
+}
+
+/* Class Details Tabs Refinement */
+.cls-tabs .nav-pills {
+    background-color: var(--color-gray-100) !important;
+    padding: 4px !important;
+    border-radius: 12px !important;
+}
+
+.cls-tabs .nav-link {
+    color: var(--color-text-light) !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.cls-tabs .nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    color: var(--color-primary) !important;
+}
+
+.cls-tabs .nav-link.active {
+    background-color: var(--color-white) !important;
+    color: var(--color-primary) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Option Buttons Refinement */
+#class-details-panel .btn-outline-secondary:hover,
+#class-details-panel .btn-outline-primary:hover,
+#class-details-panel .btn-outline-danger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Class Files Panel Styles */
+.cls-file-item {
+    transition: all 0.2s ease;
+}
+
+.cls-file-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.hover-shadow {
+    transition: box-shadow 0.2s ease;
+}
+
+.transition {
+    transition: all 0.2s ease;
+}
+
+/* Class Files Filter Buttons */
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.btn-xs.active {
+    font-weight: 600;
+}
+
+#cls-files-panel .input-group-text {
+    border: 1px solid #dee2e6;
+}
+
+#cls-files-panel .form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--color-primary-rgb), 0.25);
+}
+
+/* Timer Panel Styles */
+.timer-circle {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.timer-preset {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.timer-preset:hover {
+    transform: translateY(-1px);
+}
+
+.timer-preset.active {
+    font-weight: 600;
+    border-width: 2px;
+}
+
+/* Music Panel Styles */
+.music-preset-card {
+    transition: all 0.2s ease;
+    border-width: 2px;
+}
+
+.music-preset-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.music-preset-card:active,
+.music-preset-card.active {
+    transform: scale(0.98);
+}
+
+/* Volume Slider */
+.form-range:focus {
+    outline: none;
 }

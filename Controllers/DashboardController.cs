@@ -14,13 +14,15 @@ namespace ADHDWebApp.Controllers
         private readonly IClassesService _classesService;
         private readonly IConfiguration _config;
         private readonly IWebHostEnvironment _env;
+        private readonly INotificationService _notificationService;
 
-        public DashboardController(IDashboardService dashboardService, IClassesService classesService, IConfiguration config, IWebHostEnvironment env)
+        public DashboardController(IDashboardService dashboardService, IClassesService classesService, IConfiguration config, IWebHostEnvironment env, INotificationService notificationService)
         {
             _dashboardService = dashboardService;
             _classesService = classesService;
             _config = config;
             _env = env;
+            _notificationService = notificationService;
         }
 
         public class SummarizeRequest { public string? Text { get; set; } }
@@ -483,5 +485,18 @@ namespace ADHDWebApp.Controllers
             if (result.Success) return Json(new { success = true, message = "Focus session recorded" });
             return Json(new { success = false, error = result.Error });
         }
+
+        [HttpPost]
+        [Route("Dashboard/MarkNotificationAsRead")]
+        public async Task<IActionResult> MarkNotificationAsRead([FromBody] MarkNotificationDto dto)
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null) return Json(new { success = false, error = "Not authenticated" });
+
+            var result = await _notificationService.MarkAsReadAsync(dto.NotificationId, userId.Value);
+            return Json(new { success = result.Success, error = result.Error });
+        }
+
+        public class MarkNotificationDto { public int NotificationId { get; set; } }
     }
 }

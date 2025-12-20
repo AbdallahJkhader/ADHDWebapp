@@ -188,6 +188,32 @@ namespace ADHDWebapp.Migrations
                     b.ToTable("Flashcards");
                 });
 
+            modelBuilder.Entity("ADHDWebApp.Models.Folder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Folders");
+                });
+
             modelBuilder.Entity("ADHDWebApp.Models.Message", b =>
                 {
                     b.Property<int>("Id")
@@ -452,6 +478,9 @@ namespace ADHDWebapp.Migrations
                     b.Property<long?>("FileSize")
                         .HasColumnType("bigint");
 
+                    b.Property<int?>("FolderId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("datetime2");
 
@@ -459,6 +488,8 @@ namespace ADHDWebapp.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FolderId");
 
                     b.HasIndex("UserId");
 
@@ -534,6 +565,17 @@ namespace ADHDWebapp.Migrations
                 });
 
             modelBuilder.Entity("ADHDWebApp.Models.Flashcard", b =>
+                {
+                    b.HasOne("ADHDWebApp.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ADHDWebApp.Models.Folder", b =>
                 {
                     b.HasOne("ADHDWebApp.Models.User", "User")
                         .WithMany()
@@ -625,11 +667,17 @@ namespace ADHDWebapp.Migrations
 
             modelBuilder.Entity("ADHDWebApp.Models.UserFile", b =>
                 {
+                    b.HasOne("ADHDWebApp.Models.Folder", "Folder")
+                        .WithMany()
+                        .HasForeignKey("FolderId");
+
                     b.HasOne("ADHDWebApp.Models.User", "User")
                         .WithMany("Files")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Folder");
 
                     b.Navigation("User");
                 });

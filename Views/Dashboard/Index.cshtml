@@ -40,10 +40,11 @@
 
 
     <div class="top-nav">
-        <div class="left-nav d-flex align-items-center">
-            <div class="site-logo me-3">
-                <img src="~/images/logo.jpg" alt="ADHD Webapp Logo" style="height: 32px; width: auto;" />
-            </div>
+        <div class="left-nav d-flex align-items-center gap-2">
+            <button class="nav-btn" type="button" onclick="location.reload()">
+                <img src="~/images/logo.jpg" alt="Home" style="height: 20px; width: auto;" />
+                <span>Home</span>
+            </button>
             <button class="nav-btn" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">
                 <i class="bi bi-question-circle"></i>
                 <span>Help</span>
@@ -66,7 +67,7 @@
 
                     <div class="activity-item" onclick="toggleInlinePanel('focus-music-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon">
-                            <i class="bi bi-music-note-beamed"></i>
+                            <img src="~/images/focus music.png" alt="Music" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Focus Music</div>
@@ -74,9 +75,10 @@
                         </div>
                     </div>
 
-                    <div class="activity-item">
+
+                    <div class="activity-item" onclick="toggleInlinePanel('focus-breathing-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon">
-                            <i class="bi bi-brightness-high"></i>
+                            <img src="~/images/Breathing icon.png" alt="Breathing" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Breathing Exercises</div>
@@ -84,9 +86,9 @@
                         </div>
                     </div>
 
-                    <div class="activity-item">
+                    <div class="activity-item" onclick="toggleInlinePanel('focus-mindgames-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon">
-                            <i class="bi bi-puzzle"></i>
+                            <img src="~/images/Mind Games.png" alt="Mind Games" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Mind Games</div>
@@ -97,7 +99,7 @@
                     <div class="inline-panel-host">
                         <div class="activity-item" onclick="toggleInlinePanel('focus-timer-panel', event)" style="cursor: pointer;">
                             <div class="activity-icon">
-                                <i class="bi bi-stopwatch"></i>
+                                <img src="~/images/Timer.png" alt="Timer" style="width: 24px; height: 24px; object-fit: contain;" />
                             </div>
                             <div class="activity-info">
                                 <div class="activity-title">Timer</div>
@@ -110,41 +112,46 @@
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start" id="focus-timer-panel" dir="ltr" style="direction:ltr;">
                         <div class="dropdown-header">
                             <i class="bi bi-stopwatch"></i>
-                            <span>Timer</span>
+                            <span>Focus Timer</span>
                         </div>
                         <div class="dropdown-divider"></div>
 
-                        <div class="timer-options px-3">
-                            <h6>Preset Timers:</h6>
-                            <div>
-                                <span class="timer-preset active" data-minutes="25">Pomodoro (25m)</span>
-                                <span class="timer-preset" data-minutes="15">Short Break (15m)</span>
-                                <span class="timer-preset" data-minutes="5">Quick Break (5m)</span>
-                                <span class="timer-preset" data-minutes="50">Deep Focus (50m)</span>
+                        <div class="px-3 py-3">
+                            <h6 class="mb-3">Preset Timers</h6>
+                            <div class="d-grid gap-2 mb-3">
+                                <button class="btn btn-sm btn-outline-primary timer-preset active" data-minutes="25">
+                                    <i class="bi bi-alarm me-2"></i>Pomodoro (25 min)
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary timer-preset" data-minutes="15">
+                                    <i class="bi bi-cup-hot me-2"></i>Short Break (15 min)
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary timer-preset" data-minutes="5">
+                                    <i class="bi bi-lightning me-2"></i>Quick Break (5 min)
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary timer-preset" data-minutes="50">
+                                    <i class="bi bi-stars me-2"></i>Deep Focus (50 min)
+                                </button>
                             </div>
-                        </div>
 
-                        <div class="dropdown-divider"></div>
+                            <div class="text-center mb-3">
+                                <div class="activity-desc display-4 fw-bold text-primary">25:00</div>
+                                <small class="text-muted">Remaining Time</small>
+                            </div>
 
-                        <div class="activity-item">
-                            <div class="progress-ring">
-                                <svg width="24" height="24">
-                                    <circle class="progress-circle" r="10" cx="12" cy="12" fill="transparent" stroke="#e3f2fd" stroke-width="3"></circle>
-                                    <circle class="progress-circle" r="10" cx="12" cy="12" fill="transparent" stroke="#00bcd4" stroke-width="3" stroke-dasharray="62.8" stroke-dashoffset="31.4"></circle>
-                                </svg>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-success flex-fill" onclick="window.startTimer()">
+                                    <i class="bi bi-play-fill"></i> Start
+                                </button>
+                                <button class="btn btn-warning flex-fill" onclick="window.pauseTimer()">
+                                    <i class="bi bi-pause-fill"></i> Pause
+                                </button>
+                                <button class="btn btn-secondary flex-fill" onclick="window.resetTimer()">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                                </button>
                             </div>
-                            <div class="activity-info">
-                                <div class="activity-title">Remaining Time</div>
-                                <div class="activity-desc">25:00</div>
-                            </div>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="d-flex justify-content-around p-2">
-                            <button class="btn btn-sm btn-success"><i class="bi bi-play"></i> Start</button>
-                            <button class="btn btn-sm btn-danger"><i class="bi bi-pause"></i> Pause</button>
-                            <button class="btn btn-sm btn-secondary"><i class="bi bi-arrow-clockwise"></i> Reset</button>
                         </div>
                     </div>
+
 
                     <!-- Focus Music panel positioned relative to Focus dropdown (top-left) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start" id="focus-music-panel" dir="ltr" style="direction:ltr;">
@@ -153,23 +160,36 @@
                             <span>Focus Music</span>
                         </div>
                         <div class="dropdown-divider"></div>
-                        <div class="px-3 py-2">
-                            <div class="mb-2">
-                                <h6 class="mb-2">Presets</h6>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-primary" id="music-preset-quran">Quran</button>
-                                    <button type="button" class="btn btn-outline-primary" id="music-preset-rain">Rain</button>
-                                    <button type="button" class="btn btn-outline-primary" id="music-preset-earth">Earth</button>
-                                    <button type="button" class="btn btn-outline-primary" id="music-preset-topone">Top One</button>
-                                </div>
+                        <div class="px-3 py-3">
+                            <h6 class="mb-3">Ambient Sounds</h6>
+                            <div class="d-grid gap-2 mb-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="music-preset-quran">
+                                    <i class="bi bi-bookmark-star me-2"></i>Quran
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="music-preset-rain">
+                                    <i class="bi bi-cloud-rain me-2"></i>Rain
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="music-preset-earth">
+                                    <i class="bi bi-globe-americas me-2"></i>Earth
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="music-preset-piano">
+                                    <i class="bi bi-music-note-beamed me-2"></i>Piano
+                                </button>
                             </div>
-                            <div class="d-flex align-items-center mb-2">
-                                <button type="button" class="btn btn-success btn-sm me-2" id="music-toggle"><i class="bi bi-play-fill"></i> Play</button>
+
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <button type="button" class="btn btn-success flex-fill" id="music-toggle">
+                                    <i class="bi bi-play-fill"></i> Play
+                                </button>
                                 <div class="flex-grow-1">
+                                    <label class="form-label small mb-1">Volume</label>
                                     <input type="range" class="form-range" id="music-volume" min="0" max="1" step="0.01" value="0.6">
                                 </div>
                             </div>
-                            <div class="small text-muted">Now Playing: <span id="music-nowplaying">None</span></div>
+
+                            <div class="small text-muted text-center">
+                                Now Playing: <span id="music-nowplaying" class="fw-semibold">Select a track</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -200,7 +220,7 @@
 
                     <div class="activity-item" onclick="showMyFiles();" style="cursor: pointer;">
                         <div class="activity-icon">
-                            <img src="~/images/folder.png" alt="Folder" style="width: 24px; height: 24px; object-fit: contain;" />
+                            <img src="/images/folder icon.png" alt="Folder" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">My Files</div>
@@ -210,7 +230,7 @@
 
                     <div class="activity-item" onclick="showRecentFiles();" style="cursor: pointer;">
                         <div class="activity-icon">
-                            <img src="~/images/recent.png" alt="Recent" style="width: 24px; height: 24px; object-fit: contain;" />
+                            <img src="/images/recent.png" alt="Recent" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Recent Files</div>
@@ -220,7 +240,7 @@
 
                     <div class="activity-item">
                         <div class="activity-icon">
-                            <img src="~/images/shared.png" alt="Shared" style="width: 24px; height: 24px; object-fit: contain;" />
+                            <img src="/images/send icon.png" alt="Shared" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Shared With Me</div>
@@ -575,15 +595,15 @@
                             <div class="mb-3">
                                 <label class="small text-muted mb-2 ms-1">Select Class</label>
                                 <div class="input-group input-group-sm">
-                                    <select id="chat-class-select" class="form-select rounded-pill-start"></select>
-                                    <button type="button" class="btn btn-outline-secondary rounded-pill-end px-3" id="chat-refresh-btn" title="Refresh">
+                                    <select id="class-chat-select" class="form-select rounded-pill-start"></select>
+                                    <button type="button" class="btn btn-outline-secondary rounded-pill-end px-3" id="class-chat-refresh" title="Refresh">
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </button>
                                 </div>
                             </div>
 
                             <div id="chat-area" class="border rounded-3 p-3 bg-light" style="display:none; max-height: 250px; overflow-y: auto; min-height: 120px;">
-                                <div class="text-center text-muted py-5" id="chat-empty">
+                                <div class="text-center text-muted py-5" id="class-chat-empty">
                                     <i class="bi bi-chat-left-text fs-1 mb-3 d-block"></i>
                                     <p class="mb-1 fw-medium">No messages yet</p>
                                     <small class="text-muted">Select a class to start chatting</small>
@@ -593,12 +613,12 @@
 
                             <div class="mt-3">
                                 <div class="input-group">
-                                    <input type="text" class="form-control rounded-pill-start" id="chat-input" placeholder="Type a message..." />
-                                    <button type="button" class="btn btn-primary rounded-pill-end px-4" id="chat-send-btn">
+                                    <input type="text" class="form-control rounded-pill-start" id="class-chat-input" placeholder="Type a message..." />
+                                    <button type="button" class="btn btn-primary rounded-pill-end px-4" id="class-chat-send">
                                         <img src="~/images/send icon.png" alt="Send" style="width: 18px; height: 18px; object-fit: contain;" />
                                     </button>
                                 </div>
-                                <div class="small text-danger mt-2" id="chat-error" style="display:none;"></div>
+                                <div class="small text-danger mt-2" id="class-chat-error" style="display:none;"></div>
                             </div>
                         </div>
                     </div>
@@ -666,8 +686,8 @@
 
                             <div class="cls-tabs mb-4">
                                 <div class="nav nav-pills nav-fill gap-2 p-1 bg-light rounded-3" role="tablist">
-                                    <button class="nav-link active btn-sm py-1 small fw-medium" data-tab="info" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('info')">Info</button>
-                                    <button class="nav-link btn-sm py-1 small fw-medium" data-tab="options" onclick="window.__setClassDetailsActiveTab && window.__setClassDetailsActiveTab('options')">Options</button>
+                                    <button class="nav-link tab-btn active btn-sm py-1 small fw-medium" data-tab="info" onclick="if(window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab('info')">Info</button>
+                                    <button class="nav-link tab-btn btn-sm py-1 small fw-medium" data-tab="options" onclick="if(window.__setClassDetailsActiveTab) window.__setClassDetailsActiveTab('options')">Options</button>
                                 </div>
                             </div>
 
@@ -726,16 +746,14 @@
                                                     <i class="bi bi-speedometer2"></i> My Performance
                                                  </button>
                                              }
-                                        </div>
-                                        
-                                        <div class="cls-section-title small text-uppercase text-muted mb-2 fw-bold">Management</div>
-                                        <div class="d-flex flex-column gap-2">
-                                            <button type="button" id="delete-class-btn" class="btn btn-sm btn-danger w-100 rounded-pill text-start px-3" style="display:none;">
+
+                                             <!-- Leave / Delete Actions (Merged into list) -->
+                                             <button type="button" id="delete-class-btn" class="btn btn-sm btn-outline-danger w-100 rounded-pill text-start px-3" style="display:none;">
                                                 <i class="bi bi-trash"></i> Leave and Delete Class
-                                            </button>
-                                            <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger w-100 rounded-pill text-start px-3" style="display:none;">
+                                             </button>
+                                             <button type="button" id="leave-class-btn" class="btn btn-sm btn-outline-danger w-100 rounded-pill text-start px-3" style="display:none;">
                                                 <i class="bi bi-box-arrow-left"></i> Leave Class
-                                            </button>
+                                             </button>
                                         </div>
                                     </div>
                                 </div>
@@ -759,7 +777,7 @@
                         <div class="dropdown-divider m-0"></div>
                         <div class="p-0" style="max-height: 75vh; overflow-y: auto;">
                             <!-- Search/Filter can go here -->
-                            <ul id="cls-members-list" class="list-group list-group-flush small"></ul>
+                            <ul id="cls-students" class="list-group list-group-flush small"></ul>
                         </div>
                     </div>
 
@@ -815,15 +833,6 @@
                                 </div>
                             </div>
 
-                            <!-- Join Code Display -->
-                            <div class="mb-4">
-                                <label class="form-label small fw-medium text-muted">Join Code</label>
-                                <div class="p-3 border rounded-3 bg-white text-center">
-                                    <div class="display-6 fw-bold text-primary tracking-wider" id="cls-privacy-code">------</div>
-                                    <small class="text-muted d-block mt-2" id="cls-privacy-status">Loading...</small>
-                                </div>
-                            </div>
-
                             <!-- Privacy Info -->
                             <div class="alert alert-info small mb-3">
                                 <i class="bi bi-info-circle me-2"></i>
@@ -831,11 +840,6 @@
                                     When enabled, anyone with the join code can join this class. When disabled, new members cannot join.
                                 </span>
                             </div>
-
-                            <!-- Save Button -->
-                            <button type="button" class="btn btn-primary w-100" id="cls-privacy-save-btn">
-                                <i class="bi bi-check-lg me-2"></i>Save Changes
-                            </button>
 
                             <div class="text-danger small mt-2" id="cls-privacy-error" style="display:none;"></div>
                             <div class="text-success small mt-2" id="cls-privacy-success" style="display:none;"></div>
@@ -934,6 +938,70 @@
 
                             <div class="text-danger small mt-2" id="invite-error" style="display:none;"></div>
                             <div class="text-success small mt-2" id="invite-success" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Class Files Panel -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-files-panel" dir="ltr" style="direction:ltr; min-width: 460px;" data-width="460">
+                        <div class="class-details-banner"></div>
+                        <div class="class-details-content px-4 pb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-files-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details">
+                                    <i class="bi bi-arrow-left fs-5"></i>
+                                </button>
+                                <span class="fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>Class Files</span>
+                                <div style="width: 24px;"></div>
+                            </div>
+                            <div class="dropdown-divider mb-3"></div>
+
+                            <!-- Search and Filter Bar -->
+                            <div class="mb-3">
+                                <div class="input-group input-group-sm mb-2">
+                                    <span class="input-group-text bg-light border-end-0">
+                                        <i class="bi bi-search text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0" id="cls-files-search" placeholder="Search files...">
+                                </div>
+                                
+                                <!-- File Type Filters -->
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button class="btn btn-xs btn-outline-secondary rounded-pill active" data-filter="all" onclick="window.filterClassFiles('all')">
+                                        <i class="bi bi-files"></i> All
+                                    </button>
+                                    <button class="btn btn-xs btn-outline-danger rounded-pill" data-filter="pdf" onclick="window.filterClassFiles('pdf')">
+                                        <i class="bi bi-file-pdf"></i> PDF
+                                    </button>
+                                    <button class="btn btn-xs btn-outline-primary rounded-pill" data-filter="doc" onclick="window.filterClassFiles('doc')">
+                                        <i class="bi bi-file-word"></i> Docs
+                                    </button>
+                                    <button class="btn btn-xs btn-outline-success rounded-pill" data-filter="image" onclick="window.filterClassFiles('image')">
+                                        <i class="bi bi-file-image"></i> Images
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Upload Button -->
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-primary w-100 rounded-pill" onclick="document.getElementById('cls-file-upload-input').click()">
+                                    <i class="bi bi-cloud-upload me-2"></i>Upload File
+                                </button>
+                                <input type="file" id="cls-file-upload-input" class="d-none" accept=".txt,.docx,.pdf,.png,.jpg,.jpeg,.gif,.pptx,.xlsx" onchange="if(window.uploadClassFile) window.uploadClassFile(this)">
+                            </div>
+
+                            <!-- Files List -->
+                            <div id="cls-files-container">
+                                <div class="text-center text-muted py-4" id="cls-files-empty">
+                                    <i class="bi bi-folder2 fs-1 mb-2 d-block opacity-50"></i>
+                                    <p class="mb-0 fw-medium">No files uploaded yet</p>
+                                    <small>Share files with your class members</small>
+                                </div>
+                                <div id="cls-files-list" style="display:none; max-height: 350px; overflow-y: auto;">
+                                    <!-- Files will be loaded here via JS -->
+                                </div>
+                            </div>
+
+                            <div class="text-danger small mt-2" id="cls-files-error" style="display:none;"></div>
+                            <div class="text-success small mt-2" id="cls-files-success" style="display:none;"></div>
                         </div>
                     </div>
 
@@ -1108,7 +1176,7 @@
                                                 <input class="form-check-input file-select-checkbox" type="checkbox" data-file-id="@file.Id" onclick="event.stopPropagation();" onchange="onFileCheckboxChange(this)">
                                             </div>
                                             <div class="file-icon-large d-flex align-items-center justify-content-center">
-                                                <img src="~/images/file.png" alt="File" style="width: 36px; height: 36px; object-fit: contain;" />
+                                                <img src="/images/file.png" alt="File" style="width: 36px; height: 36px; object-fit: contain;" />
                                             </div>
                                             <div class="file-name-card">@file.FileName</div>
                                             <div class="file-meta-card">
@@ -1158,18 +1226,18 @@
 
 
                 
-                    <div id="file-display-container" style="display: none" class="d-flex flex-column h-100 pt-2">
+                    <div id="file-display-container" style="display: none" class="flex-column pt-2">
                         <div class="controls-bar d-flex align-items-center gap-2">
                             <button onclick="resetUpload()" class="btn btn-primary btn-sm">
                                 <i class="bi bi-arrow-left me-1"></i>
                                 Back
                             </button>
                             
-                            <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
+                            <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleTextVisibility()" data-bs-toggle="tooltip" title="Hide Text">
                                 <i class="bi bi-eye-slash"></i>
                             </button>
 
-                            <div class="dropdown d-inline-block">
+                            <div class="dropdown d-inline-block ms-auto">
                                 <button class="btn btn-sm btn-outline-secondary rounded-pill dropdown-toggle no-caret d-inline-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Options">
                                     <i class="bi bi-sliders me-1"></i><span class="d-none d-sm-inline">Options</span>
                                 </button>
@@ -1948,9 +2016,21 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="~/js/dashboard.js"></script>
-    <script src="~/js/planner.js"></script>
-    <script src="~/js/class_options.js" asp-append-version="true"></script>
-    <script src="~/js/class_listeners.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-ui.js"></script>
+    <script src="~/js/dashboard-classes.js"></script>
+    <script src="~/js/dashboard-ai.js"></script>
+    <script src="~/js/dashboard-audio.js"></script>
+    <script src="~/js/dashboard-video.js"></script>
+    <script src="~/js/dashboard-music.js"></script>
+    <script src="~/js/dashboard-planner.js"></script>
+    <script src="~/js/dashboard-class-options.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-class-listeners.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-class-files.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-notifications.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-text-controls.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-progress.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-file-tracking.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-timer.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-breathing.js" asp-append-version="true"></script>
 </body>
 </html>

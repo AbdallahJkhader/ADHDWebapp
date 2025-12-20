@@ -28,5 +28,11 @@ namespace ADHDWebApp.Models
         public int UserId { get; set; }
 
         public virtual required User User { get; set; }
+
+        // 🔑 المفتاح الخارجي للمجلد (اختياري)
+        [ForeignKey("Folder")]
+        public int? FolderId { get; set; }
+
+        public virtual Folder? Folder { get; set; }
     }
 }

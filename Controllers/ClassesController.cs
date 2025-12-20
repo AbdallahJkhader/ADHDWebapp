@@ -268,16 +268,18 @@ namespace ADHDWebApp.Controllers
                 var totalFocusMinutes = activities.Where(a => a.ActivityType == "focus_session").Sum(a => a.Duration);
                 var totalSessions = activities.Count(a => a.ActivityType == "focus_session");
 
-                var studentStats = await _context.Users
+                // Fetch users first, then calculate stats in memory
+                var users = await _context.Users
                     .Where(u => memberIds.Contains(u.Id))
-                    .Select(u => new
-                    {
-                        id = u.Id,
-                        name = u.FullName,
-                        email = u.Email,
-                        focusMinutes = activities.Where(a => a.UserId == u.Id && a.ActivityType == "focus_session").Sum(a => a.Duration)
-                    })
                     .ToListAsync();
+
+                var studentStats = users.Select(u => new
+                {
+                    id = u.Id,
+                    name = u.FullName,
+                    email = u.Email,
+                    focusMinutes = activities.Where(a => a.UserId == u.Id && a.ActivityType == "focus_session").Sum(a => a.Duration)
+                }).ToList();
 
 
                 return Json(new
