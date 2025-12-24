@@ -1,76 +1,73 @@
 // Student Progress Viewer for Class Members
 
 window.viewStudentProgress = function (userId, studentName) {
-    if (!userId) {
-        console.error('No user ID provided');
-        return;
-    }
+    if (!userId) return;
 
-    // Open progress tracker panel
-    toggleInlinePanel('tools-progress-panel', event, 'tools-dropdown');
-
-    // Load progress data for the specific user
-    setTimeout(() => {
-        loadProgressData(userId, studentName);
-    }, 100);
+    // Show loading popup
+    Swal.fire({
+        title: `Loading ${studentName}'s Progress...`,
+        didOpen: () => {
+            Swal.showLoading();
+            loadProgressPopup(userId, studentName);
+        }
+    });
 };
 
-async function loadProgressData(userId, studentName) {
+async function loadProgressPopup(userId, studentName) {
     try {
         const response = await fetch(`/Dashboard/GetProgress?targetUserId=${userId}`, {
             credentials: 'same-origin'
         });
-
         const data = await response.json();
+        if (!data.success && data.success !== undefined) throw new Error(data.error || 'Failed to load progress');
 
-        if (!data.success && data.success !== undefined) {
-            throw new Error(data.error || 'Failed to load progress');
-        }
+        // Prepare Data
+        const streak = data.streak || 0;
+        const weeklyMins = data.weeklyFocusMinutes || 0;
+        const focusText = weeklyMins < 60 ? `${weeklyMins}m` : `${Math.floor(weeklyMins / 60)}h ${weeklyMins % 60}m`;
+        const subjects = data.weeklySubjects || 0;
 
-        // Update progress panel with student name
-        const panelTitle = document.querySelector('#tools-progress-panel .dropdown-header span');
-        if (panelTitle && studentName) {
-            panelTitle.textContent = `${studentName}'s Progress`;
-        }
+        // Create HTML Content
+        const htmlContent = `
+            <div class="row g-3 text-center mb-3">
+                <div class="col-4">
+                    <div class="p-3 bg-light rounded-3">
+                        <div class="h4 text-primary mb-1">${streak}</div>
+                        <div class="small text-muted">Day Streak</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-3 bg-light rounded-3">
+                        <div class="h4 text-primary mb-1">${focusText}</div>
+                        <div class="small text-muted">Focus Time</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-3 bg-light rounded-3">
+                        <div class="h4 text-primary mb-1">${subjects}</div>
+                        <div class="small text-muted">Subjects</div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-start">
+             <small class="text-muted">Weekly activity summary for ${window.escapeHtml(studentName)}.</small>
+            </div>
+        `;
 
-        // Update streak
-        const streakEl = document.getElementById('progress-streak');
-        if (streakEl) {
-            streakEl.textContent = data.streak || 0;
-        }
-
-        // Update browsing time
-        const browsingEl = document.getElementById('progress-browsing');
-        if (browsingEl) {
-            browsingEl.textContent = data.browsingTime || '0m this week';
-        }
-
-        // Update subjects
-        const subjectsEl = document.getElementById('progress-subjects');
-        if (subjectsEl) {
-            subjectsEl.textContent = data.weeklySubjects || 0;
-        }
-
-        // Update focus time
-        const focusEl = document.getElementById('progress-focus');
-        if (focusEl) {
-            const focusTime = data.focusTime || data.weeklyFocusMinutes ?
-                `${Math.floor(data.weeklyFocusMinutes / 60)}h ${data.weeklyFocusMinutes % 60}m` :
-                '0m';
-            focusEl.textContent = focusTime;
-        }
+        Swal.fire({
+            title: `${studentName}'s Analytics`,
+            html: htmlContent,
+            width: 600,
+            showCloseButton: true,
+            focusConfirm: false,
+            confirmButtonText: 'Close'
+        });
 
     } catch (error) {
-        console.error('Failed to load progress:', error);
-
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Failed to load student progress: ' + error.message
-            });
-        } else {
-            alert('Failed to load student progress: ' + error.message);
-        }
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load progress: ' + error.message
+        });
     }
 }

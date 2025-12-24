@@ -259,16 +259,18 @@ namespace ADHDWebApp.Services
 
                 var files = await _context.ClassFiles
                     .Where(f => f.ClassId == classId)
+                    .Include(f => f.Uploader)
                     .OrderByDescending(f => f.UploadedAt)
                     .Select(f => new
                     {
                         id = f.Id,
-                        name = f.FileName,
-                        url = f.FilePath,
-                        size = f.FileSize,
+                        fileName = f.FileName,
+                        filePath = f.FilePath,
+                        fileSize = f.FileSize,
                         contentType = f.ContentType,
                         uploadedAt = f.UploadedAt,
-                        uploaderId = f.UploaderId
+                        uploaderId = f.UploaderId,
+                        uploaderName = f.Uploader.FullName
                     })
                     .Cast<object>()
                     .ToListAsync();

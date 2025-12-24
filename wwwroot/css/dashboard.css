@@ -432,12 +432,12 @@ body {
 }
 
 body.dashboard-page {
-    overflow: hidden;
+    /* overflow: hidden; Removed to fix scrolling on Help page */
 }
 
 
 .top-nav {
-    padding: 0;
+    padding: 0 var(--spacing-lg);
     background-color: var(--color-white);
     border-bottom: 1px solid var(--color-border);
     display: flex;
@@ -3861,12 +3861,25 @@ body.dashboard-page {
 
 /* Class Files Panel Styles */
 .cls-file-item {
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
 }
 
 .cls-file-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12) !important;
+    border-color: rgba(0, 131, 143, 0.3) !important;
+}
+
+/* File Statistics Section */
+#cls-files-stats {
+    background: linear-gradient(135deg, #f8fafc 0%, #e0f2f1 100%);
+    border: 1px solid rgba(0, 131, 143, 0.1);
+}
+
+#cls-files-stats .fw-bold {
+    letter-spacing: -0.025em;
+    line-height: 1.1;
 }
 
 .hover-shadow {
@@ -3879,22 +3892,35 @@ body.dashboard-page {
 
 /* Class Files Filter Buttons */
 .btn-xs {
-    padding: 0.25rem 0.5rem;
+    padding: 0.35rem 0.75rem;
     font-size: 0.75rem;
     line-height: 1.2;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-xs:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-xs.active {
     font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 #cls-files-panel .input-group-text {
     border: 1px solid #dee2e6;
+    background: #f8fafc;
+}
+
+#cls-files-panel .form-control {
+    transition: all 0.2s ease;
 }
 
 #cls-files-panel .form-control:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 0.2rem rgba(var(--color-primary-rgb), 0.25);
+    border-color: var(--color-secondary);
+    box-shadow: 0 0 0 0.2rem rgba(0, 131, 143, 0.15);
 }
 
 /* Timer Panel Styles */
@@ -3935,4 +3961,161 @@ body.dashboard-page {
 /* Volume Slider */
 .form-range:focus {
     outline: none;
+}
+
+/* Reading Mode */
+.reading-mode {
+    max-width: 700px;
+    margin: 0 auto;
+    font-size: 1.15rem;
+    line-height: 1.8;
+    color: #2c3e50;
+    background-color: #fdf6e3;
+    /* Solarized Light / Sepia tone */
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* ===== Progress Tracker Enhancements ===== */
+.progress-ring-container {
+    position: relative;
+    border-radius: 50%;
+}
+
+.progress-ring {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(var(--c) calc(var(--p)*1%), var(--color-border-light) 0);
+    -webkit-mask: radial-gradient(transparent 55%, black 55%);
+    mask: radial-gradient(transparent 55%, black 55%);
+    transition: --p 0.5s ease;
+}
+
+/* Property registration for transition if supported, otherwise fallback */
+@property --p {
+    syntax: '<integer>';
+    initial-value: 0;
+    inherits: false;
+}
+
+.chart-bar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    width: 12%;
+}
+
+.chart-bar {
+    width: 100%;
+    border-radius: 4px;
+    background: var(--color-primary);
+    opacity: 0.8;
+    transition: height 0.5s ease;
+    min-height: 4px;
+}
+
+.chart-bar:hover {
+    opacity: 1;
+}
+
+.chart-label {
+    font-size: 0.6rem;
+    color: var(--color-text-secondary);
+    margin-top: 4px;
+}
+
+/* ===== Study Planner Enhancements ===== */
+.planner-tab-content {
+    animation: fadeIn 0.3s ease;
+}
+
+.planner-card {
+    background: var(--color-white);
+    border: 1px solid var(--color-border-light);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.planner-card:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+}
+
+.planner-card.completed {
+    opacity: 0.7;
+    background: #fafafa;
+}
+
+.planner-card .card-actions {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.planner-card:hover .card-actions {
+    opacity: 1;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== Premium Calculator Buttons ===== */
+.btn-white {
+    background-color: #ffffff;
+    border: 1px solid #e9ecef;
+    /* slightly darker than pure white border */
+    color: var(--color-text);
+    transition: all 0.2s ease;
+}
+
+.btn-white:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05) !important;
+}
+
+.custom-calc-grid .btn {
+    height: 48px;
+    /* Fixed height for consistent grid */
+    font-size: 1.1rem;
+}
+
+/* ===== Custom Button Colors for Focus Tools ===== */
+.btn-outline-purple {
+    color: #6610f2;
+    border-color: #6610f2;
+    background-color: transparent;
+}
+
+.btn-outline-purple:hover,
+.btn-outline-purple.active,
+.btn-outline-purple:active,
+.btn-outline-purple:focus {
+    background-color: #6610f2 !important;
+    color: #ffffff !important;
+    border-color: #6610f2 !important;
+}
+
+.btn-outline-indigo {
+    color: #6610f2;
+    border-color: #6610f2;
+    background-color: transparent;
+}
+
+.btn-outline-indigo:hover,
+.btn-outline-indigo.active {
+    background-color: #6610f2 !important;
+    color: white !important;
 }

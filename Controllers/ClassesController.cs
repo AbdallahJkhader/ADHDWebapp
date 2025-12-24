@@ -88,6 +88,28 @@ namespace ADHDWebApp.Controllers
             return Json(new { success = false, error = result.Error });
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetClassFile(int fileId)
+        {
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null)
+                return Json(new { success = false, error = "Not logged in" });
+
+            var file = await _context.ClassFiles.FirstOrDefaultAsync(f => f.Id == fileId);
+            if (file == null)
+                return Json(new { success = false, error = "File not found" });
+
+            // Check membership logic if needed, but for now assuming if you have the ID you can try (or use service)
+            // Ideally we check if user is in the class
+            var isMember = await _context.ClassMemberships.AnyAsync(m => m.ClassId == file.ClassId && m.UserId == sessionUserId.Value);
+            var isOwner = await _context.Classes.AnyAsync(c => c.Id == file.ClassId && c.OwnerId == sessionUserId.Value);
+
+            if (!isMember && !isOwner)
+                 return Json(new { success = false, error = "Access denied" });
+
+            return Json(new { success = true, filePath = file.FilePath, fileName = file.FileName, contentType = file.ContentType });
+        }
+
         [HttpPost]
         [RequestSizeLimit(50_000_000)]
         public async Task<IActionResult> UploadFile(IFormFile file, int classId)
@@ -197,6 +219,90 @@ namespace ADHDWebApp.Controllers
         public class RemoveMemberDto { public int ClassId { get; set; } public int UserId { get; set; } }
         public class UpdatePrivacyDto { public int ClassId { get; set; } public bool AllowJoin { get; set; } }
 
+        [HttpPost]
+        public async Task<IActionResult> DeleteClassFile([FromBody] int fileId)
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null) return Json(new { success = false, error = "Not logged in" });
+
+            try
+            {
+                // Verify ownership/permission
+                var file = await _context.ClassFiles.Include(f => f.Class).FirstOrDefaultAsync(f => f.Id == fileId);
+                if (file == null) return Json(new { success = false, error = "File not found" });
+
+                // Allow deletion if user is the class owner OR the file uploader
+                if (file.Class.OwnerId != userId && file.UploaderId != userId)
+                {
+                    return Json(new { success = false, error = "You can only delete your own files or files in classes you own" });
+                }
+
+                // Delete physical file
+                // The FilePath stored in DB is relative, so we need to construct the full path
+                var uploadsRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var fullPath = Path.Combine(uploadsRoot, file.FilePath.TrimStart('/'));
+
+                if (System.IO.File.Exists(fullPath))
+                {
+                    System.IO.File.Delete(fullPath);
+                }
+
+                _context.ClassFiles.Remove(file);
+                await _context.SaveChangesAsync();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetSharedFiles()
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null) return Json(new { success = false, error = "Not logged in" });
+
+            try
+            {
+                // Get all classes user is member of
+                var memberClasses = await _context.ClassMemberships
+                    .Where(m => m.UserId == userId)
+                    .Select(m => m.ClassId)
+                    .ToListAsync();
+
+                // Also classes created by user (teacher)
+                var teacherClasses = await _context.Classes
+                    .Where(c => c.OwnerId == userId)
+                    .Select(c => c.Id)
+                    .ToListAsync();
+                
+                var allClassIds = memberClasses.Union(teacherClasses).Distinct().ToList();
+
+                var files = await _context.ClassFiles
+                    .Include(f => f.Class)
+                    .Where(f => allClassIds.Contains(f.ClassId))
+                    .OrderByDescending(f => f.UploadedAt)
+                    .Select(f => new
+                    {
+                        f.Id,
+                        f.FileName,
+                        f.FilePath,
+                        f.FileSize,
+                        f.UploadedAt,
+                        ClassName = f.Class.Name
+                    })
+                    .ToListAsync();
+
+                return Json(new { success = true, files });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
         // ===== Class Chat Endpoints =====
         [HttpGet]
         public async Task<IActionResult> Chat(int classId, int? afterId)
@@ -255,8 +361,9 @@ namespace ADHDWebApp.Controllers
                 if (cls == null)
                     return Json(new { success = false, error = "Class not found" });
 
+                // Get member IDs excluding the class owner (teacher)
                 var memberIds = await _context.ClassMemberships
-                    .Where(m => m.ClassId == classId)
+                    .Where(m => m.ClassId == classId && m.UserId != cls.OwnerId)
                     .Select(m => m.UserId)
                     .ToListAsync();
 
@@ -268,7 +375,7 @@ namespace ADHDWebApp.Controllers
                 var totalFocusMinutes = activities.Where(a => a.ActivityType == "focus_session").Sum(a => a.Duration);
                 var totalSessions = activities.Count(a => a.ActivityType == "focus_session");
 
-                // Fetch users first, then calculate stats in memory
+                // Fetch users with their streaks
                 var users = await _context.Users
                     .Where(u => memberIds.Contains(u.Id))
                     .ToListAsync();
@@ -278,9 +385,12 @@ namespace ADHDWebApp.Controllers
                     id = u.Id,
                     name = u.FullName,
                     email = u.Email,
-                    focusMinutes = activities.Where(a => a.UserId == u.Id && a.ActivityType == "focus_session").Sum(a => a.Duration)
+                    focusMinutes = activities.Where(a => a.UserId == u.Id && a.ActivityType == "focus_session").Sum(a => a.Duration),
+                    streak = activities.Where(a => a.UserId == u.Id).Select(a => a.Timestamp.Date).Distinct().Count()
                 }).ToList();
 
+                // Calculate average streak
+                var avgStreak = studentStats.Any() ? (int)studentStats.Average(s => s.streak) : 0;
 
                 return Json(new
                 {
@@ -288,7 +398,7 @@ namespace ADHDWebApp.Controllers
                     totalStudents = memberIds.Count,
                     totalFocusMinutes,
                     totalSessions,
-                    avgStreak = 0,
+                    avgStreak,
                     students = studentStats
                 });
             }

@@ -9,6 +9,9 @@ using System.Text;
 using System.Text.Json;
 using System.Net;
 using System.Net.Http.Headers;
+using DocumentFormat.OpenXml.Wordprocessing;
+using DocumentFormat.OpenXml.Presentation;
+using A = DocumentFormat.OpenXml.Drawing;
 
 namespace ADHDWebApp.Services
 {
@@ -115,6 +118,32 @@ namespace ADHDWebApp.Services
                     UserId = userId,
                     ActivityType = "focus_session",
                     SubjectName = string.IsNullOrWhiteSpace(subjectName) ? "General Focus" : subjectName,
+                    Duration = duration,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                _context.UserActivities.Add(activity);
+                await _context.SaveChangesAsync();
+
+                return (true, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+
+        public async Task<(bool Success, string Error)> RecordBrowsingSessionAsync(int userId, int duration, string subjectName)
+        {
+            try
+            {
+                if (duration <= 0) return (false, "Invalid duration");
+
+                var activity = new UserActivity
+                {
+                    UserId = userId,
+                    ActivityType = "file_view", // Reusing file_view ensures it counts towards browsing stats
+                    SubjectName = string.IsNullOrWhiteSpace(subjectName) ? "General Browsing" : subjectName,
                     Duration = duration,
                     Timestamp = DateTime.UtcNow
                 };
@@ -285,6 +314,23 @@ namespace ADHDWebApp.Services
             }
         }
 
+        public async Task<(bool Success, string Error)> UpdateFullNameAsync(int userId, string fullName)
+        {
+            try
+            {
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null) return (false, "User not found");
+
+                user.FullName = fullName;
+                await _context.SaveChangesAsync();
+                return (true, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+
         public async Task<(bool Success, string Error, UserFile? File, string? Content, string? DisplayType, bool Truncated)> GetFileContentAsync(int userId, int fileId, string webRootPath)
         {
             try
@@ -318,37 +364,96 @@ namespace ADHDWebApp.Services
 
                 switch (extension)
                 {
-                    case ".txt":
-                        using (var reader = new StreamReader(fullPath))
+                    case ".docx":
+                        try
                         {
-                            contentText = await reader.ReadToEndAsync();
-                            const int MAX_CHARS = 200_000;
-                            if (contentText.Length > MAX_CHARS)
+                            using (var wordDoc = WordprocessingDocument.Open(fullPath, false))
                             {
-                                contentText = contentText.Substring(0, MAX_CHARS);
-                                truncated = true;
+                                var body = wordDoc.MainDocumentPart?.Document.Body;
+                                if (body != null)
+                                {
+                                    // Extract text with newlines
+                                    var sb = new StringBuilder();
+                                    foreach (var p in body.Descendants<DocumentFormat.OpenXml.Wordprocessing.Paragraph>())
+                                    {
+                                        sb.AppendLine(p.InnerText);
+                                    }
+                                    contentText = sb.ToString();
+                                }
                             }
+                            displayType = "text";
                         }
+                        catch (Exception) { contentText = "Error reading DOCX file."; }
+                        break;
+
+                    case ".pptx":
+                        try
+                        {
+                            using (var presentationDocument = DocumentFormat.OpenXml.Packaging.PresentationDocument.Open(fullPath, false))
+                            {
+                                var presentationPart = presentationDocument.PresentationPart;
+                                var sb = new StringBuilder();
+                                if (presentationPart != null && presentationPart.Presentation != null)
+                                {
+                                    var slideIds = presentationPart.Presentation.SlideIdList?.ChildElements;
+                                    if (slideIds != null)
+                                    {
+                                        foreach (var slideId in slideIds)
+                                        {
+                                            var slidePart = (SlidePart)presentationPart.GetPartById(((SlideId)slideId).RelationshipId!);
+                                            if (slidePart != null && slidePart.Slide != null)
+                                            {
+                                                var texts = slidePart.Slide.Descendants<DocumentFormat.OpenXml.Drawing.Text>();
+                                                foreach (var t in texts)
+                                                {
+                                                    sb.AppendLine(t.Text);
+                                                }
+                                                sb.AppendLine("--- Slide Break ---");
+                                            }
+                                        }
+                                    }
+                                    contentText = sb.ToString();
+                                }
+                            }
+                            displayType = "text";
+                        }
+                        catch (Exception) { contentText = "Error reading PPTX file."; }
+                        break;
+
+                    case ".txt":
+                        contentText = await System.IO.File.ReadAllTextAsync(fullPath);
                         displayType = "text";
                         break;
+
                     case ".pdf":
-                        // For PDF, we might return just path or extract text. 
-                        // Controller used text extraction for one view and URL for another.
-                        // Im supporting text extraction if needed, or just type 'pdf'
-                        displayType = "pdf"; 
+                        displayType = "pdf";
+                        contentText = file.FilePath; // Return path for PDF viewer
                         break;
-                     case ".docx":
-                        using (var wordDoc = WordprocessingDocument.Open(fullPath, false))
-                            contentText = wordDoc.MainDocumentPart.Document.Body.InnerText;
-                        displayType = "text";
-                        break;
+
+                    case ".png":
                     case ".jpg":
                     case ".jpeg":
-                    case ".png":
                     case ".gif":
                         displayType = "image";
+                        contentText = file.FilePath; // Return path for Image viewer
+                        break;
+
+                    default:
+                        // Treat unknown as text (try to read) or binary
+                        // For now basic text attempt
+                        try 
+                        {
+                            contentText = await System.IO.File.ReadAllTextAsync(fullPath);
+                            displayType = "text";
+                        }
+                        catch
+                        {
+                             contentText = "File format not supported for preview.";
+                             displayType = "text";
+                        }
                         break;
                 }
+
 
                 return (true, string.Empty, file, contentText, displayType, truncated);
             }
@@ -428,6 +533,9 @@ namespace ADHDWebApp.Services
         {
             try
             {
+                groupName = groupName?.Trim();
+                if (string.IsNullOrEmpty(groupName)) return (false, "Group name cannot be empty");
+
                 var userFileIds = await _context.UserFiles
                     .Where(f => f.UserId == userId && fileIds.Contains(f.Id))
                     .Select(f => f.Id)
@@ -453,13 +561,6 @@ namespace ADHDWebApp.Services
                 }
 
                 // Update files to point to this folder
-                // First, UNGROUP files that might be in this folder but not in the new list?
-                // The requirement for "SaveFileGroup" usually implies "Set the contents of this group to these files".
-                // So, finding files currently in this folder and removing them if not in new list?
-                // Or is it just "Add these files to this group"?
-                // Based on previous JSON implementation: `model.Groups[groupName] = userFileIds.Distinct().ToList();`
-                // This means "Overwrite group contents".
-                
                 // 1. Clear FolderId for all files currently in this folder
                 var existingFiles = await _context.UserFiles.Where(f => f.FolderId == folder.Id).ToListAsync();
                 foreach (var f in existingFiles) f.FolderId = null;
@@ -482,18 +583,35 @@ namespace ADHDWebApp.Services
         {
              try
             {
-                var folder = await _context.Folders
-                    .FirstOrDefaultAsync(f => f.UserId == userId && f.Name == groupName);
+                if (string.IsNullOrWhiteSpace(groupName)) return (false, "Invalid name");
+                var targetName = groupName.Trim();
 
-                if (folder != null)
+                // Get ALL folders for user, then filter in memory to be absolutely sure about matching
+                // This avoids SQL collation differences causing 'ghost' folders
+                var allUserFolders = await _context.Folders
+                    .Where(f => f.UserId == userId)
+                    .ToListAsync();
+
+                var foldersToDelete = allUserFolders
+                    .Where(f => f.Name.Trim().Equals(targetName, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (!foldersToDelete.Any())
                 {
-                    // Set FolderId to null for all files in this folder (Ungroup)
+                    return (false, "Folder not found");
+                }
+
+                foreach (var folder in foldersToDelete)
+                {
+                    // Unlink files
                     var files = await _context.UserFiles.Where(f => f.FolderId == folder.Id).ToListAsync();
                     foreach (var f in files) f.FolderId = null;
-
+                    
+                    // Remove folder
                     _context.Folders.Remove(folder);
-                    await _context.SaveChangesAsync();
                 }
+                
+                await _context.SaveChangesAsync(); 
                 return (true, null);
             }
             catch (Exception ex)
@@ -501,5 +619,7 @@ namespace ADHDWebApp.Services
                  return (false, ex.Message);
             }
         }
+
+
     }
 }

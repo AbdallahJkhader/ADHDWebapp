@@ -17,6 +17,12 @@ function updateAudioTimer() {
     const diff = (now - audioStartTime) / 1000;
     const timerEl = document.getElementById('audio-timer');
     if (timerEl) timerEl.textContent = formatTime(diff);
+
+    // Show timer display when recording
+    const timerDisplay = document.getElementById('audio-timer-display');
+    if (timerDisplay && mediaRecorder && mediaRecorder.state === 'recording') {
+        timerDisplay.style.display = 'block';
+    }
 }
 
 function renderAudioList() {
@@ -106,21 +112,71 @@ function renderSessionAudios() {
     });
 }
 
+window.deleteAudio = async function (type, id, element) {
+    console.log('🗑️ DELETE AUDIO CALLED:', { type, id });
+    if (!confirm('Are you sure you want to delete this audio?')) return;
+
+    if (type === 'saved') {
+        try {
+            console.log('📡 Sending DELETE request to /Dashboard/DeleteFiles with:', [id]);
+            const res = await fetch('/Dashboard/DeleteFiles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify([id])
+            });
+            console.log('📥 Response status:', res.status, res.statusText);
+            const data = await res.json();
+            console.log('📦 Response data:', data);
+            if (data.success) {
+                console.log('✅ Delete successful, removing element');
+                element.remove();
+
+                // Update empty state if needed
+                const container = document.getElementById('audio-list-container');
+                if (container && container.children.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-5 text-muted small">
+                            <i class="bi bi-mic p-3 rounded-circle bg-light fs-1 mb-2 d-inline-block text-danger opacity-50"></i>
+                            <p class="mb-0">No recordings yet</p>
+                        </div>`;
+                }
+            } else {
+                console.error('❌ Delete failed:', data.error);
+                alert('Failed to delete: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('💥 Exception during delete:', err);
+            alert('Error deleting file');
+        }
+    } else {
+        // Session recording
+        const index = audioRecordings.findIndex(r => r.id === id);
+        if (index > -1) {
+            audioRecordings.splice(index, 1);
+            element.remove();
+            // Update empty state if needed
+            const container = document.getElementById('audio-list-container');
+            if (container && container.children.length === 0) {
+                container.innerHTML = `
+                     <div class="text-center py-5 text-muted small">
+                         <i class="bi bi-mic p-3 rounded-circle bg-light fs-1 mb-2 d-inline-block text-danger opacity-50"></i>
+                         <p class="mb-0">No recordings yet</p>
+                     </div>`;
+            }
+        }
+    }
+};
+
 // Add saved audio to list
 function addSavedAudioToList(audio) {
     const container = document.getElementById('audio-list-container');
-    if (!container) {
-        console.log('Audio list container not found!');
-        return;
-    }
-
-    console.log('Adding saved audio to list:', audio);
+    if (!container) return;
 
     const listItem = document.createElement('div');
-    listItem.className = 'list-group-item d-flex align-items-center';
+    listItem.className = 'list-group-item d-flex align-items-center bg-transparent border-danger-subtle';
     listItem.style.cursor = 'pointer';
 
-    // Store audio data for playback
+    // Store audio data
     listItem.dataset.audioType = 'saved';
     listItem.dataset.audioSource = audio.filePath;
     listItem.dataset.audioFileName = audio.fileName;
@@ -128,318 +184,88 @@ function addSavedAudioToList(audio) {
     const fileSize = (audio.fileSize / 1024 / 1024).toFixed(2) + ' MB';
 
     listItem.innerHTML = `
-        <img src="/images/audio icon.png" alt="Audio" style="width: 24px; height: 24px; margin-right: 10px;">
-        <div class="flex-grow-1">
-            <div class="fw-medium">${audio.fileName}</div>
-            <small class="text-muted">Saved Audio • ${fileSize}</small>
+        <div class="bg-danger rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; opacity: 0.1;">
+            <i class="bi bi-music-note-beamed text-danger"></i>
         </div>
-        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); this.parentElement.remove()">
+        <div class="flex-grow-1">
+            <div class="fw-medium text-dark">${audio.fileName}</div>
+            <small class="text-muted"><span class="badge bg-light text-secondary border">Saved</span> • ${fileSize}</small>
+        </div>
+        <button class="btn btn-sm btn-outline-danger rounded-circle p-0 ms-2" style="width: 32px; height: 32px;" onclick="event.stopPropagation(); deleteAudio('saved', ${audio.id}, this.closest('.list-group-item'))">
             <i class="bi bi-trash"></i>
         </button>
     `;
 
-    // Add click handler to play audio
     listItem.addEventListener('click', function (e) {
         if (e.target.closest('button')) return;
-        console.log('Playing saved audio:', audio.fileName);
         playAudio('saved', this.dataset.audioSource, this.dataset.audioFileName);
     });
 
     container.appendChild(listItem);
-    console.log('Saved audio item added to container');
 }
 
 // Add session audio (recorded) to list
 function addSessionAudioToList(rec) {
     const container = document.getElementById('audio-list-container');
-    if (!container) {
-        console.log('Audio list container not found!');
-        return;
-    }
-
-    console.log('Adding session audio to list:', rec);
+    if (!container) return;
 
     const item = document.createElement('div');
-    item.className = 'list-group-item d-flex align-items-center';
+    item.className = 'list-group-item d-flex align-items-center bg-transparent border-danger-subtle';
     item.style.cursor = 'pointer';
 
-    // Store audio data for playback
     item.dataset.audioType = 'recorded';
     item.dataset.audioSource = rec.url;
     item.dataset.audioFileName = `Recording ${rec.duration}`;
 
     item.innerHTML = `
-        <img src="/images/audio icon.png" alt="Audio" style="width: 24px; height: 24px; margin-right: 10px;">
-        <div class="flex-grow-1">
-            <div class="fw-medium">Recording ${rec.duration}</div>
-            <small class="text-muted">Session Recording</small>
+        <div class="bg-danger rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; opacity: 0.1;">
+            <i class="bi bi-mic-fill text-danger"></i>
         </div>
-        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); this.parentElement.remove()">
+        <div class="flex-grow-1">
+            <div class="fw-medium text-dark">Recording ${rec.duration}</div>
+            <small class="text-muted"><span class="badge bg-danger-subtle text-danger border border-danger-subtle">New</span></small>
+        </div>
+        <button class="btn btn-sm btn-outline-danger rounded-circle p-0 ms-2" style="width: 32px; height: 32px;" onclick="event.stopPropagation(); deleteAudio('session', ${rec.id}, this.closest('.list-group-item'))">
             <i class="bi bi-trash"></i>
         </button>
     `;
 
-    // Add click handler to play audio
     item.addEventListener('click', function (e) {
         if (e.target.closest('button')) return;
-        console.log('Playing session audio:', rec.duration);
         playAudio('recorded', this.dataset.audioSource, this.dataset.audioFileName);
     });
 
     container.appendChild(item);
-    console.log('Session audio item added to container');
 }
 
-// Play audio function
-window.playAudio = window.playAudio || function (type, source, fileName) {
-    console.log('=== PLAY AUDIO START ===');
-    console.log('Playing audio:', { type, source, fileName });
-
-    const audioContainer = document.getElementById('audio-player-container');
-    const audioPlayer = document.getElementById('audio-player');
-    const audioTitle = document.getElementById('audio-title');
-    const audioList = document.getElementById('audio-list-container');
-    const saveBtn = document.getElementById('save-audio-btn');
-
-    console.log('Audio elements found:', {
-        audioContainer: !!audioContainer,
-        audioPlayer: !!audioPlayer,
-        audioTitle: !!audioTitle,
-        audioList: !!audioList,
-        saveBtn: !!saveBtn
-    });
-
-    if (!audioContainer || !audioPlayer) {
-        console.log('❌ Missing required audio elements');
-        console.log('audioContainer:', audioContainer);
-        console.log('audioPlayer:', audioPlayer);
-        return;
-    }
-
-    console.log('✅ All elements found');
-
-    // Hide audio list and show player
-    console.log('Before: audioList.style.display =', audioList ? audioList.style.display : 'not found');
-    console.log('Before: audioContainer.style.display =', audioContainer.style.display);
-
-    if (audioList) {
-        audioList.style.display = 'none';
-        console.log('After: audioList.style.display =', audioList.style.display);
-    }
-
-    audioContainer.style.display = 'block';
-    console.log('After: audioContainer.style.display =', audioContainer.style.display);
-
-    // Set audio title
-    if (audioTitle) {
-        audioTitle.textContent = fileName;
-        console.log('Set audio title to:', fileName);
-    }
-
-    // Show save button only for recorded audios (not saved)
-    if (saveBtn) {
-        if (type === 'saved') {
-            saveBtn.style.display = 'none';
-            console.log('Hide save button (saved audio)');
-        } else {
-            saveBtn.style.display = 'inline-block';
-            console.log('Show save button (recorded audio)');
-        }
-    }
-
-    // Load audio based on type
-    if (type === 'saved') {
-        // For saved audios, use the file path
-        console.log('Loading saved audio from:', source);
-        audioPlayer.src = source;
-    } else {
-        // For recorded audios (current session)
-        console.log('Loading recorded audio from:', source);
-        audioPlayer.src = source;
-    }
-
-    console.log('Audio player src set to:', audioPlayer.src);
-
-    // Load and play audio
-    console.log('Loading and playing audio...');
-
-    audioPlayer.addEventListener('loadeddata', function () {
-        console.log('✅ Audio data loaded successfully');
-    });
-
-    audioPlayer.addEventListener('error', function (e) {
-        console.log('❌ Audio player error:', e);
-        console.log('Audio player error code:', audioPlayer.error);
-    });
-
-    audioPlayer.load();
-    audioPlayer.play().then(() => {
-        console.log('✅ Audio playing successfully');
-    }).catch(e => {
-        console.log('❌ Auto-play failed:', e);
-    });
-
-    console.log('=== PLAY AUDIO END ===');
-};
-
-// Close audio player function
-window.closeAudioPlayer = window.closeAudioPlayer || function () {
-    const audioContainer = document.getElementById('audio-player-container');
-    const audioPlayer = document.getElementById('audio-player');
-    const audioList = document.getElementById('audio-list-container');
-    const audioTitle = document.getElementById('audio-title');
-    const saveBtn = document.getElementById('save-audio-btn');
-
-    if (!audioContainer || !audioPlayer) return;
-
-    // Stop audio and clear source
-    audioPlayer.pause();
-    audioPlayer.src = '';
-
-    // Hide audio player
-    audioContainer.style.display = 'none';
-
-    // Show audio list
-    if (audioList) audioList.style.display = 'block';
-
-    // Reset audio title
-    if (audioTitle) audioTitle.textContent = 'Audio Notes';
-
-    // Hide save button
-    if (saveBtn) saveBtn.style.display = 'none';
-};
-
-function initAudioRecorder() {
-    const btn = document.getElementById('audio-record-btn');
-    const status = document.getElementById('audio-status');
-    const timer = document.getElementById('audio-timer');
-
-    console.log('Initializing audio recorder...');
-    console.log('Record button found:', !!btn);
-    console.log('Status element found:', !!status);
-    console.log('Timer element found:', !!timer);
-
-    if (!btn) {
-        console.error('Record button not found!');
-        return;
-    }
-    if (btn.dataset.bound) return;
-    btn.dataset.bound = '1';
-
-    btn.onclick = async () => {
-        console.log('Record button clicked');
-        console.log('Current mediaRecorder state:', mediaRecorder ? mediaRecorder.state : 'null');
-
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            console.log('Stopping recording...');
-            // Stop recording
-            mediaRecorder.stop();
-            clearInterval(audioTimerInterval);
-            btn.classList.remove('btn-danger', 'recording-pulse');
-            btn.classList.add('btn-outline-danger');
-            btn.innerHTML = '<i class="bi bi-mic-fill fs-2"></i>';
-            if (status) status.textContent = 'Click to Record';
-            if (timer) timer.textContent = '00:00';
-        } else {
-            console.log('Starting recording...');
-            // Start recording
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                console.log('Microphone access granted');
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-
-                mediaRecorder.ondataavailable = (e) => {
-                    console.log('Audio data available:', e.data.size, 'bytes');
-                    if (e.data.size > 0) audioChunks.push(e.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    console.log('Recording stopped, processing data...');
-                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const url = URL.createObjectURL(blob);
-                    const duration = timer.textContent; // Capture final time
-                    console.log('Creating recording with duration:', duration);
-                    audioRecordings.unshift({
-                        id: Date.now(),
-                        blob: blob,
-                        url: url,
-                        date: new Date(),
-                        duration: duration
-                    });
-                    console.log('Recording added, total recordings:', audioRecordings.length);
-                    renderAudioList();
-
-                    // Stop all tracks to release mic
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                mediaRecorder.start();
-                audioStartTime = Date.now();
-                audioTimerInterval = setInterval(updateAudioTimer, 1000);
-
-                btn.classList.remove('btn-outline-danger');
-                btn.classList.add('btn-danger', 'recording-pulse'); // Add pulse animation class if needed
-                btn.innerHTML = '<i class="bi bi-stop-fill fs-2"></i>';
-                if (status) status.textContent = 'Recording...';
-
-            } catch (err) {
-                console.error('Mic error:', err);
-                alert('Could not access microphone. Please allow permissions.');
-            }
-        }
-    };
-}
-
-window.openAudioRight = window.openAudioRight || function () {
-    console.log('=== OPEN AUDIO RIGHT START ===');
+// Open and close audio panel functions
+window.openAudioRight = function () {
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
-    const summaryContainer = document.getElementById('summary-display-container');
-    const flashcardsContainer = document.getElementById('flashcards-display-container');
-    const whiteboardContainer = document.getElementById('whiteboard-display-container');
-    const audioContainer = document.getElementById('audio-display-container');
-
-    console.log('Elements found:', {
-        generateWrapper: !!generateWrapper,
-        generateOptions: !!generateOptions,
-        summaryContainer: !!summaryContainer,
-        flashcardsContainer: !!flashcardsContainer,
-        whiteboardContainer: !!whiteboardContainer,
-        audioContainer: !!audioContainer
-    });
-
-    if (!audioContainer) {
-        console.error('Audio container not found!');
-        return;
+    // Hide other containers
+    if (typeof window.hideAllRightContainers === 'function') {
+        window.hideAllRightContainers();
+    } else {
+        const ids = ['summary-display-container', 'flashcards-display-container', 'whiteboard-display-container', 'audio-display-container', 'video-display-container'];
+        ids.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
     }
+
+    const audioContainer = document.getElementById('audio-display-container');
+    if (!audioContainer) return;
 
     if (generateWrapper) generateWrapper.style.display = 'none';
     if (generateOptions) generateOptions.style.display = 'none';
-    if (summaryContainer) summaryContainer.style.display = 'none';
-    if (flashcardsContainer) flashcardsContainer.style.display = 'none';
-    if (whiteboardContainer) whiteboardContainer.style.display = 'none';
 
-    audioContainer.style.display = 'flex';
-    console.log('Audio container display set to flex');
+    audioContainer.style.display = 'block';
 
-    // Scroll handling
     const rightPane = audioContainer.closest('.right-side');
     if (rightPane) rightPane.scrollTop = 0;
 
-    console.log('Calling initAudioRecorder...');
-    initAudioRecorder();
-    console.log('Calling renderAudioList...');
     renderAudioList();
-    console.log('=== OPEN AUDIO RIGHT END ===');
+    initAudioRecording();
 };
 
-window.backFromAudioRight = window.backFromAudioRight || function () {
-    // Close any playing audio first
-    if (typeof closeAudioPlayer === 'function') {
-        closeAudioPlayer();
-    }
-
+window.backFromAudioRight = function () {
     const generateWrapper = document.getElementById('generate-wrapper');
     const generateOptions = document.getElementById('generate-options');
     const audioContainer = document.getElementById('audio-display-container');
@@ -447,21 +273,143 @@ window.backFromAudioRight = window.backFromAudioRight || function () {
     if (audioContainer) audioContainer.style.display = 'none';
     if (generateWrapper) generateWrapper.style.display = 'flex';
     if (generateOptions) generateOptions.style.display = '';
-
-    // Stop recording if active
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        clearInterval(audioTimerInterval);
-        const btn = document.getElementById('audio-record-btn');
-        if (btn) {
-            btn.innerHTML = '<i class="bi bi-mic-fill fs-2"></i>';
-            btn.classList.remove('btn-danger');
-            btn.classList.add('btn-outline-danger');
-        }
-    }
 };
 
-// Add direct click listener for gen-opt-audio (Audio Card)
+// Initialize audio recording button
+function initAudioRecording() {
+    const recordBtn = document.getElementById('audio-record-btn');
+    if (!recordBtn || recordBtn.dataset.bound === '1') return;
+
+    recordBtn.dataset.bound = '1';
+    recordBtn.addEventListener('click', toggleAudioRecording);
+}
+
+async function toggleAudioRecording() {
+    const recordBtn = document.getElementById('audio-record-btn');
+    const visualCircle = document.getElementById('audio-visual-circle');
+    const recordIcon = document.getElementById('audio-record-icon');
+    const timerDisplay = document.getElementById('audio-timer-display');
+    const timerEl = document.getElementById('audio-timer');
+    const statusEl = document.getElementById('audio-status');
+    const textContainer = document.getElementById('audio-texts');
+
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        // Start recording
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                audioChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const duration = formatTime((Date.now() - audioStartTime) / 1000);
+
+                audioRecordings.push({
+                    id: Date.now(),
+                    url: audioUrl,
+                    blob: audioBlob,
+                    duration: duration
+                });
+
+                renderAudioList();
+
+                // UI Reset on Stop
+                if (timerDisplay) timerDisplay.style.display = 'none';
+                if (textContainer) textContainer.style.display = 'block';
+
+                if (visualCircle) {
+                    visualCircle.classList.remove('bg-danger', 'shadow-lg');
+                    visualCircle.classList.add('bg-danger-subtle');
+                }
+                if (recordIcon) {
+                    recordIcon.className = 'bi bi-mic-fill fs-1 text-danger';
+                }
+
+                if (timerEl) timerEl.textContent = '00:00';
+            };
+
+            mediaRecorder.start();
+            audioStartTime = Date.now();
+            audioTimerInterval = setInterval(updateAudioTimer, 1000);
+
+            // UI Update for Recording
+            if (textContainer) textContainer.style.display = 'none';
+            if (timerDisplay) timerDisplay.style.display = 'block';
+
+            if (visualCircle) {
+                visualCircle.classList.remove('bg-danger-subtle');
+                visualCircle.classList.add('bg-danger', 'shadow-lg'); // Solid red
+            }
+            if (recordIcon) {
+                recordIcon.className = 'bi bi-stop-fill fs-1 text-white'; // White stop icon
+            }
+            if (statusEl) statusEl.textContent = 'Recording...';
+
+        } catch (err) {
+            console.error('Failed to start recording:', err);
+            alert('Could not access microphone. Please check permissions.');
+        }
+    } else {
+        // Stop recording
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        clearInterval(audioTimerInterval);
+        // UI reset happens in onstop event logic above
+    }
+}
+
+window.playAudio = function (type, source, fileName) {
+    const playerContainer = document.getElementById('audio-player-container');
+    const audioPlayer = document.getElementById('audio-player');
+
+    if (!playerContainer || !audioPlayer) return;
+
+    playerContainer.style.display = 'block';
+    audioPlayer.src = source;
+    audioPlayer.load();
+    audioPlayer.play().catch(e => {
+        console.log('Auto-play failed:', e);
+    });
+};
+
+window.handleAudioUpload = function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+        alert('Please select an audio file.');
+        return;
+    }
+
+    const audio = document.createElement('audio');
+    audio.src = URL.createObjectURL(file);
+
+    audio.addEventListener('loadedmetadata', function () {
+        const duration = formatTime(audio.duration);
+        const fileName = file.name;
+        const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+
+        // Add to session recordings
+        audioRecordings.push({
+            id: Date.now(),
+            url: audio.src,
+            blob: file,
+            duration: duration,
+            fileName: fileName,
+            fileSize: fileSize
+        });
+
+        renderAudioList();
+        event.target.value = '';
+    });
+};
+
+// Add event listener for Audio Card
 document.addEventListener('DOMContentLoaded', () => {
     const audioCard = document.getElementById('gen-opt-audio');
     if (audioCard) {

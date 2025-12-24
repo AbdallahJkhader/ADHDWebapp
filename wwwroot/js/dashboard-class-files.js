@@ -1,7 +1,7 @@
 // Class Files Panel Handlers
 
 // Load and display class files when panel opens
-window.loadClassFiles = async function (classId) {
+window.loadFullClassFiles = async function (classId) {
     if (!classId) return;
 
     const container = document.getElementById('cls-files-list');
@@ -26,6 +26,21 @@ window.loadClassFiles = async function (classId) {
             emptyState.style.display = 'none';
             container.style.display = 'block';
 
+            // Calculate statistics
+            const totalCount = data.files.length;
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const recentCount = data.files.filter(f => new Date(f.uploadedAt) >= weekAgo).length;
+
+            // Update stats badges in search bar
+            const totalBadge = document.getElementById('cls-files-total-badge');
+            const weekBadge = document.getElementById('cls-files-week-badge');
+            const outsideBadge = document.getElementById('cls-stat-files');
+
+            if (totalBadge) totalBadge.textContent = totalCount;
+            if (weekBadge) weekBadge.textContent = recentCount;
+            if (outsideBadge) outsideBadge.textContent = totalCount;
+
             data.files.forEach(file => {
                 const fileItem = createFileItem(file);
                 container.appendChild(fileItem);
@@ -42,6 +57,14 @@ window.loadClassFiles = async function (classId) {
     }
 };
 
+// ... (createFileItem and helpers remain same, skipped in replacement if possible, but I need to be contiguous)
+// Actually I better only replace the start and end to avoid huge block.
+// But AllowMultiple is true. I can do multiple chunks.
+
+// Chunk 1: The function definition
+// Chunk 2: The usage in uploadClassFile success callback
+// Chunk 3: The usage in MutationObserver
+
 // Create a file item element
 function createFileItem(file) {
     if (!file || !file.fileName) {
@@ -50,41 +73,62 @@ function createFileItem(file) {
     }
 
     const div = document.createElement('div');
-    div.className = 'cls-file-item p-3 mb-2 border rounded-3 bg-white';
+    div.className = 'cls-file-item p-3 mb-2 border rounded-3 bg-white position-relative';
     div.style.transition = 'all 0.2s ease';
-
 
     const extension = file.fileName.split('.').pop().toLowerCase();
     const icon = getFileIcon(extension);
     const iconColor = getFileIconColor(extension);
 
+    // Get uploader initials for avatar
+    const uploaderInitials = (file.uploaderName || 'U').charAt(0).toUpperCase();
+
     div.innerHTML = `
-        <div class="d-flex align-items-center gap-3">
-            <div class="cls-file-icon d-flex align-items-center justify-content-center rounded-circle ${iconColor}" style="width: 48px; height: 48px;">
+        <div class="d-flex align-items-start gap-3">
+            <div class="cls-file-icon d-flex align-items-center justify-content-center rounded-circle ${iconColor}" style="width: 48px; height: 48px; flex-shrink: 0;">
                 <i class="${icon} fs-4"></i>
             </div>
             <div class="flex-grow-1 overflow-hidden">
-                <div class="fw-medium text-truncate mb-1">${escapeHtml(file.fileName)}</div>
-                <div class="d-flex align-items-center gap-2">
+                <div class="fw-medium text-truncate mb-1" title="${escapeHtml(file.fileName)}">${escapeHtml(file.fileName)}</div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <div class="d-flex align-items-center gap-1">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 20px; height: 20px; font-size: 10px; font-weight: 600;">
+                            ${uploaderInitials}
+                        </div>
+                        <small class="text-muted">${escapeHtml(file.uploaderName || 'Unknown')}</small>
+                    </div>
+                    <small class="text-muted">•</small>
                     <small class="text-muted">${formatFileSize(file.fileSize)}</small>
                     <small class="text-muted">•</small>
                     <small class="text-muted">${formatDate(file.uploadedAt)}</small>
                 </div>
             </div>
-            <div class="d-flex gap-2">
-                <a href="${file.filePath}" target="_blank" class="btn btn-sm btn-outline-primary rounded-circle" title="View" onclick="event.stopPropagation()">
+            <div class="d-flex gap-2 flex-shrink-0">
+                <button class="btn btn-sm btn-outline-primary rounded-circle" title="View" onclick="event.stopPropagation(); openClassFile(${file.id}, '${escapeHtml(file.fileName)}')">
                     <i class="bi bi-eye"></i>
-                </a>
+                </button>
                 <a href="${file.filePath}" download class="btn btn-sm btn-outline-secondary rounded-circle" title="Download" onclick="event.stopPropagation()">
                     <i class="bi bi-download"></i>
                 </a>
+                <button class="btn btn-sm btn-outline-danger rounded-circle" title="Delete" onclick="window.deleteClassFile(${file.id}, event)">
+                    <i class="bi bi-trash"></i>
+                </button>
             </div>
         </div>
     `;
 
+    // Make the whole card clickable to open file
+    div.style.cursor = 'pointer';
+    div.addEventListener('click', (e) => {
+        // Don't trigger if clicking on buttons or links
+        if (!e.target.closest('button') && !e.target.closest('a')) {
+            openClassFile(file.id, file.fileName);
+        }
+    });
+
     div.addEventListener('mouseenter', () => {
         div.style.transform = 'translateY(-2px)';
-        div.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+        div.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
     });
 
     div.addEventListener('mouseleave', () => {
@@ -94,6 +138,43 @@ function createFileItem(file) {
 
     return div;
 }
+
+// Delete class file
+window.deleteClassFile = async function (fileId, event) {
+    if (event) event.stopPropagation();
+
+    if (!confirm('Are you sure you want to delete this file?')) return;
+
+    try {
+        const response = await fetch('/Classes/DeleteClassFile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify(fileId) // Controller expects int directly as body or object depending on binding
+            // Changed controller to [FromBody] int fileId, so standard JSON integer is fine
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Remove element or reload
+            const classId = window.__currentClassPrivacy?.classId || window.__currentClassId;
+            if (classId) window.loadFullClassFiles(classId);
+
+            // Show toast
+            const successDiv = document.getElementById('cls-files-success');
+            if (successDiv) {
+                successDiv.textContent = 'File deleted successfully';
+                successDiv.style.display = 'block';
+                setTimeout(() => successDiv.style.display = 'none', 3000);
+            }
+        } else {
+            alert(data.error || 'Failed to delete file');
+        }
+    } catch (e) {
+        alert('Error deleting file: ' + e.message);
+    }
+};
 
 // Get file icon color based on extension
 function getFileIconColor(extension) {
@@ -165,7 +246,7 @@ function escapeHtml(text) {
 
 // Upload class file
 window.uploadClassFile = async function (input) {
-    const classId = window.__currentClassPrivacy?.classId;
+    const classId = window.__currentClassPrivacy?.classId || window.__currentClassId;
     if (!classId) {
         alert('No class selected');
         return;
@@ -202,7 +283,7 @@ window.uploadClassFile = async function (input) {
         }
 
         // Reload files list
-        await loadClassFiles(classId);
+        await window.loadFullClassFiles(classId);
 
         // Update file count in class details
         const fileCountEl = document.getElementById('cls-stat-files');
@@ -222,16 +303,16 @@ window.uploadClassFile = async function (input) {
 
 // Listen for files panel opening
 document.addEventListener('DOMContentLoaded', () => {
-    const filesPanel = document.getElementById('cls-files-panel');
+    const filesPanel = document.getElementById('cls-files-panel-advanced');
     if (filesPanel) {
         // Use MutationObserver to detect when panel opens
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.attributeName === 'class') {
                     if (filesPanel.classList.contains('show')) {
-                        const classId = window.__currentClassPrivacy?.classId;
+                        const classId = window.__currentClassPrivacy?.classId || window.__currentClassId; // Fallback
                         if (classId) {
-                            loadClassFiles(classId);
+                            window.loadFullClassFiles(classId);
                         }
                     }
                 }

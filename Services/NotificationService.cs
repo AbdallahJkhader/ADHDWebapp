@@ -123,5 +123,25 @@ namespace ADHDWebApp.Services
                 return (false, ex.Message);
             }
         }
+        public async Task<(bool Success, string Error)> DeleteNotificationAsync(int notificationId, int userId)
+        {
+            try
+            {
+                var notification = await _context.Notifications
+                    .FirstOrDefaultAsync(n => n.Id == notificationId && n.UserId == userId);
+
+                if (notification == null)
+                    return (false, "Notification not found");
+
+                _context.Notifications.Remove(notification);
+                await _context.SaveChangesAsync();
+
+                return (true, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
     }
 }

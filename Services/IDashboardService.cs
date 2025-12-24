@@ -8,6 +8,7 @@ namespace ADHDWebApp.Services
         Task<User?> GetUserAsync(int userId);
         Task<(bool Success, string Error, object? Progress)> GetProgressAsync(int userId, int? targetUserId);
         Task<(bool Success, string Error)> RecordFocusSessionAsync(int userId, int duration, string subjectName);
+        Task<(bool Success, string Error)> RecordBrowsingSessionAsync(int userId, int duration, string subjectName);
         
         // File operations
         // File operations
@@ -20,6 +21,7 @@ namespace ADHDWebApp.Services
         // Profile
         Task<(bool Success, string Error)> UpdateAvatarAsync(int userId, string extension, Stream fileStream, string webRootPath);
         Task<(bool Success, string Error)> UpdateDateOfBirthAsync(int userId, DateTime dob);
+        Task<(bool Success, string Error)> UpdateFullNameAsync(int userId, string fullName);
         
         // File Content
         Task<(bool Success, string Error, UserFile? File, string? Content, string? DisplayType, bool Truncated)> GetFileContentAsync(int userId, int fileId, string webRootPath);

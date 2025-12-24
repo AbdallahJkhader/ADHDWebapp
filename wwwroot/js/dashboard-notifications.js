@@ -119,6 +119,164 @@ async function markNotificationAsRead(notificationId) {
     }
 }
 
+// Load and display notifications
+window.loadNotifications = async function () {
+    try {
+        const response = await fetch('/Dashboard/GetNotifications', {
+            method: 'GET',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            console.error('Failed to load notifications:', data.error);
+            return;
+        }
+
+        const notifications = data.notifications || [];
+        const notificationContainer = document.getElementById('notification-dropdown-menu') || document.getElementById('notifications-list');
+
+        if (!notificationContainer) {
+            console.warn('Notification container not found');
+            return;
+        }
+
+        // Clear existing notifications
+        notificationContainer.innerHTML = '';
+
+        if (notifications.length === 0) {
+            notificationContainer.innerHTML = `
+                <div class="text-center py-4 text-muted small">
+                    <i class="bi bi-bell-slash fs-4 mb-2 d-block"></i>
+                    <p class="mb-0">No notifications</p>
+                </div>
+            `;
+            updateNotificationBadge(0);
+            return;
+        }
+
+        // Filter unread notifications for badge
+        const unreadCount = notifications.filter(n => !n.isRead).length;
+        updateNotificationBadge(unreadCount);
+
+        // Display notifications
+        notifications.forEach(notification => {
+            const notifElement = createNotificationElement(notification);
+            if (notifElement) {
+                notificationContainer.appendChild(notifElement);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+    }
+};
+
+// Create notification element
+function createNotificationElement(notification) {
+    const div = document.createElement('div');
+    div.className = `list-group-item list-group-item-action ${!notification.isRead ? 'bg-light' : ''}`;
+    div.style.cursor = 'pointer';
+
+    // Handle different notification types
+    let handledNotif = null;
+    if (window.notificationHandlers && window.notificationHandlers[notification.type]) {
+        handledNotif = window.notificationHandlers[notification.type](notification);
+    }
+
+    if (handledNotif) {
+        div.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">
+                    <i class="bi ${handledNotif.icon} ${handledNotif.iconColor} me-2"></i>
+                    ${handledNotif.title}
+                </h6>
+                <small class="text-muted">${formatNotificationTime(notification.createdAt)}</small>
+            </div>
+            <p class="mb-2 small">${handledNotif.message}</p>
+            ${handledNotif.actions && handledNotif.actions.length > 0 ? `
+                <div class="d-flex gap-2">
+                    ${handledNotif.actions.map(action => `
+                        <button class="btn btn-sm ${action.class}" data-action="${action.label}">
+                            ${action.label}
+                        </button>
+                    `).join('')}
+                </div>
+            ` : ''}
+        `;
+
+        // Attach action handlers
+        if (handledNotif.actions) {
+            handledNotif.actions.forEach(action => {
+                const btn = div.querySelector(`button[data-action="${action.label}"]`);
+                if (btn && action.action) {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        action.action();
+                    });
+                }
+            });
+        }
+    } else {
+        // Default notification display
+        div.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">
+                    <i class="bi bi-info-circle text-primary me-2"></i>
+                    ${notification.title}
+                </h6>
+                <small class="text-muted">${formatNotificationTime(notification.createdAt)}</small>
+            </div>
+            <p class="mb-1 small">${notification.message}</p>
+        `;
+    }
+
+    // Mark as read on click
+    div.addEventListener('click', () => {
+        if (!notification.isRead) {
+            markNotificationAsRead(notification.id);
+            div.classList.remove('bg-light');
+            updateNotificationBadge(Math.max(0, (parseInt(document.getElementById('notification-badge')?.textContent || '0')) - 1));
+        }
+    });
+
+    return div;
+}
+
+// Update notification badge
+function updateNotificationBadge(count) {
+    const badge = document.getElementById('notification-badge');
+    if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+}
+
+// Format notification time
+function formatNotificationTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
+// Load notifications on page load
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof window.loadNotifications === 'function') {
+        window.loadNotifications();
+        // Refresh notifications every 30 seconds
+        setInterval(window.loadNotifications, 30000);
+    }
+});
+
 // Register the handler if notification system exists
 if (window.notificationHandlers) {
     window.notificationHandlers['class_invite'] = handleClassInviteNotification;

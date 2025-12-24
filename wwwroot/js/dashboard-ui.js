@@ -138,7 +138,7 @@ window.toggleInlinePanel = function (panelId, event, ownerHint) {
     const panel = document.getElementById(panelId);
     if (!panel) return;
 
-    document.querySelectorAll('.dropdown-menu.inline-left.show, .dropdown-menu.inline-left-from-focus.show, .dropdown-menu.inline-left-from-tools.show, .dropdown-menu.inline-left-from-network.show, .dropdown-menu.inline-left-from-user.show')
+    document.querySelectorAll('.dropdown-menu.inline-left.show, .dropdown-menu.inline-left-from-focus.show, .dropdown-menu.inline-left-from-tools.show, .dropdown-menu.inline-left-from-network.show, .dropdown-menu.inline-left-from-user.show, .dropdown-menu.inline-left-from-files.show')
         .forEach(p => { if (p.id !== panelId) p.classList.remove('show'); });
 
     const willShow = !panel.classList.contains('show');
@@ -159,14 +159,17 @@ window.toggleInlinePanel = function (panelId, event, ownerHint) {
             ownerId = 'network-notifications-dropdown';
         } else if (!ownerId && (panel.classList.contains('inline-left-from-focus') || panelId.startsWith('focus-'))) {
             ownerId = 'focus-dropdown';
+        } else if (!ownerId && (panel.classList.contains('inline-left-from-files') || panelId.startsWith('files-') || panelId === 'shared-files-panel')) {
+            ownerId = 'files-dropdown';
         }
 
         const owner = ownerId ? document.getElementById(ownerId) : null;
         if (owner) {
             document.querySelectorAll('.dropdown-menu.show').forEach(dd => {
                 const isClassDetails = dd.id === 'class-details-panel';
-                const isOpeningChild = (panelId === 'cls-members-panel' || panelId === 'cls-files-panel');
-                if (dd.id !== ownerId && dd !== panel && !(isClassDetails && isOpeningChild)) dd.classList.remove('show');
+                const isInvitePanel = dd.id === 'cls-invite-panel';
+                const isOpeningChild = (panelId === 'cls-members-panel' || panelId === 'cls-files-panel' || panelId === 'cls-files-panel-advanced' || panelId === 'cls-invite-panel');
+                if (dd.id !== ownerId && dd !== panel && !(isClassDetails && isOpeningChild) && !isInvitePanel) dd.classList.remove('show');
             });
             if (!owner.classList.contains('show')) owner.classList.add('show');
 
@@ -187,7 +190,7 @@ window.toggleInlinePanel = function (panelId, event, ownerHint) {
                     referenceRect = classesPanel.getBoundingClientRect();
                 }
             }
-            else if ((panelId === 'cls-members-panel' || panelId === 'cls-files-panel')) {
+            else if ((panelId === 'cls-members-panel' || panelId === 'cls-files-panel' || panelId === 'cls-files-panel-advanced')) {
                 const classDetailsPanel = document.getElementById('class-details-panel');
                 if (classDetailsPanel && classDetailsPanel.classList.contains('show')) {
                     referenceRect = classDetailsPanel.getBoundingClientRect();
@@ -313,14 +316,30 @@ window.saveGroupToServer = async function (name, fileIds) {
 };
 
 window.deleteGroupFromServer = async function (name) {
+    console.log('🗑️ DELETE FOLDER CALLED:', { name });
     try {
-        await fetch('/Dashboard/DeleteGroup', {
+        console.log('📡 Sending DELETE request to /Dashboard/DeleteGroup with:', { name });
+        const response = await fetch('/Dashboard/DeleteGroup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
             body: JSON.stringify({ name })
         });
-    } catch (e) { console.error("Failed to delete group", e); }
+        console.log('📥 Response status:', response.status, response.statusText);
+        const data = await response.json();
+        console.log('📦 Response data:', data);
+        if (!data.success) {
+            console.error('❌ Delete folder failed:', data.error);
+            alert("Error deleting folder from server: " + (data.error || "Unknown error"));
+            return false;
+        }
+        console.log('✅ Folder deleted successfully');
+        return true;
+    } catch (e) {
+        console.error("💥 Failed to delete group", e);
+        alert("Connection failed: " + e.message);
+        return false;
+    }
 };
 
 window.showRecentFiles = function () {
@@ -355,6 +374,11 @@ window.setLeftView = function (mode) {
 
     const body = document.body;
     if (body) {
+        // Check if leaving viewer mode
+        if (body.classList.contains('mode-viewer') && mode !== 'viewer') {
+            if (window.recordBrowsingDuration) window.recordBrowsingDuration();
+        }
+
         body.classList.remove('mode-upload', 'mode-viewer', 'mode-manual', 'mode-files', 'mode-manage-files', 'mode-write');
         body.classList.add(`mode-${mode}`);
     }
@@ -437,6 +461,7 @@ window.renderGroupsUI = function () {
     const btnDeleteGroup = document.getElementById('btn-delete-group');
     const btnDeleteFiles = document.getElementById('btn-delete-files');
     const grid = document.querySelector('#uploaded-files-section .files-grid');
+    const initialNoFilesMsg = document.getElementById('initial-no-files-msg');
 
     if (!grid) return;
 
@@ -448,6 +473,8 @@ window.renderGroupsUI = function () {
             child.style.display = 'none'; // Hide all files initially
         }
     });
+
+    let visibleItemsCount = 0;
 
     if (!window.CURRENT_GROUP_VIEW) {
         // --- ROOT VIEW ---
@@ -463,7 +490,7 @@ window.renderGroupsUI = function () {
         Object.keys(window.FILE_GROUPS).forEach(groupName => {
             const folderDiv = document.createElement('div');
             folderDiv.className = 'file-card folder-card';
-            folderDiv.onclick = () => openGroup(groupName);
+            folderDiv.onclick = (e) => { e.stopPropagation(); openGroup(groupName); };
             folderDiv.innerHTML = `
                 <div class="file-icon-large d-flex align-items-center justify-content-center text-warning">
                     <img src="/images/folder icon.png" alt="Folder" style="width: 36px; height: 36px; object-fit: contain;">
@@ -473,7 +500,8 @@ window.renderGroupsUI = function () {
                     <small class="text-muted">${window.FILE_GROUPS[groupName].length} items</small>
                 </div>
             `;
-            grid.insertBefore(folderDiv, grid.firstChild);
+            grid.insertBefore(folderDiv, grid.firstChild); // Insert before files
+            visibleItemsCount++;
         });
 
         // 2. Show files NOT in any group
@@ -485,6 +513,7 @@ window.renderGroupsUI = function () {
             const fid = parseInt(child.getAttribute('data-file-id'));
             if (!allGroupedFiles.has(fid)) {
                 child.style.display = '';
+                visibleItemsCount++;
             }
         });
 
@@ -508,8 +537,23 @@ window.renderGroupsUI = function () {
             const fid = parseInt(child.getAttribute('data-file-id'));
             if (groupFiles.has(fid)) {
                 child.style.display = '';
+                visibleItemsCount++;
             }
         });
+    }
+
+    // Handle empty state message
+    if (initialNoFilesMsg) {
+        if (visibleItemsCount === 0) {
+            initialNoFilesMsg.style.display = '';
+        } else {
+            initialNoFilesMsg.style.display = 'none';
+        }
+    } else if (visibleItemsCount === 0) {
+        // If message element doesn't exist (because we moved it out or it was removed), 
+        // we might want to inject a temporary one, or just assume the simplified HTML handles it.
+        // For now, since we modified HTML to have it separate if valid, we assume it works.
+        // Or if we want to be safe, we can manually show/hide a created message.
     }
 
     // Uncheck all checkboxes
@@ -521,7 +565,8 @@ window.openGroup = function (groupName) {
     window.renderGroupsUI();
 };
 
-window.exitGroupView = function () {
+window.exitGroupView = function (event) {
+    if (event) event.stopPropagation();
     window.CURRENT_GROUP_VIEW = null;
     window.renderGroupsUI();
 };
@@ -558,24 +603,33 @@ window.groupSelectedFiles = function () {
     window.FILE_GROUPS[groupName] = Array.from(currentSet);
 
     // Save
-    window.safeStorage.set('file_groups', window.FILE_GROUPS);
+    if (window.safeStorage) window.safeStorage.set('fileGroups', window.FILE_GROUPS);
     if (window.saveGroupToServer) window.saveGroupToServer(groupName, window.FILE_GROUPS[groupName]);
 
     // Refresh
     window.renderGroupsUI();
 };
 
-window.deleteCurrentGroup = function () {
+window.deleteCurrentGroup = async function (event) {
+    if (event) event.stopPropagation();
     if (!window.CURRENT_GROUP_VIEW) return;
     if (!confirm(`Delete folder "${window.CURRENT_GROUP_VIEW}"? Files inside will return to the main list.`)) return;
 
     // Sync deletion
-    if (window.deleteGroupFromServer) window.deleteGroupFromServer(window.CURRENT_GROUP_VIEW);
+    const currentGroup = window.CURRENT_GROUP_VIEW;
+    if (window.deleteGroupFromServer) {
+        const success = await window.deleteGroupFromServer(currentGroup);
+        if (!success) return; // Stop if server deletion failed
+    }
 
-    delete window.FILE_GROUPS[window.CURRENT_GROUP_VIEW];
-    window.safeStorage.set('file_groups', window.FILE_GROUPS);
+    delete window.FILE_GROUPS[currentGroup];
+    if (window.safeStorage) window.safeStorage.set('fileGroups', window.FILE_GROUPS);
 
-    window.exitGroupView();
+    // Force exit view BEFORE rendering
+    window.CURRENT_GROUP_VIEW = null;
+
+    // Render with local state immediately
+    window.renderGroupsUI();
 };
 
 window.toggleSelectAllFiles = function (master) {
@@ -588,6 +642,116 @@ window.toggleSelectAllFiles = function (master) {
         });
         boxes.forEach(cb => { cb.checked = master.checked; if (window.onFileCheckboxChange) window.onFileCheckboxChange(cb); });
     } catch { }
+};
+
+// --- SEARCH & CREATE FOLDER LOGIC ---
+
+window.toggleFileSearch = function () {
+    const searchContainer = document.getElementById('file-search-container');
+    const folderContainer = document.getElementById('create-folder-container');
+    const searchInput = document.getElementById('file-search-input');
+
+    // Close folder container if open
+    if (folderContainer) folderContainer.style.display = 'none';
+
+    if (searchContainer) {
+        if (searchContainer.style.display === 'none') {
+            searchContainer.style.display = 'block';
+            if (searchInput) {
+                searchInput.value = ''; // Reset on open
+                searchInput.focus();
+            }
+            window.filterUserFiles('');
+        } else {
+            searchContainer.style.display = 'none';
+            if (searchInput) searchInput.value = '';
+            window.filterUserFiles(''); // Reset filter
+        }
+    }
+};
+
+window.toggleCreateFolderInput = function () {
+    const folderContainer = document.getElementById('create-folder-container');
+    const searchContainer = document.getElementById('file-search-container');
+    const folderInput = document.getElementById('new-folder-name-input');
+
+    // Close search container if open // REMOVED to keep search persistent
+    // if (searchContainer) {
+    //    searchContainer.style.display = 'none';
+    // }
+    // window.filterUserFiles(''); // Reset filter too
+    // }
+
+    if (folderContainer) {
+        if (folderContainer.style.display === 'none') {
+            folderContainer.style.display = 'block';
+            if (folderInput) {
+                folderInput.value = '';
+                folderInput.focus();
+            }
+        } else {
+            folderContainer.style.display = 'none';
+        }
+    }
+};
+
+window.createNewFolder = function (folderName) {
+    if (!folderName || !folderName.trim()) {
+        alert('Please enter a folder name');
+        return;
+    }
+
+    // Use existing prompt logic but bypassed prompt dialog
+    // We reuse groupSelectedFiles logic partially or just call saveGroupToServer directly for empty group?
+    // User probably wants to create a folder and then drag files or just existence.
+    // Current group logic relies on having files. Let's see if we can create empty group.
+
+    // Check duplication
+    if (window.FILE_GROUPS[folderName]) {
+        alert('Folder already exists');
+        return;
+    }
+
+    // For now, create empty group locally
+    window.FILE_GROUPS[folderName] = [];
+
+    // Save to server (empty array)
+    if (window.saveGroupToServer) window.saveGroupToServer(folderName, []);
+
+    // Refresh UI
+    window.renderGroupsUI();
+
+    // Close input
+    const folderContainer = document.getElementById('create-folder-container');
+    if (folderContainer) folderContainer.style.display = 'none';
+
+    // Optional: Switch to that folder view immediately?
+    // window.openGroup(folderName);
+};
+
+window.filterUserFiles = function (query) {
+    const grid = document.querySelector('#uploaded-files-section .files-grid');
+    if (!grid) return;
+
+    const lowerQuery = query.toLowerCase();
+
+    Array.from(grid.children).forEach(child => {
+        // Skip folder cards, only filter files? Or filter both?
+        // Usually search searches everything.
+
+        let name = '';
+        if (child.classList.contains('folder-card')) {
+            name = child.querySelector('.file-name-card')?.textContent || '';
+        } else {
+            name = child.querySelector('.file-name-card')?.textContent || '';
+        }
+
+        if (name.toLowerCase().includes(lowerQuery)) {
+            child.style.display = '';
+        } else {
+            child.style.display = 'none';
+        }
+    });
 };
 
 
@@ -802,12 +966,36 @@ window.stopTimerInterval = function () {
     }
 };
 
+
+function updateTimerButton(state) {
+    const btn = document.getElementById('timer-toggle-btn');
+    if (!btn) return;
+
+    if (state === 'running') {
+        btn.innerHTML = '<i class="bi bi-pause-fill"></i> Pause';
+        btn.className = 'btn btn-warning flex-fill shadow-sm text-white';
+    } else {
+        // Paused or stopped
+        btn.innerHTML = '<i class="bi bi-play-fill"></i> Start';
+        btn.className = 'btn btn-success flex-fill shadow-sm';
+    }
+}
+
+window.toggleTimer = function () {
+    if (TIMER.running) {
+        window.pauseTimer();
+    } else {
+        window.startTimer();
+    }
+};
+
 window.startTimer = function () {
     if (TIMER.running) return;
     if (TIMER.remainingMs <= 0) TIMER.remainingMs = TIMER.durationMs;
     TIMER.running = true;
     TIMER.endTs = Date.now() + TIMER.remainingMs;
     stopTimerInterval();
+    updateTimerButton('running'); // Update button
     TIMER.intervalId = setInterval(() => {
         const now = Date.now();
         TIMER.remainingMs = Math.max(0, TIMER.endTs - now);
@@ -815,6 +1003,7 @@ window.startTimer = function () {
         if (TIMER.remainingMs <= 0) {
             stopTimerInterval();
             TIMER.running = false;
+            updateTimerButton('stopped'); // Reset button
 
             const durationMinutes = Math.round(TIMER.durationMs / 60000);
             if (durationMinutes > 0) {
@@ -849,6 +1038,7 @@ window.pauseTimer = function () {
     TIMER.running = false;
     TIMER.remainingMs = Math.max(0, TIMER.endTs - Date.now());
     updateTimerDisplay();
+    updateTimerButton('paused'); // Update button
 };
 
 window.resetTimer = function () {
@@ -856,6 +1046,7 @@ window.resetTimer = function () {
     TIMER.running = false;
     TIMER.remainingMs = TIMER.durationMs;
     updateTimerDisplay();
+    updateTimerButton('stopped'); // Update button
 };
 
 
@@ -1003,7 +1194,9 @@ window.toggleNotificationsPanel = function (event) {
         event.stopPropagation();
     }
     toggleInlinePanel('notifications-panel', event);
-    renderNotifications();
+    if (window.loadNotifications) {
+        window.loadNotifications();
+    }
 };
 
 window.updateNotificationBadge = function () {
@@ -1033,31 +1226,66 @@ window.renderNotifications = function () {
                  data-id="${notification.id}" 
                  onclick="markAsRead('${notification.id}')">
                 <div class="d-flex justify-content-between align-items-start">
-                    <div class="me-3">
+                    <div class="me-3 flex-grow-1">
                         <h6 class="mb-1">${escapeHtml(notification.title)}</h6>
                         <p class="mb-1 small text-muted">${escapeHtml(notification.message)}</p>
                         <small class="text-muted">${formatTimeAgo(notification.date)}</small>
                     </div>
-                    ${!notification.read ? '<span class="badge bg-primary">New</span>' : ''}
+                <div class="d-flex align-items-center">
+                    ${!notification.read ? '<span class="badge bg-primary me-2">New</span>' : ''}
+                     <button class="btn btn-sm btn-link text-muted p-0 ms-1" style="line-height:1;" title="Dismiss" onclick="deleteNotification(${notification.id}, event)">
+                         <i class="bi bi-x-lg"></i>
+                     </button>
+                    </div>
                 </div>
             </div>
         `).join('');
 
         if (notifications.length > 10) {
             container.innerHTML += `
-                <div class="text-center mt-2">
-                    <a href="#" class="small" onclick="event.preventDefault();return false;">
-                        View all ${notifications.length} notifications
-                    </a>
-                </div>
+            < div class="text-center mt-2" >
+                <a href="#" class="small" onclick="event.preventDefault();return false;">
+                    View all ${notifications.length} notifications
+                </a>
+                </div >
             `;
         }
     }
     updateNotificationBadge();
 };
 
+window.deleteNotification = async function (id, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    // Optimistic UI update
+    notifications = notifications.filter(n => n.id != id);
+    safeStorage.set('notifications', notifications);
+    updateNotificationBadge();
+    renderNotifications();
+
+    // Call server to persist delete (assuming numeric IDs from server, but local ones might be 'notif-' strings)
+    // If it's a server notification (integer ID), call backend
+    if (typeof id === 'number' || !isNaN(id)) {
+        try {
+            const res = await fetch('/Dashboard/DeleteNotification?id=' + id, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            if (!data.success) {
+                console.warn('Failed to delete notification on server:', data.error);
+                // Optionally revert if critical, but for notifications usually fine
+            }
+        } catch (e) {
+            console.error('Delete notification error:', e);
+        }
+    }
+};
+
 window.markAsRead = function (id) {
-    const notification = notifications.find(n => n.id === id);
+    const notification = notifications.find(n => n.id == id);
     if (notification && !notification.read) {
         notification.read = true;
         updateNotificationBadge();
@@ -1090,11 +1318,15 @@ document.addEventListener('DOMContentLoaded', function () {
     renderNotifications();
     window.addEventListener('beforeunload', () => {
         safeStorage.set('notifications', notifications);
+        if (window.recordBrowsingDuration) window.recordBrowsingDuration();
     });
 });
-window.openFile = async function (fileId) {
+window.openFile = async function (fileId, fileNameOpt, fileUrlOpt) {
     try {
         window.__viewerSource = 'list'; // Track source
+
+        // Track file access for recent files if ID is present
+        if (fileId && window.trackFileOpen) window.trackFileOpen(fileId);
 
         // Switch to viewer mode using setLeftView for proper state management
         window.setLeftView('viewer');
@@ -1102,7 +1334,53 @@ window.openFile = async function (fileId) {
         const contentDisplay = document.getElementById('content-display');
         const filenameDisplay = document.querySelectorAll('.filename-display');
 
-        // Fetch file content
+        // Create recordBrowsingDuration if not exists
+        if (!window.recordBrowsingDuration) {
+            window.recordBrowsingDuration = function () {
+                if (!window.browsingStartTime) return;
+                const durationMs = Date.now() - window.browsingStartTime;
+                window.browsingStartTime = null; // Reset
+                if (durationMs < 5000) return;
+                const durationMins = Math.ceil(durationMs / 60000);
+                const subject = document.querySelector('.filename-display')?.textContent || 'File View';
+                try {
+                    navigator.sendBeacon('/Dashboard/RecordBrowsingSession', JSON.stringify({ duration: durationMins, subjectName: subject }));
+                } catch (e) { }
+            };
+        }
+
+        window.browsingStartTime = Date.now();
+
+        if (contentDisplay) {
+            contentDisplay.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading file...</div></div>';
+        }
+
+        let fname = fileNameOpt || 'File';
+        filenameDisplay.forEach(el => el.textContent = fname);
+
+        // DIRECT URL MODE (For class files)
+        if (fileUrlOpt) {
+            if (contentDisplay) {
+                const ext = fname.split('.').pop().toLowerCase();
+                let type = 'unknown';
+                if (/^(png|jpg|jpeg|gif|webp)$/.test(ext)) type = 'image';
+                else if (ext === 'pdf') type = 'pdf';
+                else if (/^(txt|md|js|css|html|xml|json|cs)$/.test(ext)) type = 'text';
+
+                if (type === 'image') {
+                    contentDisplay.innerHTML = `<div class="text-center h-100 d-flex align-items-center justify-content-center" style="background:#f8f9fa;"><img src="${fileUrlOpt}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /></div>`;
+                } else if (type === 'pdf') {
+                    contentDisplay.innerHTML = `<iframe src="${fileUrlOpt}" style="width:100%; height:100%; border:none;" title="PDF Viewer"></iframe>`;
+                } else {
+                    // Default to iframe for others
+                    contentDisplay.innerHTML = `<iframe src="${fileUrlOpt}" style="width:100%; height:100%; border:none;"></iframe>`;
+                }
+                contentDisplay.contentEditable = "false";
+            }
+            return;
+        }
+
+        // ID MODE (For my files)
         const res = await fetch(`/Dashboard/GetFileContent?fileId=${fileId}`, { credentials: 'same-origin' });
         const data = await res.json();
 
@@ -1111,19 +1389,20 @@ window.openFile = async function (fileId) {
             return;
         }
 
-        // Update display
         filenameDisplay.forEach(el => el.textContent = data.fileName);
 
-        if (data.displayType === 'image') {
-            contentDisplay.innerHTML = `<div class="text-center"><img src="${data.content}" class="img-fluid" style="max-height:80vh;" /></div>`;
-            contentDisplay.contentEditable = "false";
-        } else if (data.displayType === 'pdf') {
-            contentDisplay.innerHTML = `<div class="h-100 w-100"><iframe src="${data.content}" style="width:100%; height:100%; min-height:600px; border:none;" title="PDF Viewer"></iframe></div>`;
-            contentDisplay.contentEditable = "false";
-        } else {
-            const safeText = window.escapeHtml(data.content || '').replace(/\n/g, '<br>');
-            contentDisplay.innerHTML = safeText || '<div class="text-center text-muted py-5"><i>No content to display</i></div>';
-            contentDisplay.contentEditable = "false";
+        if (contentDisplay) {
+            if (data.displayType === 'image') {
+                contentDisplay.innerHTML = `<div class="text-center h-100 d-flex align-items-center justify-content-center" style="background:#f8f9fa;"><img src="${data.content}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /></div>`;
+                contentDisplay.contentEditable = "false";
+            } else if (data.displayType === 'pdf') {
+                contentDisplay.innerHTML = `<iframe src="${data.content}" style="width:100%; height:100%; border:none;" title="PDF Viewer"></iframe>`;
+                contentDisplay.contentEditable = "false";
+            } else {
+                const safeText = window.escapeHtml(data.content || '').replace(/\n/g, '<br>');
+                contentDisplay.innerHTML = safeText || '<div class="text-center text-muted py-5"><i>No content to display</i></div>';
+                contentDisplay.contentEditable = "false";
+            }
         }
 
         // Initialize word count and other controls
@@ -1135,4 +1414,562 @@ window.openFile = async function (fileId) {
         console.error("Open file error:", e);
         alert('Error opening file.');
     }
+};
+
+// ==========================================
+// INLINE RECENT & MY FILES PANEL IMPLEMENTATION
+// ==========================================
+window.__inlineFolderView = null; // Track current folder in inline panel
+
+window.renderMyFilesPanel = function (folderName) {
+    const list = document.getElementById('my-files-list-inline');
+    if (!list) return;
+
+    // Update state if folder specified
+    if (folderName !== undefined) {
+        window.__inlineFolderView = folderName;
+    }
+
+    list.innerHTML = '<div class="text-center text-muted py-2 small"><span class="spinner-border spinner-border-sm"></span> Loading...</div>';
+
+    // Source data from the hidden main files grid
+    const grid = document.querySelector('#uploaded-files-section .files-grid');
+    if (!grid) {
+        list.innerHTML = '';
+        if (!window.__inlineFolderView) {
+            renderAddFolderButton(list);
+        }
+        const div = document.createElement('div');
+        div.className = 'text-center text-muted small py-4';
+        div.textContent = 'No files found.';
+        list.appendChild(div);
+        return;
+    }
+
+    const cards = Array.from(grid.children);
+
+    list.innerHTML = '';
+
+    // If viewing a folder, show back button
+    if (window.__inlineFolderView) {
+        const backDiv = document.createElement('div');
+        backDiv.className = 'p-2 pb-3 border-bottom';
+        backDiv.innerHTML = `
+            < button class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2" onclick = "event.stopPropagation(); renderMyFilesPanel(null)" >
+                <i class="bi bi-arrow-left"></i> Back to My Files
+            </button >
+            `;
+        list.appendChild(backDiv);
+
+        // Show folder name header
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'px-3 py-2 bg-light border-bottom';
+        headerDiv.innerHTML = `< small class="fw-bold text-muted" > <i class="bi bi-folder-fill me-1"></i> ${window.escapeHtml(window.__inlineFolderView)}</small > `;
+        list.appendChild(headerDiv);
+
+        // Get files in this folder
+        const folderFileIds = new Set((window.FILE_GROUPS[window.__inlineFolderView] || []).map(id => parseInt(id)));
+
+        // Show files in folder
+        cards.forEach(card => {
+            if (card.classList.contains('folder-card')) return;
+
+            const fid = parseInt(card.getAttribute('data-file-id'));
+            if (!folderFileIds.has(fid)) return;
+
+            const fname = card.getAttribute('data-file-name') || card.querySelector('.file-name-card')?.textContent.trim() || 'Untitled';
+            const iconContainer = card.querySelector('.file-icon-large');
+            const iconHtml = iconContainer ? iconContainer.innerHTML : '<i class="bi bi-file-earmark"></i>';
+
+            const div = document.createElement('div');
+            div.className = 'd-flex align-items-center p-2 border-bottom hover-bg-light position-relative file-item-row';
+            div.style.cursor = 'pointer';
+
+            div.onclick = (e) => {
+                if (e.target.closest('.btn-delete-inline')) return;
+                if (window.openFile) window.openFile(fid, fname);
+            };
+
+            div.innerHTML = `
+            < div class="me-3" style = "width:32px; text-align:center;" >
+                ${iconHtml.replace('width: 36px', 'width: 24px').replace('height: 36px', 'height: 24px').replace('fs-1', 'fs-5')}
+                </div >
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="fw-medium text-truncate" title="${fname}">${window.escapeHtml(fname)}</div>
+                    <div class="small text-muted">File</div>
+                </div>
+                <div class="ms-2">
+                     <button class="btn btn-sm btn-outline-danger btn-delete-inline border-0 p-1" title="Delete" onclick="deleteFileInline(${fid}, event)">
+                        <i class="bi bi-trash"></i>
+                     </button>
+                </div>
+        `;
+            list.appendChild(div);
+        });
+
+        if (folderFileIds.size === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'text-center text-muted small py-4';
+            emptyDiv.textContent = 'No files in this folder.';
+            list.appendChild(emptyDiv);
+        }
+
+        return;
+    }
+
+    // Root view - show folders and ungrouped files
+
+    // Add Search Bar
+    const searchDiv = document.createElement('div');
+    searchDiv.className = 'px-2 pb-2';
+    searchDiv.innerHTML = `
+        <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control border-start-0 ps-0" placeholder="Search files & folders..." value="${window.escapeHtml(window.__myFilesSearchTerm || '')}" oninput="window.filterMyFiles(this.value)">
+        </div>
+    `;
+    list.appendChild(searchDiv);
+
+    renderAddFolderButton(list);
+
+    // Process Folders from FILE_GROUPS directly
+    if (window.FILE_GROUPS) {
+        Object.keys(window.FILE_GROUPS).forEach(groupName => {
+            const div = document.createElement('div');
+            div.className = 'd-flex align-items-center p-2 border-bottom hover-bg-light position-relative searchable-item';
+            if (window.__myFilesSearchTerm && !groupName.toLowerCase().includes(window.__myFilesSearchTerm)) {
+                div.style.display = 'none';
+            }
+            div.style.cursor = 'pointer';
+            div.onclick = (e) => {
+                // Prevent panel from closing
+                if (e) e.stopPropagation();
+                // Stay in panel and show folder contents
+                window.renderMyFilesPanel(groupName);
+            };
+
+            const fileCount = window.FILE_GROUPS[groupName] ? window.FILE_GROUPS[groupName].length : 0;
+
+            div.innerHTML = `
+            <div class="me-3 text-warning">
+                <i class="bi bi-folder-fill fs-5"></i>
+                </div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="fw-medium text-truncate" title="${groupName}">${window.escapeHtml(groupName)}</div>
+                    <div class="small text-muted">${fileCount} items</div>
+                </div>
+                <button class="btn btn-sm btn-outline-danger me-2" onclick="event.stopPropagation(); window.deleteFolderInline('${groupName.replace(/'/g, "\\'")}')" title="Delete folder">
+            <i class="bi bi-trash"></i>
+                </button>
+            <div class="text-muted small">
+                <i class="bi bi-chevron-right"></i>
+            </div>
+        `;
+            list.appendChild(div);
+        });
+    }
+
+    // Process ungrouped Files
+    const allGroupedFiles = new Set();
+    Object.values(window.FILE_GROUPS || {}).forEach(ids => ids.forEach(id => allGroupedFiles.add(parseInt(id))));
+
+    cards.forEach(card => {
+        if (card.classList.contains('folder-card')) return;
+
+        const fid = parseInt(card.getAttribute('data-file-id'));
+        if (allGroupedFiles.has(fid)) return; // Skip grouped files
+
+        const fname = card.getAttribute('data-file-name') || card.querySelector('.file-name-card')?.textContent.trim() || 'Untitled';
+
+        const iconContainer = card.querySelector('.file-icon-large');
+        const iconHtml = iconContainer ? iconContainer.innerHTML : '<i class="bi bi-file-earmark"></i>';
+
+        const div = document.createElement('div');
+        div.className = 'd-flex align-items-center p-2 border-bottom hover-bg-light position-relative file-item-row searchable-item';
+        if (window.__myFilesSearchTerm && !fname.toLowerCase().includes(window.__myFilesSearchTerm)) {
+            div.style.display = 'none';
+        }
+        div.style.cursor = 'pointer';
+
+        div.onclick = (e) => {
+            if (e.target.closest('.btn-delete-inline')) return;
+            if (window.openFile) window.openFile(fid, fname);
+        };
+
+        div.innerHTML = `
+            <div class="me-3" style="width:32px; text-align:center;">
+                ${iconHtml.replace('width: 36px', 'width: 24px').replace('height: 36px', 'height: 24px').replace('fs-1', 'fs-5')}
+            </div>
+            <div class="flex-grow-1 overflow-hidden">
+                <div class="fw-medium text-truncate" title="${fname}">${window.escapeHtml(fname)}</div>
+                <div class="small text-muted">File</div>
+            </div>
+            <div class="ms-2">
+                 <button class="btn btn-sm btn-outline-danger btn-delete-inline border-0 p-1" title="Delete" onclick="deleteFileInline(${fid}, event)">
+                    <i class="bi bi-trash"></i>
+                 </button>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+};
+
+function renderAddFolderButton(list) {
+    const container = document.createElement('div');
+    container.className = 'p-2 pb-3';
+    container.id = 'folder-creation-container';
+
+    // Step 1: Initial Button
+    const initialView = document.createElement('div');
+    initialView.className = 'd-grid';
+    initialView.innerHTML = `
+        <button class="btn btn-outline-primary btn-sm dashed-border" onclick="document.getElementById('folder-name-section').classList.remove('d-none'); this.parentElement.classList.add('d-none');">
+            <i class="bi bi-folder-plus me-2"></i>Create New Folder
+        </button>
+    `;
+    container.appendChild(initialView);
+
+    // Step 2: Name input (initially hidden)
+    const nameSection = document.createElement('div');
+    nameSection.id = 'folder-name-section';
+    nameSection.className = 'd-none'; // Hidden by default
+    nameSection.innerHTML = `
+        <div class="d-flex gap-2 align-items-center">
+            <input type="text" 
+                   id="inline-folder-name-input" 
+                   class="form-control form-control-sm" 
+                   placeholder="Folder Name"
+                   style="flex: 1;"
+                   onclick="event.stopPropagation()"
+            />
+            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); window.showFileSelection()" title="Next">
+                <i class="bi bi-arrow-right"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); window.cancelFolderCreation()" title="Cancel">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `;
+
+    // Step 3: File selection (initially hidden)
+    const fileSection = document.createElement('div');
+    fileSection.id = 'folder-file-selection';
+    fileSection.style.display = 'none';
+    fileSection.className = 'mt-2';
+    fileSection.innerHTML = `
+        <div class="bg-light p-2 rounded-3 border">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="fw-bold text-muted">Select Files:</small>
+                <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="event.stopPropagation(); window.cancelFolderCreation()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div id="file-selection-list" style="max-height: 200px; overflow-y: auto;" class="mb-2">
+                <!-- Files will be populated here -->
+            </div>
+            <button class="btn btn-sm btn-success w-100" onclick="window.createFolderWithFiles()">
+                <i class="bi bi-check-lg"></i> Create Folder
+            </button>
+        </div >
+            `;
+
+    container.appendChild(nameSection);
+    container.appendChild(fileSection);
+    list.appendChild(container);
+
+    // Add Enter key support for name input
+    setTimeout(() => {
+        const input = document.getElementById('inline-folder-name-input');
+        if (input) {
+            input.onkeypress = (e) => {
+                if (e.key === 'Enter') window.showFileSelection();
+            };
+        }
+    }, 100);
+}
+
+window.showFileSelection = function () {
+    const input = document.getElementById('inline-folder-name-input');
+    if (!input) return;
+
+    const name = input.value.trim();
+    if (!name) {
+        input.focus();
+        return;
+    }
+
+    if (window.FILE_GROUPS && window.FILE_GROUPS[name]) {
+        alert("Folder already exists.");
+        input.value = '';
+        input.focus();
+        return;
+    }
+
+    // Hide name section, show file selection
+    const nameSection = document.getElementById('folder-name-section');
+    const fileSection = document.getElementById('folder-file-selection');
+    const fileList = document.getElementById('file-selection-list');
+
+    if (nameSection) nameSection.style.display = 'none';
+    if (fileSection) fileSection.style.display = 'block';
+
+    // Get available files (ungrouped files)
+    const grid = document.querySelector('#uploaded-files-section .files-grid');
+    if (!grid) {
+        fileList.innerHTML = '<small class="text-muted">No files available</small>';
+        return;
+    }
+
+    const allGroupedFiles = new Set();
+    Object.values(window.FILE_GROUPS || {}).forEach(ids => ids.forEach(id => allGroupedFiles.add(parseInt(id))));
+
+    const availableFiles = Array.from(grid.children).filter(card => {
+        if (card.classList.contains('folder-card')) return false;
+        const fid = parseInt(card.getAttribute('data-file-id'));
+        return !allGroupedFiles.has(fid);
+    });
+
+    if (availableFiles.length === 0) {
+        fileList.innerHTML = '<small class="text-muted">No ungrouped files available</small>';
+        return;
+    }
+
+    // Render file checkboxes
+    fileList.innerHTML = '';
+    availableFiles.forEach(card => {
+        const fid = card.getAttribute('data-file-id');
+        const fname = card.getAttribute('data-file-name') || 'Untitled';
+
+        const div = document.createElement('div');
+        div.className = 'form-check py-1';
+        div.innerHTML = `
+            <div class="form-check">
+                <input class="form-check-input file-selection-checkbox" type="checkbox" value="${fid}" id="file-check-${fid}">
+                <label class="form-check-label small" for="file-check-${fid}">
+                    ${window.escapeHtml(fname)}
+                </label>
+            </div>
+        `;
+        fileList.appendChild(div);
+    });
+};
+
+window.cancelFolderCreation = function () {
+    // Simply re-render to reset state is easiest and safest
+    window.renderMyFilesPanel();
+};
+
+window.createFolderWithFiles = function () {
+    const input = document.getElementById('inline-folder-name-input');
+    if (!input) return;
+
+    const name = input.value.trim();
+    const selectedCheckboxes = document.querySelectorAll('.file-selection-checkbox:checked');
+    const selectedFiles = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+
+    // Create folder
+    if (!window.FILE_GROUPS) window.FILE_GROUPS = {};
+    window.FILE_GROUPS[name] = selectedFiles;
+
+    if (window.safeStorage) window.safeStorage.set('fileGroups', window.FILE_GROUPS);
+    if (window.saveGroupToServer) window.saveGroupToServer(name, selectedFiles);
+
+    // Reset and refresh
+    window.cancelFolderCreation();
+    if (input) input.value = '';
+    window.renderGroupsUI();
+    window.renderMyFilesPanel();
+};
+
+// Track file access for recent files
+window.trackFileOpen = function (fileId) {
+    try {
+        const key = 'recentFileAccess';
+        let recentAccess = {};
+
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                recentAccess = JSON.parse(stored);
+            } catch (e) {
+                recentAccess = {};
+            }
+        }
+
+        recentAccess[fileId] = Date.now();
+        localStorage.setItem(key, JSON.stringify(recentAccess));
+    } catch (e) {
+        console.error('Failed to track file access:', e);
+    }
+};
+
+window.deleteFileInline = async function (fid, event) {
+    if (event) event.stopPropagation();
+    if (!confirm("Are you sure you want to delete this file?")) return;
+
+    try {
+        const response = await fetch('/Dashboard/DeleteFiles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify([parseInt(fid)])
+        });
+        const data = await response.json();
+        if (data.success) {
+            // Remove from main grid
+            const grid = document.querySelector('#uploaded-files-section .files-grid');
+            if (grid) {
+                const card = grid.querySelector(`.file - card[data - file - id="${fid}"]`);
+                if (card) card.remove();
+            }
+            // Remove from groups if presnet
+            if (window.FILE_GROUPS) {
+                Object.keys(window.FILE_GROUPS).forEach(g => {
+                    window.FILE_GROUPS[g] = window.FILE_GROUPS[g].filter(id => id != fid);
+                });
+                if (window.safeStorage) window.safeStorage.set('fileGroups', window.FILE_GROUPS);
+            }
+
+            window.renderGroupsUI();
+            window.renderMyFilesPanel();
+        } else {
+            alert("Failed to delete: " + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error deleting file.");
+    }
+};
+
+window.deleteFolderInline = function (folderName) {
+    if (!confirm(`Are you sure you want to delete the folder "${folderName}" ? The files inside will be ungrouped.`)) return;
+
+    try {
+        // Remove folder from FILE_GROUPS
+        if (window.FILE_GROUPS && window.FILE_GROUPS[folderName]) {
+            delete window.FILE_GROUPS[folderName];
+
+            // Save to storage
+            if (window.safeStorage) window.safeStorage.set('fileGroups', window.FILE_GROUPS);
+
+            // Save to server if function exists
+            if (window.deleteGroupFromServer) {
+                window.deleteGroupFromServer(folderName);
+            }
+
+            // Refresh UI
+            window.renderGroupsUI();
+            window.renderMyFilesPanel();
+        }
+    } catch (e) {
+        console.error('Failed to delete folder:', e);
+        alert('Error deleting folder.');
+    }
+};
+
+window.renderRecentFilesPanel = function () {
+    const list = document.getElementById('recent-files-list-inline');
+    if (!list) return;
+
+    list.innerHTML = '<div class="text-center text-muted py-2 small"><span class="spinner-border spinner-border-sm"></span> Loading...</div>';
+
+    const grid = document.querySelector('#uploaded-files-section .files-grid');
+    if (!grid) {
+        list.innerHTML = '<div class="text-center text-muted small py-4">No recent files.</div>';
+        return;
+    }
+
+    // Get only files (not folders)
+    let files = Array.from(grid.children).filter(c => !c.classList.contains('folder-card'));
+
+    // Get recent access times from localStorage
+    let recentAccess = {};
+    try {
+        const stored = localStorage.getItem('recentFileAccess');
+        if (stored) {
+            recentAccess = JSON.parse(stored);
+        }
+    } catch (e) {
+        console.error('Failed to load recent access:', e);
+    }
+
+    // Sort files by last access time (most recent first)
+    files.sort((a, b) => {
+        const aId = a.getAttribute('data-file-id');
+        const bId = b.getAttribute('data-file-id');
+        const aTime = recentAccess[aId] || 0;
+        const bTime = recentAccess[bId] || 0;
+        return bTime - aTime; // Descending order
+    });
+
+    // Filter to only files that have been accessed (time > 0)
+    files = files.filter(card => {
+        const fid = card.getAttribute('data-file-id');
+        return recentAccess[fid] && recentAccess[fid] > 0;
+    });
+
+    // Limit to 10
+    const recent = files.slice(0, 10);
+
+    if (recent.length === 0) {
+        list.innerHTML = '<div class="text-center text-muted small py-4">No recently accessed files.<br><small class="text-muted">Open a file to see it here.</small></div>';
+        return;
+    }
+
+    list.innerHTML = '';
+
+    recent.forEach(card => {
+        const fid = card.getAttribute('data-file-id');
+        const fname = card.getAttribute('data-file-name');
+
+        const iconContainer = card.querySelector('.file-icon-large');
+        const iconHtml = iconContainer ? iconContainer.innerHTML : '<i class="bi bi-file-earmark"></i>';
+
+        const div = document.createElement('div');
+        div.className = 'd-flex align-items-center p-2 border-bottom hover-bg-light';
+        div.style.cursor = 'pointer';
+        div.onclick = () => {
+            if (window.openFile) window.openFile(fid, fname);
+            // Refresh panel after short delay to show updated order
+            setTimeout(() => {
+                const panelVisible = document.getElementById('recent-files-panel')?.classList.contains('show');
+                if (panelVisible) window.renderRecentFilesPanel();
+            }, 100);
+        };
+
+        div.innerHTML = `
+            < div class="me-3" style = "width:32px; text-align:center;" >
+                ${iconHtml.replace('width: 36px', 'width: 24px').replace('height: 36px', 'height: 24px').replace('fs-1', 'fs-5')}
+            </div >
+            <div class="flex-grow-1 overflow-hidden">
+                <div class="fw-medium text-truncate" title="${fname}">${window.escapeHtml(fname)}</div>
+                <div class="small text-muted">Recent</div>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+};
+
+window.__myFilesSearchTerm = '';
+
+window.filterMyFiles = function (term) {
+    window.__myFilesSearchTerm = term.toLowerCase();
+    const list = document.getElementById('my-files-list-inline');
+    if (!list) return;
+
+    const items = list.querySelectorAll('.searchable-item');
+    let hasVisible = false;
+
+    items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        // If it's a folder or file, check the title/name
+        // We can be more specific if we want, but textContent usually works fine for simple lists
+        if (text.includes(window.__myFilesSearchTerm)) {
+            item.style.display = '';
+            hasVisible = true;
+        } else {
+            item.style.display = 'none';
+        }
+    });
+
+    // Handle "No results" message if needed, though not strictly required by plan
 };

@@ -40,30 +40,31 @@
 
 
     <div class="top-nav">
-        <div class="left-nav d-flex align-items-center gap-2">
+        <div class="left-nav d-flex align-items-center gap-3">
             <button class="nav-btn" type="button" onclick="location.reload()">
                 <img src="~/images/logo.jpg" alt="Home" style="height: 20px; width: auto;" />
                 <span>Home</span>
             </button>
-            <button class="nav-btn" type="button" data-bs-toggle="modal" data-bs-target="#helpModal">
+            <button class="nav-btn" type="button" onclick="window.location.href='@Url.Action("Help", "Dashboard")'">
                 <i class="bi bi-question-circle"></i>
                 <span>Help</span>
             </button>
         </div>
         <div class="nav-divider"></div>
-        <div class="right-nav d-flex align-items-center">
+        <div class="right-nav d-flex align-items-center gap-4">
 
-            <div class="user-dropdown me-3">
+            <div class="user-dropdown">
                 <button class="nav-btn" onclick="toggleDropdown('focus', event)">
                     <img src="~/images/focus icon.png" alt="Focus" style="width: 20px; height: 20px; object-fit: contain;" />
                     <span>Focus</span>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown text-start" id="focus-dropdown" dir="ltr" style="direction:ltr;">
-                    <div class="dropdown-header">
-                        <i class="bi bi-bullseye"></i>
-                        <span>Focus Tools</span>
-                    </div>
-                    <div class="dropdown-divider"></div>
+                <div class="dropdown-menu enhanced-dropdown text-start p-0 overflow-hidden" id="focus-dropdown" dir="ltr" style="direction:ltr;">
+                    <div class="notifications-banner" style="background: linear-gradient(135deg, #6610f2 0%, #d63384 100%); opacity:0.9;"></div>
+                    <div class="notifications-content px-4 pb-4">
+                        <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-3">
+                            <img src="~/images/focus icon.png" alt="Focus" style="width: 32px; height: 32px; object-fit: contain;" />
+                        </div>
+                        <h5 class="mb-3 fw-bold text-center">Focus Tools</h5>
 
                     <div class="activity-item" onclick="toggleInlinePanel('focus-music-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon">
@@ -107,88 +108,176 @@
                             </div>
                         </div>
                     </div>
+                </div>
+                </div>
+
+                    <!-- Breathing Panel (Unified Purple) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start p-0 overflow-hidden" id="focus-breathing-panel" dir="ltr" style="direction:ltr; min-width: 300px;">
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #6610f2 0%, #d63384 100%); opacity:0.9;"></div>
+                        <div class="notifications-content px-3 pb-3">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-2">
+                                <i class="bi bi-wind fs-4" style="color: #6610f2;"></i>
+                            </div>
+                            <h5 class="mb-2 fw-bold text-center">Breathing</h5>
+
+                            <div class="pt-1">
+                                <div class="d-flex gap-1 mb-2">
+                                    <button class="btn btn-sm btn-outline-purple breathing-technique active flex-fill" data-technique="478">4-7-8</button>
+                                    <button class="btn btn-sm btn-outline-purple breathing-technique flex-fill" data-technique="box">Box</button>
+                                    <button class="btn btn-sm btn-outline-purple breathing-technique flex-fill" data-technique="calm">Calm</button>
+                                </div>
+
+                                <div class="text-center mb-2 p-2 bg-light rounded-3 border border-opacity-10" style="border-color: #6610f2 !important;">
+                                    <div class="position-relative mx-auto" style="width: 120px; height: 120px;">
+                                        <svg id="breathing-circle" width="120" height="120" viewBox="0 0 120 120">
+                                            <circle cx="60" cy="60" r="35" fill="#6610f2" opacity="0.2"></circle>
+                                            <circle id="breathing-circle-anim" cx="60" cy="60" r="35" fill="#6610f2" opacity="0.6" style="transition: r 1s ease-in-out;"></circle>
+                                        </svg>
+                                    <div class="position-absolute top-50 start-50 translate-middle text-center">
+                                            <div id="breathing-instruction" class="fw-bold text-white small">Ready</div>
+                                            <div id="breathing-count" class="h4 fw-bold text-muted mb-0"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm text-white flex-fill" id="breathing-toggle-btn" style="background-color: #6610f2;">
+                                        <i class="bi bi-play-fill"></i> Start
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mind Games Panel (Unified Purple) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start p-0 overflow-hidden" id="focus-mindgames-panel" dir="ltr" style="direction:ltr; min-width: 300px;">
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #6610f2 0%, #d63384 100%); opacity:0.9;"></div>
+                        <div class="notifications-content px-3 pb-3">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-2">
+                                <i class="bi bi-puzzle fs-4" style="color: #6610f2;"></i>
+                            </div>
+                            <h5 class="mb-2 fw-bold text-center">Mind Games</h5>
+
+                            <div class="pt-1">
+                                <p class="small text-muted text-center mb-2">Test your memory!</p>
+                                
+                                <div class="text-center mb-2 p-3 bg-light rounded-3">
+                                    <div id="game-number-display" class="display-4 fw-bold mb-2" style="font-family: monospace; color: #6610f2;">?</div>
+                                    <div id="game-status" class="small text-muted">Click Start to begin</div>
+                                </div>
+
+                                <div id="game-input-area" class="mb-2" style="display:none;">
+                                    <input type="number" id="game-answer-input" class="form-control text-center" placeholder="Enter the number" />
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm text-white flex-fill" id="game-start-btn" style="background-color: #6610f2;">
+                                        <i class="bi bi-play-fill"></i> Start
+                                    </button>
+                                    <button class="btn btn-sm btn-success flex-fill" id="game-submit-btn" style="display:none;">
+                                        <i class="bi bi-check-lg"></i> Submit
+                                    </button>
+                                </div>
+
+                                <div class="mt-2 text-center">
+                                    <small class="text-muted">Score: <span id="game-score" class="fw-bold">0</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Timer panel positioned relative to Focus dropdown (top-left) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start" id="focus-timer-panel" dir="ltr" style="direction:ltr;">
-                        <div class="dropdown-header">
-                            <i class="bi bi-stopwatch"></i>
-                            <span>Focus Timer</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-
-                        <div class="px-3 py-3">
-                            <h6 class="mb-3">Preset Timers</h6>
-                            <div class="d-grid gap-2 mb-3">
-                                <button class="btn btn-sm btn-outline-primary timer-preset active" data-minutes="25">
-                                    <i class="bi bi-alarm me-2"></i>Pomodoro (25 min)
-                                </button>
-                                <button class="btn btn-sm btn-outline-primary timer-preset" data-minutes="15">
-                                    <i class="bi bi-cup-hot me-2"></i>Short Break (15 min)
-                                </button>
-                                <button class="btn btn-sm btn-outline-primary timer-preset" data-minutes="5">
-                                    <i class="bi bi-lightning me-2"></i>Quick Break (5 min)
-                                </button>
-                                <button class="btn btn-sm btn-outline-primary timer-preset" data-minutes="50">
-                                    <i class="bi bi-stars me-2"></i>Deep Focus (50 min)
-                                </button>
+                    <!-- Timer panel (Unified Purple) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start p-0 overflow-hidden" id="focus-timer-panel" dir="ltr" style="direction:ltr; min-width: 340px;">
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #6610f2 0%, #d63384 100%); opacity:0.9;"></div>
+                        <div class="notifications-content px-4 pb-3">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-2">
+                                <i class="bi bi-stopwatch fs-4" style="color: #6610f2;"></i>
                             </div>
+                            <h5 class="mb-2 fw-bold">Focus Timer</h5>
 
-                            <div class="text-center mb-3">
-                                <div class="activity-desc display-4 fw-bold text-primary">25:00</div>
-                                <small class="text-muted">Remaining Time</small>
-                            </div>
+                            <div class="pt-2">
+                                <h6 class="mb-2 small text-muted text-uppercase fw-bold ls-1">Preset Timers</h6>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <button class="btn btn-sm btn-outline-purple timer-preset w-100 active" data-minutes="25">
+                                            <i class="bi bi-alarm me-1"></i>Pomodoro (25m)
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button class="btn btn-sm btn-outline-purple timer-preset w-100" data-minutes="15">
+                                            <i class="bi bi-cup-hot me-1"></i>Break (15m)
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button class="btn btn-sm btn-outline-purple timer-preset w-100" data-minutes="5">
+                                            <i class="bi bi-lightning me-1"></i>Quick (5m)
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button class="btn btn-sm btn-outline-purple timer-preset w-100" data-minutes="50">
+                                            <i class="bi bi-stars me-1"></i>Deep (50m)
+                                        </button>
+                                    </div>
+                                </div>
 
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-success flex-fill" onclick="window.startTimer()">
-                                    <i class="bi bi-play-fill"></i> Start
-                                </button>
-                                <button class="btn btn-warning flex-fill" onclick="window.pauseTimer()">
-                                    <i class="bi bi-pause-fill"></i> Pause
-                                </button>
-                                <button class="btn btn-secondary flex-fill" onclick="window.resetTimer()">
-                                    <i class="bi bi-arrow-counterclockwise"></i> Reset
-                                </button>
+                                <div class="text-center mb-3 p-2 bg-light rounded-3 border border-opacity-10" style="border-color: #6610f2 !important;">
+                                    <div class="activity-desc fs-1 fw-bold" style="font-family: monospace; color: #6610f2;">25:00</div>
+                                    <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Remaining Time</small>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button class="btn flex-fill shadow-sm" id="timer-toggle-btn" onclick="window.toggleTimer()" style="background-color: #6610f2; color: white;">
+                                        <i class="bi bi-play-fill"></i> Start
+                                    </button>
+                                    <button class="btn btn-secondary shadow-sm" style="width: 30%;" onclick="window.resetTimer()" title="Reset">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
 
                     <!-- Focus Music panel positioned relative to Focus dropdown (top-left) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start" id="focus-music-panel" dir="ltr" style="direction:ltr;">
-                        <div class="dropdown-header">
-                            <i class="bi bi-music-note-beamed"></i>
-                            <span>Focus Music</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="px-3 py-3">
-                            <h6 class="mb-3">Ambient Sounds</h6>
-                            <div class="d-grid gap-2 mb-3">
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="music-preset-quran">
-                                    <i class="bi bi-bookmark-star me-2"></i>Quran
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="music-preset-rain">
-                                    <i class="bi bi-cloud-rain me-2"></i>Rain
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="music-preset-earth">
-                                    <i class="bi bi-globe-americas me-2"></i>Earth
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="music-preset-piano">
-                                    <i class="bi bi-music-note-beamed me-2"></i>Piano
-                                </button>
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-focus text-start p-0 overflow-hidden" id="focus-music-panel" dir="ltr" style="direction:ltr; min-width: 340px;">
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #6610f2 0%, #d63384 100%); opacity:0.9;"></div>
+                        <div class="notifications-content px-4 pb-4">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
+                                <i class="bi bi-music-note-beamed fs-4" style="color: #6610f2 !important;"></i>
                             </div>
+                            <h5 class="mb-3 fw-bold">Focus Music</h5>
 
-                            <div class="d-flex align-items-center gap-2 mb-3">
-                                <button type="button" class="btn btn-success flex-fill" id="music-toggle">
-                                    <i class="bi bi-play-fill"></i> Play
-                                </button>
-                                <div class="flex-grow-1">
-                                    <label class="form-label small mb-1">Volume</label>
-                                    <input type="range" class="form-range" id="music-volume" min="0" max="1" step="0.01" value="0.6">
+                            <div class="pt-2">
+                                <h6 class="mb-3 small text-muted text-uppercase fw-bold ls-1">Ambient Sounds</h6>
+                                <div class="d-grid gap-2 mb-4">
+                                    <button type="button" class="btn btn-sm btn-outline-purple" id="music-preset-quran">
+                                        <i class="bi bi-bookmark-star me-2"></i>Quran
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-purple" id="music-preset-rain">
+                                        <i class="bi bi-cloud-rain me-2"></i>Rain
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-purple" id="music-preset-earth">
+                                        <i class="bi bi-globe-americas me-2"></i>Earth
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-purple" id="music-preset-piano">
+                                        <i class="bi bi-music-note-beamed me-2"></i>Piano
+                                    </button>
                                 </div>
-                            </div>
 
-                            <div class="small text-muted text-center">
-                                Now Playing: <span id="music-nowplaying" class="fw-semibold">Select a track</span>
+                                <div class="d-flex align-items-center gap-3 mb-4 p-3 bg-light rounded-3">
+                                    <button type="button" class="btn btn-success rounded-circle shadow-sm" id="music-toggle" style="width: 48px; height: 48px; background: #6610f2; border:none;">
+                                        <i class="bi bi-play-fill fs-4"></i>
+                                    </button>
+                                    <div class="flex-grow-1">
+                                        <label class="form-label small mb-1 fw-bold text-muted">Volume</label>
+                                        <input type="range" class="form-range" id="music-volume" min="0" max="1" step="0.01" value="0.6">
+                                    </div>
+                                </div>
+
+                                <div class="small text-muted text-center">
+                                    Now Playing: <span id="music-nowplaying" class="fw-bold" style="color: #6610f2;">Select a track</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -200,12 +289,13 @@
                     <img src="~/images/files icon.png" alt="Files" style="width: 20px; height: 20px; object-fit: contain;" />
                     <span>Files</span>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown text-start" id="files-dropdown" dir="ltr" style="direction:ltr;">
-                    <div class="dropdown-header">
-                        <img src="~/images/folder icon.png" alt="File Management" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
-                        <span>File Management</span>
-                    </div>
-                    <div class="dropdown-divider"></div>
+                <div class="dropdown-menu enhanced-dropdown text-start p-0 overflow-hidden" id="files-dropdown" dir="ltr" style="direction:ltr;">
+                    <div class="notifications-banner" style="background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%); opacity:0.9;"></div>
+                    <div class="notifications-content px-4 pb-4">
+                        <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-3">
+                            <img src="~/images/files icon.png" alt="Files" style="width: 32px; height: 32px; object-fit: contain;" />
+                        </div>
+                        <h5 class="mb-3 fw-bold text-center">File Management</h5>
 
                     <!-- Upload New (نفس ستايل الباقي) -->
                     <div class="activity-item" onclick="document.getElementById('file-upload').click()" style="cursor: pointer;">
@@ -218,7 +308,7 @@
                         </div>
                     </div>
 
-                    <div class="activity-item" onclick="showMyFiles();" style="cursor: pointer;">
+                    <div class="activity-item" onclick="toggleInlinePanel('my-files-panel', event, 'files-dropdown'); renderMyFilesPanel();" style="cursor: pointer;">
                         <div class="activity-icon">
                             <img src="/images/folder icon.png" alt="Folder" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
@@ -228,7 +318,7 @@
                         </div>
                     </div>
 
-                    <div class="activity-item" onclick="showRecentFiles();" style="cursor: pointer;">
+                    <div class="activity-item" onclick="toggleInlinePanel('recent-files-panel', event, 'files-dropdown'); renderRecentFilesPanel();" style="cursor: pointer;">
                         <div class="activity-icon">
                             <img src="/images/recent.png" alt="Recent" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
@@ -238,13 +328,70 @@
                         </div>
                     </div>
 
-                    <div class="activity-item">
+                    <div class="activity-item" onclick="toggleInlinePanel('shared-files-panel', event, 'files-dropdown'); renderSharedFilesPanel();" style="cursor: pointer;">
                         <div class="activity-icon">
                             <img src="/images/send icon.png" alt="Shared" style="width: 24px; height: 24px; object-fit: contain;" />
                         </div>
                         <div class="activity-info">
                             <div class="activity-title">Shared With Me</div>
-                            <div class="activity-desc">3 files from classmates</div>
+                            <div class="activity-desc">Files from your classes</div>
+                        </div>
+                    </div>
+
+                    <!-- Shared Files Panel (Unified Blue) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-files text-start p-0 overflow-hidden" id="shared-files-panel" dir="ltr" style="direction:ltr; min-width: 360px; max-height:85vh;">
+                         <div class="notifications-banner" style="background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); opacity:0.9;"></div>
+                         <div class="notifications-content px-4 pb-4">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
+                                 <i class="bi bi-share-fill fs-4" style="color: #0d6efd !important;"></i>
+                            </div>
+                            <h5 class="mb-1 fw-bold">Shared With Me</h5>
+                            <p class="small text-muted mb-4">Files shared by your teachers and classmates</p>
+                            
+                            <div id="shared-files-list" style="max-height: 400px; overflow-y: auto;">
+                                 <div class="text-center text-muted py-4">
+                                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                                    <p class="mt-2 small">Loading shared files...</p>
+                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- My Files Panel (Inline) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-files text-start p-0 overflow-hidden" id="my-files-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%); opacity:0.9;"></div>
+                         <div class="notifications-content px-4 pb-4">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
+                                 <i class="bi bi-folder-fill fs-4" style="color: #0d6efd !important;"></i>
+                            </div>
+                            <h5 class="mb-1 fw-bold text-center">My Files</h5>
+                            <p class="small text-muted mb-4 text-center">Manage your personal documents</p>
+                            
+                            <div id="my-files-list-inline" style="max-height: 400px; overflow-y: auto;" class="custom-scrollbar">
+                                 <div class="text-center text-muted py-4">
+                                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                                    <p class="mt-2 small">Loading files...</p>
+                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Files Panel (Unified Blue) -->
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-files text-start p-0 overflow-hidden" id="recent-files-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%); opacity:0.9;"></div>
+                         <div class="notifications-content px-4 pb-4">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
+                                 <i class="bi bi-clock-history fs-4" style="color: #0d6efd !important;"></i>
+                            </div>
+                            <h5 class="mb-1 fw-bold text-center">Recent Files</h5>
+                            <p class="small text-muted mb-4 text-center">Recently accessed documents</p>
+                            
+                            <div id="recent-files-list-inline" style="max-height: 400px; overflow-y: auto;" class="custom-scrollbar">
+                                 <div class="text-center text-muted py-4">
+                                    <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                                    <p class="mt-2 small">Loading recent files...</p>
+                                 </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -258,12 +405,13 @@
                     <img src="~/images/tools icon.png" alt="Tools" style="width: 20px; height: 20px; object-fit: contain;" />
                     <span>Tools</span>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown text-start" id="tools-dropdown" dir="ltr" style="direction:ltr;">
-                    <div class="dropdown-header">
-                        <i class="bi bi-tools"></i>
-                        <span>Study Tools</span>
-                    </div>
-                    <div class="dropdown-divider"></div>
+                <div class="dropdown-menu enhanced-dropdown text-start p-0 overflow-hidden" id="tools-dropdown" dir="ltr" style="direction:ltr;">
+                    <div class="notifications-banner" style="background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%); opacity:0.9;"></div>
+                    <div class="notifications-content px-4 pb-4">
+                        <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-3">
+                            <img src="~/images/tools icon.png" alt="Tools" style="width: 32px; height: 32px; object-fit: contain;" />
+                        </div>
+                        <h5 class="mb-3 fw-bold text-center">Study Tools</h5>
 
                     <div class="activity-item" onclick="toggleInlinePanel('tools-calculator-panel', event, 'tools-dropdown')" style="cursor: pointer;">
                         <div class="activity-icon text-info">
@@ -303,193 +451,245 @@
                             <div class="activity-desc">Schedule your sessions</div>
                         </div>
                     </div>
-
+                </div>
                 </div>
             </div>
 
-            <!-- Calculator panel positioned relative to Tools dropdown (top-left) -->
-            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-calculator-panel" dir="ltr" style="direction:ltr;">
-                <div class="dropdown-header">
-                    <i class="bi bi-calculator"></i>
-                    <span>Calculator</span>
-                </div>
-                <div class="dropdown-divider"></div>
-                <div class="px-3 py-2" style="width:300px;">
-                    <input type="text" id="calc-display" class="form-control form-control-sm mb-2 text-end" placeholder="0" readonly />
-                    <div class="btn-group w-100 mb-2" role="group">
-                        <button class="btn btn-sm btn-outline-secondary flex-fill" data-calc-action="clear">C</button>
-                        <button class="btn btn-sm btn-outline-secondary flex-fill" data-calc-action="back">←</button>
-                        <button class="btn btn-sm btn-outline-secondary flex-fill" data-calc-input="(">(</button>
-                        <button class="btn btn-sm btn-outline-secondary flex-fill" data-calc-input=")">)</button>
+            <!-- Calculator panel (Unified Orange) -->
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start p-0 overflow-hidden" id="tools-calculator-panel" dir="ltr" style="direction:ltr; min-width: 340px;">
+                <div class="notifications-banner" style="background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%); opacity:0.9;"></div>
+                <div class="notifications-content px-4 pb-4">
+                    <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-warning mb-3">
+                         <i class="bi bi-calculator fs-4" style="color: #fd7e14 !important;"></i>
                     </div>
-                    <div class="d-grid gap-2">
-                        <div class="btn-group w-100" role="group">
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="7">7</button>
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="8">8</button>
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="9">9</button>
-                            <button class="btn btn-sm btn-outline-primary flex-fill" data-calc-input="/">÷</button>
-                        </div>
-                        <div class="btn-group w-100" role="group">
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="4">4</button>
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="5">5</button>
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="6">6</button>
-                            <button class="btn btn-sm btn-outline-primary flex-fill" data-calc-input="*">×</button>
-                        </div>
-                        <div class="btn-group w-100" role="group">
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="1">1</button>
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="2">2</button>
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="3">3</button>
-                            <button class="btn btn-sm btn-outline-primary flex-fill" data-calc-input="-">−</button>
-                        </div>
-                        <div class="btn-group w-100" role="group">
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input="0">0</button>
-                            <button class="btn btn-sm btn-light flex-fill" data-calc-input=".">.</button>
-                            <button class="btn btn-sm btn-success flex-fill" data-calc-action="equals">=</button>
-                            <button class="btn btn-sm btn-outline-primary flex-fill" data-calc-input="+">+</button>
-                        </div>
+                    
+                    <h5 class="mb-3 fw-bold text-center">Calculator</h5>
+                    
+                    <div class="bg-light p-3 rounded-3 border custom-calc-grid">
+                         <input type="text" id="calc-display" class="form-control form-control-lg mb-3 text-end border-0 bg-white shadow-sm fw-bold fs-4" placeholder="0" readonly style="font-family: monospace; letter-spacing: 1px;" />
+                         
+                         <div class="d-grid gap-2" style="grid-template-columns: repeat(4, 1fr);">
+                              <button class="btn btn-sm btn-outline-secondary rounded-3 py-2" data-calc-action="clear">C</button>
+                              <button class="btn btn-sm btn-outline-secondary rounded-3 py-2" data-calc-action="back"><i class="bi bi-backspace"></i></button>
+                              <button class="btn btn-sm btn-outline-secondary rounded-3 py-2" data-calc-input="(">(</button>
+                              <button class="btn btn-sm btn-outline-secondary rounded-3 py-2" data-calc-input=")">)</button>
+                              
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="7">7</button>
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="8">8</button>
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="9">9</button>
+                              <button class="btn btn-light text-warning fw-bold rounded-3 py-2" data-calc-input="/">÷</button>
+                              
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="4">4</button>
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="5">5</button>
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="6">6</button>
+                              <button class="btn btn-light text-warning fw-bold rounded-3 py-2" data-calc-input="*">×</button>
+                              
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="1">1</button>
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="2">2</button>
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="3">3</button>
+                              <button class="btn btn-light text-warning fw-bold rounded-3 py-2" data-calc-input="-">−</button>
+                              
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input="0">0</button>
+                              <button class="btn btn-white shadow-sm rounded-3 fw-bold py-2" data-calc-input=".">.</button>
+                              <button class="btn btn-warning shadow-sm rounded-3 fw-bold py-2 text-white" data-calc-action="equals" style="background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%); border:none;">=</button>
+                               <button class="btn btn-light text-warning fw-bold rounded-3 py-2" data-calc-input="+">+</button>
+                         </div>
                     </div>
-                    <div class="small text-danger mt-2" id="calc-error" style="display:none;"></div>
-                </div>
-            </div>
-
-            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-progress-panel" dir="ltr" style="direction:ltr;">
-                <div class="dropdown-header">
-                    <i class="bi bi-graph-up"></i>
-                    <span>Progress Tracker</span>
-                </div>
-                <div class="dropdown-divider"></div>
-                <div id="progress-tracker-panel" class="px-3 py-2" style="width:300px;">
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <i class="bi bi-bar-chart"></i>
-                        </div>
-                        <div class="activity-info">
-                            <div class="activity-title">Streak</div>
-                            <div class="activity-desc" id="progress-streak">0 days</div>
-                        </div>
-                    </div>
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <i class="bi bi-globe2"></i>
-                        </div>
-                        <div class="activity-info">
-                            <div class="activity-title">Weekly Browsing Time</div>
-                            <div class="activity-desc" id="progress-browsing">0h 0m this week</div>
-                        </div>
-                    </div>
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <i class="bi bi-book"></i>
-                        </div>
-                        <div class="activity-info">
-                            <div class="activity-title">Weekly Subjects Studied</div>
-                            <div class="activity-desc" id="progress-subjects">0 subjects</div>
-                        </div>
-                    </div>
-                    <div class="activity-item">
-                        <div class="activity-icon">
-                            <i class="bi bi-stopwatch"></i>
-                        </div>
-                        <div class="activity-info">
-                            <div class="activity-title">Weekly Focus Minutes</div>
-                            <div class="activity-desc" id="progress-focus">0 min</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Translation panel positioned relative to Tools dropdown (top-left) -->
-            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-translation-panel" dir="ltr" style="direction:ltr;">
-                <div class="dropdown-header">
-                    <img src="~/images/translation.png" alt="Translation" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
-                    <span>Translation</span>
-                </div>
-                <div class="dropdown-divider"></div>
-                <div class="px-3 py-2" style="width:320px;">
-                    <div class="mb-3">
-                        <label class="form-label small fw-medium">Text to translate:</label>
-                        <textarea class="form-control form-control-sm" id="translation-input" rows="3" placeholder="Enter text here..."></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-medium">Target language:</label>
-                        <select class="form-select form-select-sm" id="translation-target-lang">
-                            <option value="ar">Arabic (العربية)</option>
-                            <option value="en" selected>English</option>
-                            <option value="es">Spanish (Español)</option>
-                            <option value="fr">French (Français)</option>
-                            <option value="de">German (Deutsch)</option>
-                            <option value="it">Italian (Italiano)</option>
-                            <option value="pt">Portuguese (Português)</option>
-                            <option value="ru">Russian (Русский)</option>
-                            <option value="ja">Japanese (日本語)</option>
-                            <option value="ko">Korean (한국어)</option>
-                            <option value="zh">Chinese (中文)</option>
-                            <option value="tr">Turkish (Türkçe)</option>
-                            <option value="hi">Hindi (हिन्दी)</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary btn-sm w-100 mb-2" id="translation-translate-btn">
-                        <i class="bi bi-translate me-1"></i> Translate
-                    </button>
-                    <div class="mb-2" id="translation-result-container" style="display:none;">
-                        <label class="form-label small fw-medium">Translation:</label>
-                        <div class="p-2 border rounded bg-light small" id="translation-result" style="min-height: 60px; white-space: pre-wrap;"></div>
-                    </div>
-                    <div class="small text-danger" id="translation-error" style="display:none;"></div>
+                    <div class="small text-danger mt-2 text-center" id="calc-error" style="display:none;"></div>
                 </div>
             </div>
 
             <!-- Study Planner panel positioned relative to Tools dropdown (top-left) -->
-            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start" id="tools-planner-panel" dir="ltr" style="direction:ltr; min-width: 380px; min-height: 500px;">
-                <div class="dropdown-header">
-                    <img src="~/images/Study Planner.png" alt="Study Planner" class="helper-icon" style="width: 20px; height: 20px; object-fit: contain; margin-right: 0.5rem;" />
-                    <span>Study Planner</span>
-                </div>
-                <div class="dropdown-divider"></div>
-                <div class="px-3 py-2" style="max-height: 450px; overflow-y:auto;">
-                    <!-- Add Session Form -->
-                    <div class="mb-3" id="planner-form-container">
-                        <button class="btn btn-primary btn-sm w-100 mb-2" id="planner-toggle-form-btn">
-                            <i class="bi bi-plus-lg me-1"></i> Add New Session
-                        </button>
-                        <div id="planner-form" class="d-none">
-                            <div class="mb-2">
-                                <input type="text" class="form-control form-control-sm" id="planner-title" placeholder="Main title *" required />
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start p-0 overflow-hidden" id="tools-planner-panel" dir="ltr" style="direction:ltr; min-width: 380px; min-height: 520px;">
+                <div class="notifications-banner" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); opacity:0.9;"></div>
+                <div class="notifications-content px-4 pb-4">
+                    <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-warning mb-3">
+                         <i class="bi bi-calendar-check fs-4"></i>
+                    </div>
+                    
+                    <h5 class="mb-3 fw-bold text-center">Study Planner</h5>
+
+                    <!-- Planner Tabs -->
+                    <div class="nav nav-pills nav-fill gap-2 p-1 bg-light rounded-3 mb-4" role="tablist">
+                        <button class="nav-link tab-btn active btn-sm py-1 small fw-medium" data-planner-tab="upcoming" onclick="switchPlannerTab('upcoming')">Upcoming</button>
+                        <button class="nav-link tab-btn btn-sm py-1 small fw-medium" data-planner-tab="completed" onclick="switchPlannerTab('completed')">Completed</button>
+                    </div>
+                    
+                    <div class="planner-body" style="max-height: 380px; overflow-y:auto; overflow-x:hidden;">
+                        <!-- Add Session Form (Collapsible) -->
+                        <div class="mb-3" id="planner-form-container">
+                            <button class="btn btn-primary btn-sm w-100 mb-2 rounded-pill shadow-sm" id="planner-toggle-form-btn">
+                                <i class="bi bi-plus-lg me-1"></i> Add New Session
+                            </button>
+                            <div id="planner-form" class="d-none p-3 border rounded-3 bg-light mb-3">
+                                <div class="mb-2">
+                                    <label class="form-label small fw-bold text-muted mb-1">Title</label>
+                                    <input type="text" class="form-control form-control-sm" id="planner-title" placeholder="e.g. Math Homework" required />
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small fw-bold text-muted mb-1">Subject</label>
+                                    <input type="text" class="form-control form-control-sm" id="planner-subject" placeholder="e.g. Calculus" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-muted mb-1">Date</label>
+                                    <input type="date" class="form-control form-control-sm" id="planner-date" required />
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-success btn-sm flex-fill rounded-pill" id="planner-save-btn">Save</button>
+                                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" id="planner-cancel-btn">Cancel</button>
+                                </div>
                             </div>
-                            <div class="mb-2">
-                                <input type="text" class="form-control form-control-sm" id="planner-subject" placeholder="Subtitle (optional)" />
+                        </div>
+
+                        <!-- Upcoming Sessions List -->
+                        <div id="planner-tab-upcoming" class="planner-tab-content">
+                            <div id="planner-upcoming-list" class="d-flex flex-column gap-2">
+                                <div class="text-muted small text-center py-4">
+                                    <i class="bi bi-calendar-event fs-4 d-block mb-2 opacity-50"></i>
+                                    No upcoming sessions
+                                </div>
                             </div>
-                            <div class="mb-2">
-                                <input type="date" class="form-control form-control-sm" id="planner-date" required />
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-success btn-sm flex-fill" id="planner-save-btn">
-                                    <i class="bi bi-check-lg"></i> Save
-                                </button>
-                                <button class="btn btn-secondary btn-sm" id="planner-cancel-btn">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
+                        </div>
+
+                        <!-- Completed Sessions List -->
+                        <div id="planner-tab-completed" class="planner-tab-content d-none">
+                            <div id="planner-completed-list" class="d-flex flex-column gap-2">
+                                <div class="text-muted small text-center py-4">
+                                    <i class="bi bi-clipboard-check fs-4 d-block mb-2 opacity-50"></i>
+                                    No completed sessions
+                                </div>
                             </div>
                         </div>
                     </div>
+                    <div class="small text-danger mt-2" id="planner-error" style="display:none;"></div>
+                </div>
+            </div>
 
-                    <!-- Upcoming Sessions -->
+            <!-- Translation panel (Unified Orange) -->
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start p-0 overflow-hidden" id="tools-translation-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
+                <div class="notifications-banner" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); opacity:0.9;"></div>
+                <div class="notifications-content px-4 pb-4">
+                    <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-warning mb-3">
+                        <i class="bi bi-translate fs-4"></i>
+                    </div>
+                    <h5 class="mb-3 fw-bold">Translation</h5>
+
                     <div class="mb-3">
-                        <h6 class="small fw-bold text-muted mb-2">Upcoming Sessions</h6>
-                        <div id="planner-upcoming-list" class="d-flex flex-column gap-2">
-                            <div class="text-muted small text-center py-2">No upcoming sessions</div>
-                        </div>
+                        <label class="form-label small fw-bold text-muted">Text to Translate</label>
+                        <textarea class="form-control form-control-sm bg-light" id="translation-input" rows="3" placeholder="Enter text..."></textarea>
                     </div>
 
-                    <!-- Completed Sessions -->
-                    <div>
-                        <h6 class="small fw-bold text-muted mb-2">Completed Sessions</h6>
-                        <div id="planner-completed-list" class="d-flex flex-column gap-2">
-                            <div class="text-muted small text-center py-2">No completed sessions</div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Target Language</label>
+                        <select class="form-select form-select-sm" id="translation-target-lang">
+                            <option value="ar" selected>Arabic</option>
+                            <option value="en">English</option>
+                            <option value="fr">French</option>
+                            <option value="es">Spanish</option>
+                            <option value="de">German</option>
+                            <option value="it">Italian</option>
+                            <option value="tr">Turkish</option>
+                            <option value="ru">Russian</option>
+                            <option value="zh">Chinese</option>
+                            <option value="ja">Japanese</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-warning text-white w-100 mb-3 shadow-sm" id="translation-translate-btn">
+                        <i class="bi bi-translate me-2"></i>Translate
+                    </button>
+
+                    <div class="small text-danger mb-2" id="translation-error" style="display:none;"></div>
+
+                    <div id="translation-result-container" style="display:none;">
+                        <label class="form-label small fw-bold text-muted">Result</label>
+                        <div class="p-3 bg-light rounded-3 border">
+                            <div id="translation-result" class="small fw-medium"></div>
                         </div>
                     </div>
                 </div>
-                <div class="small text-danger px-3 pb-2" id="planner-error" style="display:none;"></div>
+            </div>
+
+
+            <!-- User dropdown -->
+
+            
+            <!-- RE-INSERTING THE user-dropdown div content because replace block covered it partially in 'user-dropdown' start. 
+                 Actually, looking at line 497, the user-dropdown STARTS there. My replacement block ENDS.
+                 Wait, I am replacing from 443 to 494. This covers `tools-planner-panel`.
+                 BUT I also need to replace `tools-progress-panel` which is at lines 355-399.
+                 I should do TWO replacements or one large one.
+                 Let's do `tools-progress-panel` first.
+            -->
+
+            <!-- Progress Panel (Unified Orange) -->
+            <div class="dropdown-menu enhanced-dropdown inline-left-from-tools text-start p-0 overflow-hidden" id="tools-progress-panel" dir="ltr" style="direction:ltr; min-width: 360px;">
+                <div class="notifications-banner" style="background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%); opacity:0.9;"></div>
+                <div class="notifications-content px-4 pb-4">
+                    <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-warning mb-3">
+                        <i class="bi bi-graph-up fs-4"></i>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0 fw-bold">Progress Tracker</h5>
+                    </div>
+
+                    <div id="progress-tracker-panel" class="pt-2">
+                        <!-- Stats Grid -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <div class="p-3 border rounded-3 bg-light text-center h-100 position-relative overflow-hidden">
+                                    <div class="progress-ring-container mb-2 mx-auto" style="width:60px;height:60px;">
+                                        <div class="progress-ring" id="ring-streak" style="--p:0; --c:var(--color-primary);"></div>
+                                        <i class="bi bi-fire position-absolute top-50 start-50 translate-middle text-primary fs-5"></i>
+                                    </div>
+                                    <div class="h4 fw-bold mb-0 text-primary" id="progress-streak">0</div>
+                                    <div class="small text-muted fw-medium">Day Streak</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 border rounded-3 bg-light text-center h-100 position-relative overflow-hidden">
+                                    <div class="progress-ring-container mb-2 mx-auto" style="width:60px;height:60px;">
+                                        <div class="progress-ring" id="ring-focus" style="--p:0; --c:var(--color-success);"></div>
+                                        <i class="bi bi-stopwatch position-absolute top-50 start-50 translate-middle text-success fs-5"></i>
+                                    </div>
+                                    <div class="h4 fw-bold mb-0 text-success" id="progress-focus">0m</div>
+                                    <div class="small text-muted fw-medium">Focus Time</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Secondary Stats -->
+                        <div class="d-flex justify-content-between text-center mb-3 px-2">
+                            <div>
+                                <div class="small text-muted mb-1">Subjects</div>
+                                <div class="fw-bold" id="progress-subjects">0</div>
+                            </div>
+                            <div class="vr opacity-25"></div>
+                            <div>
+                                <div class="small text-muted mb-1">Browsing</div>
+                                <div class="fw-bold" id="progress-browsing">0h</div>
+                            </div>
+                             <div class="vr opacity-25"></div>
+                            <div>
+                                <div class="small text-muted mb-1">Tasks</div>
+                                <div class="fw-bold" id="progress-tasks">0</div>
+                            </div>
+                        </div>
+
+                        <!-- Weekly Bar Chart -->
+                        <div class="p-3 border rounded-3 bg-white">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small fw-bold text-muted">Weekly Activity</span>
+                                 <span class="badge bg-light text-dark border" style="font-size:0.6rem;">Last 7 Days</span>
+                            </div>
+                            <div class="d-flex align-items-end justify-content-between" style="height: 80px;" id="weekly-chart">
+                                <!-- Bars generated by JS -->
+                                <div class="chart-bar-placeholder w-100 text-center text-muted small py-4">Loading stats...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
 
@@ -507,12 +707,20 @@
                     <span>@ViewBag.FullName</span>
                     <i class="bi bi-chevron-down ms-1"></i>
                 </button>
-                <div class="dropdown-menu enhanced-dropdown text-start" id="user-dropdown" data-user-id="@ViewBag.UserId" dir="ltr" style="direction:ltr;">
-                    <div class="dropdown-header">
-                        <i class="bi bi-person-circle"></i>
-                        <span>@ViewBag.FullName</span>
-                    </div>
-                    <div class="dropdown-divider"></div>
+                <div class="dropdown-menu enhanced-dropdown text-start p-0 overflow-auto" id="user-dropdown" data-user-id="@ViewBag.UserId" dir="ltr" style="direction:ltr; max-height: 85vh;">
+                    <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
+                    <div class="notifications-content px-4 pb-4">
+                        <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-3">
+                            @if (!string.IsNullOrEmpty(ViewBag.AvatarUrl as string))
+                            {
+                                <img src="@ViewBag.AvatarUrl" alt="Avatar" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-circle" style="font-size: 32px; color: #6c757d;"></i>
+                            }
+                        </div>
+                        <h5 class="mb-3 fw-bold text-center">@ViewBag.FullName</h5>
 
                     <div class="activity-item" onclick="toggleInlinePanel('profile-panel', event)" style="cursor: pointer;">
                         <div class="activity-icon">
@@ -557,17 +765,17 @@
                         </div>
                     </div>
 
-                    <!-- Notifications Panel -->
+                    <!-- Notifications Panel (Unified Teal) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="notifications-panel" dir="ltr" style="direction:ltr; min-width: 360px; max-height: 85vh;">
-                        <div class="notifications-banner"></div>
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="notifications-content px-4 pb-4">
-                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-warning mb-3">
-                                <i class="bi bi-bell-fill fs-4"></i>
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-success mb-3">
+                                <i class="bi bi-bell-fill fs-4" style="color: #20c997 !important;"></i>
                             </div>
                             
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <h5 class="mb-0 fw-bold">Notifications</h5>
-                                <a href="#" class="small text-primary" onclick="event.preventDefault(); markAllAsRead()">Mark all read</a>
+                                <a href="#" class="small text-success" onclick="event.preventDefault(); markAllAsRead()">Mark all read</a>
                             </div>
 
                             <div id="notifications-list" class="notifications-list" style="max-height: 400px; overflow-y: auto;">
@@ -582,12 +790,12 @@
                         </div>
                     </div>
 
-                    <!-- Messages Panel -->
+                    <!-- Messages Panel (Unified Teal) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="messages-panel" dir="ltr" style="direction:ltr; min-width: 380px; max-height: 85vh;">
-                        <div class="messages-banner"></div>
+                         <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="messages-content px-4 pb-4">
-                            <div class="messages-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
-                                <i class="bi bi-chat-dots fs-4"></i>
+                            <div class="messages-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-success mb-3">
+                                <i class="bi bi-chat-dots fs-4" style="color: #20c997 !important;"></i>
                             </div>
                             
                             <h5 class="text-center mb-4 fw-bold">Class Messages</h5>
@@ -602,7 +810,7 @@
                                 </div>
                             </div>
 
-                            <div id="chat-area" class="border rounded-3 p-3 bg-light" style="display:none; max-height: 250px; overflow-y: auto; min-height: 120px;">
+                            <div id="chat-area" class="border rounded-3 p-3 bg-light" style="display:none; max-height: 200px; overflow-y: auto; min-height: 120px;">
                                 <div class="text-center text-muted py-5" id="class-chat-empty">
                                     <i class="bi bi-chat-left-text fs-1 mb-3 d-block"></i>
                                     <p class="mb-1 fw-medium">No messages yet</p>
@@ -614,7 +822,7 @@
                             <div class="mt-3">
                                 <div class="input-group">
                                     <input type="text" class="form-control rounded-pill-start" id="class-chat-input" placeholder="Type a message..." />
-                                    <button type="button" class="btn btn-primary rounded-pill-end px-4" id="class-chat-send">
+                                    <button type="button" class="btn btn-success rounded-pill-end px-4" id="class-chat-send" style="background-color: #20c997; border:none;">
                                         <img src="~/images/send icon.png" alt="Send" style="width: 18px; height: 18px; object-fit: contain;" />
                                     </button>
                                 </div>
@@ -623,11 +831,11 @@
                         </div>
                     </div>
 
-                    <!-- Network Panel -->
+                    <!-- Classes Panel (Unified Teal) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="classes-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
-                        <div class="classes-banner"></div>
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="classes-content px-4 pb-4">
-                            <div class="classes-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary mb-3">
+                            <div class="classes-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-success mb-3">
                                 <img src="~/images/class icon.png" alt="Classes" style="width: 32px; height: 32px; object-fit: contain;" />
                             </div>
                             
@@ -640,7 +848,7 @@
                                         <label class="small text-muted mb-1 ms-1">Join a Class</label>
                                         <div class="input-group input-group-sm">
                                             <input type="text" class="form-control rounded-pill-start" id="classes-join-code" placeholder="Enter code">
-                                            <button class="btn btn-primary rounded-pill-end px-3" id="classes-join-btn">
+                                            <button class="btn btn-success rounded-pill-end px-3" id="classes-join-btn" style="background-color: #20c997; border:none;">
                                                 <i class="bi bi-arrow-right"></i>
                                             </button>
                                         </div>
@@ -667,13 +875,13 @@
 
                     <!-- Class Details Panel (opens near user dropdown) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="class-details-panel" dir="ltr" style="direction:ltr; min-width: 340px; max-height: 85vh;" data-width="340">
-                        <div class="class-details-banner"></div>
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="class-details-content px-4 pb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('class-details-panel').classList.remove('show'); toggleInlinePanel('classes-panel', event)" title="Back to Classes">
                                     <i class="bi bi-arrow-left fs-5"></i>
                                 </button>
-                                <div class="class-details-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white text-primary">
+                                <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white" style="color: #20c997;">
                                     <img src="~/images/class icon.png" alt="Class Details" style="width: 32px; height: 32px; object-fit: contain;" />
                                 </div>
                                 <div style="width: 24px;"></div> <!-- Spacer for centering -->
@@ -702,7 +910,7 @@
                                             </div>
                                         </div>
                                         <div class="col-6">
-                                            <div class="cls-stat-card p-2 border rounded-3 text-center bg-white shadow-sm" onclick="toggleInlinePanel('cls-files-panel', event)" style="cursor: pointer;">
+                                            <div class="cls-stat-card p-2 border rounded-3 text-center bg-white shadow-sm" onclick="toggleInlinePanel('cls-files-panel-advanced', event)" style="cursor: pointer;">
                                                 <div class="h5 m-0 fw-bold text-secondary" id="cls-stat-files">0</div>
                                                 <div class="small text-muted">Files <i class="bi bi-chevron-right" style="font-size: 0.7em;"></i></div>
                                             </div>
@@ -731,20 +939,15 @@
                                              {
                                                  <button type="button" id="btn-cls-privacy" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3">
                                                     <i class="bi bi-shield-lock"></i> Class Privacy
-                                                 </button>
+                                                </button>
                                                  <button type="button" id="btn-cls-invite" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3">
                                                     <i class="bi bi-person-plus"></i> Invite Member
-                                                 </button>
+                                                </button>
                                              }
                                              <!-- For Students -->
                                              @if ((ViewBag.Role as string) == "Student")
                                              {
-                                                 <button type="button" id="btn-cls-contact" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3">
-                                                    <i class="bi bi-envelope"></i> Contact Teacher
-                                                 </button>
-                                                 <button type="button" id="btn-cls-performance" class="btn btn-sm btn-outline-secondary w-100 rounded-pill text-start px-3">
-                                                    <i class="bi bi-speedometer2"></i> My Performance
-                                                 </button>
+                                                 <!-- Options removed per request -->
                                              }
 
                                              <!-- Leave / Delete Actions (Merged into list) -->
@@ -763,13 +966,13 @@
 
                     <!-- Members Panel (Inline from Class Details button) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-members-panel" dir="ltr" style="direction:ltr; min-width: 380px; min-height: 500px;" data-width="380">
-                        <div class="class-details-banner"></div> <!-- Added banner for consistency -->
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="class-details-content px-4 pb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-members-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details">
                                     <i class="bi bi-arrow-left fs-5"></i>
                                 </button>
-                                <span class="fw-bold text-primary"><i class="bi bi-people me-2"></i>Class Members</span>
+                                <span class="fw-bold text-dark"><i class="bi bi-people me-2"></i>Class Members</span>
                                 <div style="width: 24px;"></div> <!-- Spacer -->
                             </div>
                             <div style="width: 24px;"></div>
@@ -781,40 +984,18 @@
                         </div>
                     </div>
 
-                    <!-- Files Panel (Inline from Class Details button) -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-files-panel" dir="ltr" style="direction:ltr; min-width: 320px;" data-width="360">
-                        <div class="dropdown-header d-flex justify-content-between align-items-center">
-                            <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-files-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details"><i class="bi bi-arrow-left fs-5"></i></button>
-                            <span><i class="bi bi-folder me-2"></i>Class Files</span>
-                            <button class="btn btn-sm btn-link text-primary p-0" onclick="if(typeof loadClassFiles === 'function' && window.__currentClassId) loadClassFiles(window.__currentClassId);" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
-                        </div>
-                        <div class="dropdown-divider m-0"></div>
-                        <div class="p-3" style="max-height: 400px; overflow-y: auto;">
-                             <div id="cls-files-upload" class="mb-3" style="display:none;">
-                                <div class="input-group input-group-sm">
-                                    <input type="file" class="form-control rounded-pill-start" id="cls-file-upload" />
-                                    <button class="btn btn-primary rounded-pill-end px-3" type="button" id="cls-upload-btn">
-                                        <i class="bi bi-cloud-arrow-up"></i>
-                                    </button>
-                                </div>
-                                <div class="text-danger small mt-1" id="cls-files-error" style="display:none;"></div>
-                            </div>
-                            <div id="cls-files-grid" class="d-grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));">
-                                <!-- Files rendered here as cards -->
-                            </div>
-                            <ul id="cls-files" class="list-group list-group-flush small border rounded-3 overflow-hidden d-none"></ul>
-                        </div>
-                    </div>
+                    
+
 
                     <!-- Privacy Panel (Inline from Class Details Options) -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-privacy-panel" dir="ltr" style="direction:ltr; min-width: 360px;" data-width="360">
-                        <div class="class-details-banner"></div>
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="class-details-content px-4 pb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-privacy-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details">
                                     <i class="bi bi-arrow-left fs-5"></i>
                                 </button>
-                                <span class="fw-bold text-primary"><i class="bi bi-shield-lock me-2"></i>Class Privacy</span>
+                                <span class="fw-bold text-dark"><i class="bi bi-shield-lock me-2"></i>Class Privacy</span>
                                 <div style="width: 24px;"></div> <!-- Spacer -->
                             </div>
 
@@ -848,27 +1029,19 @@
 
                     <!-- Analytics Panel -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-analytics-panel" dir="ltr" style="direction:ltr; min-width: 400px;" data-width="400">
-                        <div class="class-details-banner"></div>
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="class-details-content px-4 pb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-analytics-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back">
                                     <i class="bi bi-arrow-left fs-5"></i>
                                 </button>
-                                <span class="fw-bold text-primary"><i class="bi bi-graph-up-arrow me-2"></i>Class Analytics</span>
+                                <span class="fw-bold text-dark"><i class="bi bi-graph-up-arrow me-2"></i>Class Analytics</span>
                                 <div style="width: 24px;"></div>
                             </div>
                             <div class="dropdown-divider mb-3"></div>
                             
                             <!-- Stats Cards -->
                             <div class="row g-2 mb-3">
-                                <div class="col-6">
-                                    <div class="card border-0 bg-light">
-                                        <div class="card-body p-2 text-center">
-                                            <div class="h4 mb-0 text-primary" id="analytics-total-students">0</div>
-                                            <small class="text-muted">Students</small>
-                                        </div>
-                                    </div>
-                                </div>
                                 <div class="col-6">
                                     <div class="card border-0 bg-light">
                                         <div class="card-body p-2 text-center">
@@ -880,8 +1053,8 @@
                                 <div class="col-6">
                                     <div class="card border-0 bg-light">
                                         <div class="card-body p-2 text-center">
-                                            <div class="h4 mb-0 text-info" id="analytics-total-sessions">0</div>
-                                            <small class="text-muted">Sessions</small>
+                                            <div class="h4 mb-0 text-info" id="analytics-weekly-browsing">0</div>
+                                            <small class="text-muted">Weekly Browsing Time</small>
                                         </div>
                                     </div>
                                 </div>
@@ -906,13 +1079,13 @@
 
                     <!-- Invite Panel -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-invite-panel" dir="ltr" style="direction:ltr; min-width: 380px;" data-width="380">
-                        <div class="class-details-banner"></div>
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="class-details-content px-4 pb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-invite-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back">
                                     <i class="bi bi-arrow-left fs-5"></i>
                                 </button>
-                                <span class="fw-bold text-primary"><i class="bi bi-person-plus me-2"></i>Invite Members</span>
+                                <span class="fw-bold text-dark"><i class="bi bi-person-plus me-2"></i>Invite Members</span>
                                 <div style="width: 24px;"></div>
                             </div>
                             <div class="dropdown-divider mb-3"></div>
@@ -942,48 +1115,42 @@
                     </div>
 
                     <!-- Class Files Panel -->
-                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-files-panel" dir="ltr" style="direction:ltr; min-width: 460px;" data-width="460">
-                        <div class="class-details-banner"></div>
+                    <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="cls-files-panel-advanced" dir="ltr" style="direction:ltr; min-width: 500px;" data-width="500">
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
                         <div class="class-details-content px-4 pb-4">
+                            <!-- Header -->
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <button class="btn btn-sm btn-link text-muted p-0" onclick="document.getElementById('cls-files-panel').classList.remove('show'); toggleInlinePanel('class-details-panel', event)" title="Back to Class Details">
+                                <button class="btn btn-sm btn-link text-muted p-0" onclick="toggleInlinePanel('class-details-panel', event)" title="Back to Class Details">
                                     <i class="bi bi-arrow-left fs-5"></i>
                                 </button>
-                                <span class="fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>Class Files</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-folder2-open text-primary" style="font-size: 1.2rem;"></i>
+                                    <span class="fw-bold text-dark">Class Files</span>
+                                </div>
                                 <div style="width: 24px;"></div>
                             </div>
                             <div class="dropdown-divider mb-3"></div>
 
-                            <!-- Search and Filter Bar -->
-                            <div class="mb-3">
-                                <div class="input-group input-group-sm mb-2">
-                                    <span class="input-group-text bg-light border-end-0">
+                            <!-- Toolbar: Search + Upload -->
+                            <div class="d-flex gap-2 mb-3">
+                                <!-- Search with file counts -->
+                                <div class="input-group input-group-sm flex-grow-1">
+                                    <span class="input-group-text bg-white border-end-0">
                                         <i class="bi bi-search text-muted"></i>
                                     </span>
-                                    <input type="text" class="form-control border-start-0" id="cls-files-search" placeholder="Search files...">
+                                    <input type="text" class="form-control border-start-0 border-end-0" id="cls-files-search" placeholder="Search files...">
+                                    <span class="input-group-text bg-light border-start-0">
+                                        <small class="text-muted" style="font-size: 0.7rem;">
+                                            <span id="cls-files-total-badge" class="badge bg-primary">0</span>
+                                            <span class="mx-1">·</span>
+                                            <span id="cls-files-week-badge" class="badge bg-success">0</span> this week
+                                        </small>
+                                    </span>
                                 </div>
                                 
-                                <!-- File Type Filters -->
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <button class="btn btn-xs btn-outline-secondary rounded-pill active" data-filter="all" onclick="window.filterClassFiles('all')">
-                                        <i class="bi bi-files"></i> All
-                                    </button>
-                                    <button class="btn btn-xs btn-outline-danger rounded-pill" data-filter="pdf" onclick="window.filterClassFiles('pdf')">
-                                        <i class="bi bi-file-pdf"></i> PDF
-                                    </button>
-                                    <button class="btn btn-xs btn-outline-primary rounded-pill" data-filter="doc" onclick="window.filterClassFiles('doc')">
-                                        <i class="bi bi-file-word"></i> Docs
-                                    </button>
-                                    <button class="btn btn-xs btn-outline-success rounded-pill" data-filter="image" onclick="window.filterClassFiles('image')">
-                                        <i class="bi bi-file-image"></i> Images
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Upload Button -->
-                            <div class="mb-3">
-                                <button type="button" class="btn btn-primary w-100 rounded-pill" onclick="document.getElementById('cls-file-upload-input').click()">
-                                    <i class="bi bi-cloud-upload me-2"></i>Upload File
+                                <!-- Upload Button -->
+                                <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('cls-file-upload-input').click()">
+                                    <i class="bi bi-cloud-upload me-1"></i>Upload
                                 </button>
                                 <input type="file" id="cls-file-upload-input" class="d-none" accept=".txt,.docx,.pdf,.png,.jpg,.jpeg,.gif,.pptx,.xlsx" onchange="if(window.uploadClassFile) window.uploadClassFile(this)">
                             </div>
@@ -995,7 +1162,7 @@
                                     <p class="mb-0 fw-medium">No files uploaded yet</p>
                                     <small>Share files with your class members</small>
                                 </div>
-                                <div id="cls-files-list" style="display:none; max-height: 350px; overflow-y: auto;">
+                                <div id="cls-files-list" style="display:none; max-height: 400px; overflow-y: auto;">
                                     <!-- Files will be loaded here via JS -->
                                 </div>
                             </div>
@@ -1006,19 +1173,18 @@
                     </div>
 
                     <!-- Profile Panel -->
+                    <!-- Profile Panel -->
                     <div class="dropdown-menu enhanced-dropdown inline-left-from-user text-start p-0 overflow-hidden" id="profile-panel" dir="ltr" style="direction:ltr; min-width: 320px;">
-                        <div class="profile-banner"></div>
-                        <div class="profile-content text-center px-4 pb-4">
-                            <div class="profile-avatar-wrapper mb-3">
+                        <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
+                        <div class="notifications-content px-4 pb-4">
+                            <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-3">
                                 @if (ViewBag.AvatarUrl != null)
                                 {
-                                    <img src="@ViewBag.AvatarUrl" alt="Profile" class="profile-avatar-large shadow-sm" />
+                                    <img src="@ViewBag.AvatarUrl" alt="Profile" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;" />
                                 }
                                 else
                                 {
-                                    <div class="profile-avatar-large shadow-sm d-flex align-items-center justify-content-center bg-white text-primary">
-                                        <i class="bi bi-person-fill fs-1"></i>
-                                    </div>
+                                    <i class="bi bi-person-fill fs-3" style="color: #20c997;"></i>
                                 }
                             </div>
                             
@@ -1059,6 +1225,14 @@
                             </div>
 
                             <div class="d-grid gap-2">
+                                <form asp-controller="Dashboard" asp-action="UpdateFullName" method="post" class="mb-2">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white"><i class="bi bi-person"></i></span>
+                                        <input type="text" name="fullName" class="form-control" placeholder="Full Name" value="@ViewBag.FullName" title="Change Full Name" />
+                                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check"></i></button>
+                                    </div>
+                                </form>
+
                                 <form asp-controller="Dashboard" asp-action="UpdateDateOfBirth" method="post" class="mb-2">
                                     <div class="input-group input-group-sm">
                                         <span class="input-group-text bg-white"><i class="bi bi-calendar"></i></span>
@@ -1146,10 +1320,20 @@
                             <div id="files-manage-bar" class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="d-flex align-items-center gap-3"></div>
                                 <div class="d-flex align-items-center gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-back" data-action="back" onclick="exitGroupView()">
+                                <!-- Removed Search Toggle -->
+                                    
+                                    <!-- Create Folder Toggle -->
+                                    <button type="button" class="btn btn-sm btn-outline-success" id="btn-toggle-create-folder" onclick="toggleCreateFolderInput()" title="Create Folder">
+                                        <i class="bi bi-folder-plus"></i>
+                                    </button>
+
+                                    <!-- Existing actions -->
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-back" data-action="back" onclick="exitGroupView(event)">
                                         <i class="bi bi-arrow-left"></i> Back
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" id="btn-delete-group" style="display:none;" onclick="deleteCurrentGroup()">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" id="btn-delete-group" style="display:none;" onclick="deleteCurrentGroup(event)">
                                         <i class="bi bi-folder-x"></i> Delete Group
                                     </button>
                                     <button type="button" class="btn btn-sm btn-secondary" id="btn-group-files" style="display:none;" onclick="groupSelectedFiles()">
@@ -1161,17 +1345,34 @@
                                 </div>
                             </div>
 
+                            <div id="file-search-container" class="mb-3">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                                    <input type="text" id="file-search-input" class="form-control border-start-0" placeholder="Search your files..." oninput="filterUserFiles(this.value)">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('file-search-input').value=''; filterUserFiles('');" title="Clear Search"><i class="bi bi-x"></i></button>
+                                </div>
+                            </div>
+
+                            <div id="create-folder-container" class="mb-3" style="display:none;">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-folder-plus text-success"></i></span>
+                                    <input type="text" id="new-folder-name-input" class="form-control border-start-0" placeholder="Enter folder name..." onkeydown="if(event.key === 'Enter') createNewFolder(this.value)">
+                                    <button class="btn btn-success" type="button" onclick="createNewFolder(document.getElementById('new-folder-name-input').value)">Create</button>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="toggleCreateFolderInput()"><i class="bi bi-x"></i></button>
+                                </div>
+                            </div>
+
                             <h6 class="files-section-title mb-2 d-flex align-items-center gap-2">
                                 <img src="~/images/files icon.png" alt="Files" style="width: 20px; height: 20px; object-fit: contain;" />
                                 <span id="uploaded-files-title-text">Your Recent Files</span>
                             </h6>
 
-                            @if (ViewBag.UserFiles != null && ((List<UserFile>)ViewBag.UserFiles).Any())
-                            {
-                                <div class="files-grid">
+                            <div class="files-grid">
+                                @if (ViewBag.UserFiles != null && ((List<UserFile>)ViewBag.UserFiles).Any())
+                                {
                                     @foreach (var file in ((List<UserFile>)ViewBag.UserFiles).OrderByDescending(f => f.UploadedAt))
                                     {
-                                        <div class="file-card" onclick="openFile(@file.Id)" data-file-id="@file.Id" data-uploaded-at="@file.UploadedAt.Ticks">
+                                        <div class="file-card" onclick="openFile(@file.Id)" data-file-id="@file.Id" data-file-name="@file.FileName" data-uploaded-at="@file.UploadedAt.Ticks">
                                             <div class="form-check" style="position: absolute; top: 8px; left: 8px; z-index: 2;">
                                                 <input class="form-check-input file-select-checkbox" type="checkbox" data-file-id="@file.Id" onclick="event.stopPropagation();" onchange="onFileCheckboxChange(this)">
                                             </div>
@@ -1194,11 +1395,12 @@
                                             </div>
                                         </div>
                                     }
-                                </div>
-                            }
-                            else
+                                }
+                            </div>
+                            
+                            @if (ViewBag.UserFiles == null || !((List<UserFile>)ViewBag.UserFiles).Any())
                             {
-                                <div class="no-files-message text-center py-3">
+                                <div class="no-files-message text-center py-3" id="initial-no-files-msg">
                                     <img src="~/images/folder icon.png" alt="No files" class="mb-2" style="width: 40px; height: 40px; object-fit: contain; opacity: 0.6;" />
                                     <p class="text-muted mb-1">No files uploaded yet</p>
                                     <small class="text-muted">Upload your first file above</small>
@@ -1233,7 +1435,7 @@
                                 Back
                             </button>
                             
-                            <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleTextVisibility()" data-bs-toggle="tooltip" title="Hide Text">
+                            <button type="button" class="btn btn-sm btn-outline-secondary action-btn" onclick="toggleTextVisibility('content-display')" data-bs-toggle="tooltip" title="Hide Text">
                                 <i class="bi bi-eye-slash"></i>
                             </button>
 
@@ -1244,60 +1446,60 @@
                                 <ul class="dropdown-menu dropdown-menu-end custom-dropdown">
                                     <li class="dropdown-header">Text Settings</li>
                                     <li>
-                                        <button class="dropdown-item" onclick="adjustFontSize('increase')">
+                                        <button class="dropdown-item" onclick="adjustFontSize('increase', 'content-display')">
                                             <i class="bi bi-zoom-in me-2"></i>Increase Font Size
                                         </button>
                                     </li>
                                     <li>
-                                        <button class="dropdown-item" onclick="adjustFontSize('decrease')">
+                                        <button class="dropdown-item" onclick="adjustFontSize('decrease', 'content-display')">
                                             <i class="bi bi-zoom-out me-2"></i>Decrease Font Size
                                         </button>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li class="dropdown-header">Alignment</li>
                                     <li>
-                                        <button class="dropdown-item" onclick="setTextAlign('left')">
+                                        <button class="dropdown-item" onclick="setTextAlign('left', 'content-display')">
                                             <i class="bi bi-text-left me-2"></i>Align Left
                                         </button>
                                     </li>
                                     <li>
-                                        <button class="dropdown-item" onclick="setTextAlign('center')">
+                                        <button class="dropdown-item" onclick="setTextAlign('center', 'content-display')">
                                             <i class="bi bi-text-center me-2"></i>Align Center
                                         </button>
                                     </li>
                                     <li>
-                                        <button class="dropdown-item" onclick="setTextAlign('right')">
+                                        <button class="dropdown-item" onclick="setTextAlign('right', 'content-display')">
                                             <i class="bi bi-text-right me-2"></i>Align Right
                                         </button>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li class="dropdown-header">Layout</li>
                                     <li>
-                                        <button class="dropdown-item" onclick="toggleLineHeight()">
+                                        <button class="dropdown-item" onclick="toggleLineHeight('content-display')">
                                             <i class="bi bi-text-spacing me-2"></i>Toggle Line Spacing
                                         </button>
                                     </li>
                                     <li>
-                                        <button class="dropdown-item" onclick="toggleReadingMode()">
+                                        <button class="dropdown-item" onclick="toggleReadingMode('content-display')">
                                             <i class="bi bi-book me-2"></i>Reading Mode
                                         </button>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li class="dropdown-header">File Actions</li>
                                     <li>
-                                        <button class="dropdown-item" onclick="downloadContent()">
+                                        <button class="dropdown-item" onclick="downloadContent('content-display')">
                                             <i class="bi bi-download me-2"></i>Download
                                         </button>
                                     </li>
                                     <li>
-                                        <button class="dropdown-item" onclick="shareContent()">
+                                        <button class="dropdown-item" onclick="shareContent('content-display')">
                                             <i class="bi bi-share me-2"></i>Share
                                         </button>
                                     </li>
                                 </ul>
                             </div>
                             <div class="flex-grow-1 text-center">
-                                <span class="filename-display fw-medium">@(ViewBag.FileName ?? TempData["FileName"])</span>
+                                <span class="filename-display fw-medium" id="main-filename-display">@(ViewBag.FileName ?? TempData["FileName"])</span>
                             </div>
                             <div class="ms-auto d-flex gap-3 align-items-center">
                                 <div id="word-count" class="text-muted small">
@@ -1395,53 +1597,53 @@
                                         <ul class="dropdown-menu custom-dropdown text-start" style="right: auto; left: 0;">
                                             <li class="dropdown-header">Text Settings</li>
                                             <li>
-                                                <button class="dropdown-item" onclick="adjustFontSize('increase')">
+                                                <button class="dropdown-item" onclick="adjustFontSize('increase', 'summary-content-display')">
                                                     <i class="bi bi-zoom-in me-2"></i>Increase Font Size
                                                 </button>
                                             </li>
                                             <li>
-                                                <button class="dropdown-item" onclick="adjustFontSize('decrease')">
+                                                <button class="dropdown-item" onclick="adjustFontSize('decrease', 'summary-content-display')">
                                                     <i class="bi bi-zoom-out me-2"></i>Decrease Font Size
                                                 </button>
                                             </li>
                                             <li><hr class="dropdown-divider"></li>
                                             <li class="dropdown-header">Alignment</li>
                                             <li>
-                                                <button class="dropdown-item" onclick="setTextAlign('left')">
+                                                <button class="dropdown-item" onclick="setTextAlign('left', 'summary-content-display')">
                                                     <i class="bi bi-text-left me-2"></i>Align Left
                                                 </button>
                                             </li>
                                             <li>
-                                                <button class="dropdown-item" onclick="setTextAlign('center')">
+                                                <button class="dropdown-item" onclick="setTextAlign('center', 'summary-content-display')">
                                                     <i class="bi bi-text-center me-2"></i>Align Center
                                                 </button>
                                             </li>
                                             <li>
-                                                <button class="dropdown-item" onclick="setTextAlign('right')">
+                                                <button class="dropdown-item" onclick="setTextAlign('right', 'summary-content-display')">
                                                     <i class="bi bi-text-right me-2"></i>Align Right
                                                 </button>
                                             </li>
                                             <li><hr class="dropdown-divider"></li>
                                             <li class="dropdown-header">Layout</li>
                                             <li>
-                                                <button class="dropdown-item" onclick="toggleLineHeight()">
+                                                <button class="dropdown-item" onclick="toggleLineHeight('summary-content-display')">
                                                     <i class="bi bi-text-spacing me-2"></i>Toggle Line Spacing
                                                 </button>
                                             </li>
                                             <li>
-                                                <button class="dropdown-item" onclick="toggleReadingMode()">
+                                                <button class="dropdown-item" onclick="toggleReadingMode('summary-content-display')">
                                                     <i class="bi bi-book me-2"></i>Reading Mode
                                                 </button>
                                             </li>
                                             <li><hr class="dropdown-divider"></li>
                                             <li class="dropdown-header">File Actions</li>
                                             <li>
-                                                <button class="dropdown-item" onclick="downloadContent()">
+                                                <button class="dropdown-item" onclick="downloadContent('summary-content-display', 'summary-filename-display')">
                                                     <i class="bi bi-download me-2"></i>Download
                                                 </button>
                                             </li>
                                             <li>
-                                                <button class="dropdown-item" onclick="shareContent()">
+                                                <button class="dropdown-item" onclick="shareContent('summary-content-display', 'summary-filename-display')">
                                                     <i class="bi bi-share me-2"></i>Share
                                                 </button>
                                             </li>
@@ -1459,7 +1661,7 @@
                                         <span id="summary-read-time"><i class="bi bi-clock me-1"></i>0 min</span>
                                     </div>
 
-                                    <button type="button" class="btn btn-sm btn-outline-secondary tool-btn" onclick="toggleDarkMode()" data-bs-toggle="tooltip" title="Hide Text">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary tool-btn" onclick="toggleTextVisibility('summary-content-display')" data-bs-toggle="tooltip" title="Hide Text">
                                         <i class="bi bi-eye-slash me-1"></i>Hide
                                     </button>
 
@@ -1765,66 +1967,95 @@
                     </div>
 
                     <!-- Audio right-pane view -->
+                    <!-- Audio right-pane view -->
                     <div id="audio-display-container" style="display: none;" class="h-100 pt-2">
                         <div class="controls-bar">
                             <div class="d-flex gap-2 align-items-center">
-                                <button onclick="window.backFromAudioRight && window.backFromAudioRight(); return false;" class="btn btn-primary btn-sm tool-btn">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back
+                                <button onclick="window.backFromAudioRight && window.backFromAudioRight(); return false;" class="btn btn-outline-danger btn-sm tool-btn rounded-pill px-3">
+                                    <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
 
                                 <div class="flex-grow-1 text-center tool-header-title">
-                                    <span id="audio-title" class="filename-display fw-medium">Audio Notes</span>
+                                    <span id="audio-title" class="filename-display fw-bold text-danger">Audio Notes</span>
                                 </div>
 
                                 <div class="ms-auto d-flex gap-2 align-items-center">
-                                    <button type="button" class="btn btn-sm btn-success tool-btn" id="save-audio-btn" onclick="saveCurrentAudio()" title="Save audio to your files" style="display: none;">
+                                    <button type="button" class="btn btn-sm btn-danger tool-btn rounded-pill px-3" id="save-audio-btn" onclick="saveCurrentAudio()" title="Save audio to your files" style="display: none;">
                                         <i class="bi bi-download me-1"></i>Save
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <hr class="divider my-2" />
+                        <hr class="divider my-2" style="border-color: #ffcccc;" />
 
-                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column align-items-center">
-                            <div class="text-center p-4 w-100">
-                                <div class="mb-4">
-                                    <div class="d-flex justify-content-center gap-4 align-items-center">
-                                        <button id="audio-record-btn" class="btn btn-lg btn-danger rounded-circle p-4 shadow-sm" style="width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center;">
-                                            <img src="/images/audio icon.png" alt="Record" style="width: 32px; height: 32px;">
-                                        </button>
-                                        
-                                        <div class="text-center">
-                                            <input type="file" id="audio-upload-input" accept="audio/*" style="display: none;" onchange="handleAudioUpload(event)" />
-                                            <button id="audio-upload-btn" class="btn btn-lg btn-primary rounded-circle p-4 shadow-sm" style="width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center;" onclick="document.getElementById('audio-upload-input').click()">
-                                                <img src="/images/updoad audio.png" alt="Upload Audio" style="width: 32px; height: 32px;">
-                                            </button>
+                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column align-items-center" style="background: #ffffff;">
+                            <div class="text-center p-4 w-100" style="max-width: 800px;">
+                                
+                                <!-- Upload Area (shown by default) -->
+                                <div class="row g-4 justify-content-center mb-4">
+                                    <!-- Record Card -->
+                                    <div class="col-md-5">
+                                        <div class="card h-100 shadow-sm border-0 rounded-4 audio-action-card" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+                                            <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center bg-white rounded-4">
+                                                <button id="audio-record-btn" class="btn p-0 border-0 mb-3" style="background: none; transition: transform 0.2s;">
+                                                    <div id="audio-visual-circle" class="bg-danger-subtle rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; transition: all 0.3s ease;">
+                                                        <i id="audio-record-icon" class="bi bi-mic-fill fs-1 text-danger"></i>
+                                                    </div>
+                                                </button>
+                                                
+                                                <div id="audio-texts">
+                                                    <h6 class="fw-bold mb-1 text-dark">Record Audio</h6>
+                                                    <small class="text-muted">Start recording</small>
+                                                </div>
+                                                
+                                                <!-- Timer - Hidden initially -->
+                                                <div id="audio-timer-display" class="mt-3" style="display: none;">
+                                                    <div class="d-flex align-items-center justify-content-center gap-2">
+                                                        <div class="spinner-grow text-danger spinner-grow-sm" role="status"></div>
+                                                        <div class="font-monospace fw-bold text-danger fs-5" id="audio-timer">00:00</div>
+                                                    </div>
+                                                    <small class="text-danger fw-medium mt-1 d-block" id="audio-status">Recording...</small>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="mt-3 text-muted fw-medium" id="audio-status">Click to Record or Upload</div>
-                                    <div class="mt-1 fs-3 font-monospace" id="audio-timer">00:00</div>
-                                </div>
-                                
-                                <div class="card shadow-sm mx-auto" style="max-width: 450px;">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0"><i class="bi bi-collection-play me-2"></i>Recordings</h6>
-                                    </div>
-                                    <div class="card-body p-0">
-                                        <div id="audio-list-container" class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
-                                            <div class="text-center py-4 text-muted small">
-                                                <img src="/images/audio icon.png" alt="No recordings" style="width: 32px; height: 32px; opacity: 0.5;" class="d-block mb-2">
-                                                No recordings yet
+
+                                    <!-- Upload Card -->
+                                    <div class="col-md-5">
+                                        <div class="card h-100 shadow-sm border-0 rounded-4 audio-action-card" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'" onclick="document.getElementById('audio-upload-input').click()">
+                                            <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center bg-white rounded-4">
+                                                <div class="bg-secondary-subtle rounded-circle p-3 mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                                    <i class="bi bi-cloud-upload-fill fs-1 text-secondary"></i>
+                                                </div>
+                                                <input type="file" id="audio-upload-input" accept="audio/*" style="display: none;" onchange="handleAudioUpload(event)" />
+                                                <h6 class="fw-bold mb-1">Upload Audio</h6>
+                                                <small class="text-muted">From your device</small>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 
+                                
+                                <!-- Recordings List -->
+                                <h6 class="text-muted small mb-3 text-center text-uppercase" style="letter-spacing: 1px;">Your Recordings</h6>
+                                <div id="audio-list-container" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                                    <div class="text-center py-5 text-muted">
+                                        <div class="mb-3">
+                                            <div class="bg-danger bg-opacity-10 rounded-circle p-4 mx-auto" style="width: 90px; height: 90px; display: flex; align-items: center; justify-content: center;">
+                                                <i class="bi bi-mic fs-1" style="color: #dc3545;"></i>
+                                            </div>
+                                        </div>
+                                        <p class="fw-medium mb-1" style="color: #dc3545;">No recordings yet</p>
+                                        <small class="text-muted">Record audio or upload a file to get started</small>
+                                    </div>
+                                </div>
+                                
                                 <!-- Audio Player Area (hidden by default) -->
-                                <div id="audio-player-container" class="w-100" style="display: none;">
-                                    <div class="card shadow-sm mx-auto" style="max-width: 450px;">
-                                        <div class="card-body p-3">
-                                            <audio id="audio-player" controls style="width: 100%;">
+                                <div id="audio-player-container" class="w-100 mt-3" style="display: none;">
+                                    <div class="card shadow-sm border-danger">
+                                        <div class="card-body p-3 bg-danger-subtle rounded-3">
+                                            <audio id="audio-player" controls style="width: 100%; height: 40px; border-radius: 20px;">
                                                 Your browser does not support the audio element.
                                             </audio>
                                         </div>
@@ -1835,86 +2066,96 @@
                     </div>
 
                     <!-- Video right-pane view -->
+                    <!-- Video right-pane view -->
                     <div id="video-display-container" style="display: none;" class="h-100 pt-2">
                         <div class="controls-bar">
                             <div class="d-flex gap-2 align-items-center">
-                                <button onclick="window.backFromVideoRight && window.backFromVideoRight(); return false;" class="btn btn-primary btn-sm tool-btn">
-                                    <i class="bi bi-arrow-left me-1"></i>
-                                    Back
+                                <button onclick="window.backFromVideoRight && window.backFromVideoRight(); return false;" class="btn btn-outline-indigo btn-sm tool-btn rounded-pill px-3" style="color: #6610f2; border-color: #6610f2;">
+                                    <i class="bi bi-arrow-left me-1"></i> Back
                                 </button>
 
                                 <div class="flex-grow-1 text-center tool-header-title">
-                                    <span id="video-title" class="filename-display fw-medium">Video Notes</span>
+                                    <span id="video-title" class="filename-display fw-bold" style="color: #6610f2;">Video Notes</span>
                                 </div>
 
                                 <div class="ms-auto d-flex gap-2 align-items-center">
-                                    <button type="button" class="btn btn-sm btn-success tool-btn" id="save-video-btn" onclick="saveCurrentVideo()" title="Save video to your files" style="display: none;">
+                                    <button type="button" class="btn btn-sm btn-indigo tool-btn rounded-pill px-3" id="save-video-btn" onclick="saveCurrentVideo()" title="Save video to your files" style="display: none; background-color: #6610f2; color: white;">
                                         <i class="bi bi-download me-1"></i>Save
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <hr class="divider my-2" />
+                        <hr class="divider my-2" style="border-color: #e0cffc;" />
 
-                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column align-items-center">
+                        <div class="document-content flex-grow-1 bg-white pt-2 d-flex flex-column align-items-center" style="background: #ffffff;">
                             <!-- Video Player Area (hidden by default) -->
-                            <div id="video-player-container" class="w-100 h-100" style="display: none;">
-                                <video id="video-player" controls style="width: 100%; height: 100%; min-height: 400px; display: none;" class="rounded">
-                                    Your browser does not support the video tag.
-                                </video>
-                                <iframe id="youtube-player" style="width: 100%; height: 100%; min-height: 400px; display: none; border: none;" class="rounded" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                            <div id="video-player-container" class="w-100 h-100 p-3" style="display: none;">
+                                <div class="h-100 w-100 shadow-lg rounded-4 overflow-hidden bg-black d-flex align-items-center justify-content-center">
+                                    <video id="video-player" controls style="width: 100%; height: 100%; max-height: 80vh; display: none;">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                    <iframe id="youtube-player" style="width: 100%; height: 100%; display: none; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                                </div>
                             </div>
                             
                             <!-- Upload Area (shown by default) -->
-                            <div id="video-upload-area" class="text-center p-4 w-100">
-                                <div class="mb-4">
-                                    <div class="d-flex justify-content-center gap-4 align-items-center">
-                                        <div class="text-center">
-                                            <input type="file" id="video-upload-input" accept="video/*" style="display: none;" onchange="handleVideoUpload(event)" />
-                                            <button id="video-upload-btn" class="btn btn-lg btn-primary rounded-circle p-4 shadow-sm" style="width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center;" onclick="document.getElementById('video-upload-input').click()">
-                                                <img src="/images/upload.png" alt="Upload" style="width: 32px; height: 32px;">
-                                            </button>
-                                            <div class="mt-2 text-muted small">Upload Video</div>
-                                        </div>
-                                        
-                                        <div class="text-center">
-                                            <button id="video-youtube-btn" class="btn btn-lg btn-danger rounded-circle p-4 shadow-sm" style="width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center;" onclick="showYouTubeInput()">
-                                                <img src="/images/youtube.png" alt="YouTube" style="width: 32px; height: 32px;">
-                                            </button>
-                                            <div class="mt-2 text-muted small">YouTube</div>
+                            <div id="video-upload-area" class="text-center p-4 w-100" style="max-width: 800px;">
+                                
+                                <div class="row g-4 justify-content-center mb-4">
+                                    <!-- Upload Card -->
+                                    <div class="col-md-5">
+                                        <div class="card h-100 shadow-sm border-0 rounded-4 video-action-card" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'" onclick="document.getElementById('video-upload-input').click()">
+                                            <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center bg-white rounded-4">
+                                                <div class="bg-primary-subtle rounded-circle p-3 mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                                    <i class="bi bi-cloud-upload-fill fs-1 text-primary"></i>
+                                                </div>
+                                                <input type="file" id="video-upload-input" accept="video/*" style="display: none;" onchange="handleVideoUpload(event)" />
+                                                <h6 class="fw-bold mb-1">Upload Video</h6>
+                                                <small class="text-muted">From your device</small>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="mt-3 text-muted fw-medium" id="video-status">Upload video from device or add from YouTube</div>
+
+                                    <!-- YouTube Card -->
+                                    <div class="col-md-5">
+                                        <div class="card h-100 shadow-sm border-0 rounded-4 video-action-card" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'" onclick="showYouTubeInput()">
+                                            <div class="card-body p-4 d-flex flex-column align-items-center justify-content-center text-center bg-white rounded-4">
+                                                <div class="bg-danger-subtle rounded-circle p-3 mb-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                                    <i class="bi bi-youtube fs-1 text-danger"></i>
+                                                </div>
+                                                <h6 class="fw-bold mb-1">YouTube</h6>
+                                                <small class="text-muted">Add video link</small>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <!-- YouTube URL Input (hidden by default) -->
-                                <div id="youtube-input-container" class="card shadow-sm mx-auto" style="max-width: 450px; display: none;">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0"><i class="bi bi-youtube me-2"></i>Add YouTube Video</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <input type="url" id="youtube-url-input" class="form-control" placeholder="Enter YouTube URL..." />
+                                <div id="youtube-input-container" class="card shadow rounded-4 mx-auto border-0 mb-4" style="max-width: 500px; display: none; background: #fff;">
+                                    <div class="card-body p-4">
+                                        <h6 class="fw-bold mb-3 d-flex align-items-center"><i class="bi bi-link-45deg me-2 fs-4 text-danger"></i>Paste YouTube Link</h6>
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
+                                            <input type="url" id="youtube-url-input" class="form-control border-start-0" placeholder="https://youtube.com/watch?v=..." />
                                         </div>
                                         <div class="d-flex gap-2">
-                                            <button class="btn btn-primary flex-grow-1" onclick="addYouTubeVideo()">Add Video</button>
-                                            <button class="btn btn-secondary" onclick="hideYouTubeInput()">Cancel</button>
+                                            <button class="btn btn-danger flex-grow-1 rounded-pill" onclick="addYouTubeVideo()">Add Video</button>
+                                            <button class="btn btn-light flex-grow-1 rounded-pill" onclick="hideYouTubeInput()">Cancel</button>
                                         </div>
                                     </div>
                                 </div>
                                 
-                                <div class="card shadow-sm mx-auto" style="max-width: 450px;">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0"><i class="bi bi-collection-play me-2"></i>Videos</h6>
-                                    </div>
-                                    <div class="card-body p-0">
-                                        <div id="video-list-container" class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
-                                            <div class="text-center py-4 text-muted small">
-                                                <img src="/images/youtube.png" alt="No videos" style="width: 32px; height: 32px; opacity: 0.5;" class="d-block mb-2">
-                                                No videos yet
-                                            </div>
+                                
+                                <!-- Videos List -->
+                                <h6 class="text-muted small mb-3 text-center text-uppercase" style="letter-spacing: 1px;">Your Videos</h6>
+                                <div id="video-list-container" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                                    <div class="text-center py-5 text-muted">
+                                        <div class="mb-3">
+                                            <!-- Icon removed as requested -->
                                         </div>
+                                        <p class="fw-medium mb-1" style="color: #6610f2;">No videos yet</p>
+                                        <small class="text-muted">Upload a video or add a YouTube link to get started</small>
                                     </div>
                                 </div>
                             </div>
@@ -1925,10 +2166,7 @@
         </div>
     </div>
 
-    <div class="bottom-navigation">
-        <button class="arrow-btn"><i class="bi bi-chevron-left"></i></button>
-        <button class="arrow-btn"><i class="bi bi-chevron-right"></i></button>
-    </div>
+
 
     
     <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
@@ -2026,8 +2264,10 @@
     <script src="~/js/dashboard-class-options.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-class-listeners.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-class-files.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-class-file-opener.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-notifications.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-text-controls.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard-text-options.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-progress.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-file-tracking.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-timer.js" asp-append-version="true"></script>

@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 joinCode: klass?.code || null,
                 allowJoin: klass?.allowJoin !== undefined ? klass.allowJoin : false
             };
+            window.__currentClassId = klass?.id || null; // Ensure this is set early
 
             if (titleEl) titleEl.textContent = klass?.name || 'Class';
             if (codeEl) codeEl.textContent = klass?.code ? `(Code: ${klass.code})` : '';
@@ -343,20 +344,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const chatArea = document.getElementById('chat-area');
             if (currentClassId) {
-                if (chatEmpty) chatEmpty.style.display = 'none';
                 if (chatArea) chatArea.style.display = 'block';
+                if (chatEmpty) chatEmpty.style.display = 'none'; // Initially hide, loadMessages will show if empty
+                await loadMessages(true);
             } else {
                 if (chatArea) chatArea.style.display = 'none';
                 if (chatEmpty) chatEmpty.style.display = '';
-                return;
             }
-
-            if (chatArea) chatArea.style.display = '';
-            await loadMessages(true);
         });
     }
 
-    if (chatRefreshBtn) chatRefreshBtn.addEventListener('click', () => loadMessages(true));
+    if (chatRefreshBtn) {
+        chatRefreshBtn.addEventListener('click', async () => {
+            await loadMyClassesIntoSelect();
+            // Re-select current if still valid, or reset
+            if (currentClassId && classSelect.querySelector(`option[value="${currentClassId}"]`)) {
+                classSelect.value = currentClassId;
+                await loadMessages(true);
+            } else {
+                currentClassId = 0;
+                classSelect.value = "";
+                const chatArea = document.getElementById('chat-area');
+                if (chatArea) chatArea.style.display = 'none';
+            }
+        });
+    }
     if (chatSendBtn) chatSendBtn.addEventListener('click', sendMessage);
     if (chatInput) chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
 
@@ -408,82 +420,57 @@ document.addEventListener('click', (e) => {
 
 async function loadClassFiles(classId) {
     try {
-        const filesUl = document.getElementById('cls-files');
-        const filesGrid = document.getElementById('cls-files-grid');
-        if (filesUl) filesUl.innerHTML = '';
-        if (filesGrid) filesGrid.innerHTML = '';
+        const filesContainer = document.getElementById('cls-files-list');
+        if (filesContainer) filesContainer.innerHTML = '';
+
         const res = await fetch(`/Classes/Files?classId=${encodeURIComponent(classId)}`, { credentials: 'same-origin' });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'Failed to load files');
         const files = Array.isArray(data.files) ? data.files : [];
-        if (!filesUl) return;
+
         const statFiles = document.getElementById('cls-stat-files');
         if (statFiles) statFiles.textContent = files.length;
 
+        if (!filesContainer) return;
+
         if (files.length === 0) {
-            filesGrid.style.display = 'none';
-            filesUl.classList.remove('d-none');
-            const li = document.createElement('li');
-            li.className = 'list-group-item text-muted';
-            li.textContent = 'No files yet';
-            filesUl.appendChild(li);
+            filesContainer.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-folder2 fs-1 mb-2 d-block opacity-50"></i>
+                    <p class="mb-0 fw-medium">No files uploaded yet</p>
+                </div>`;
             return;
         }
 
-        // Show grid
-        filesGrid.style.display = 'grid';
-        filesUl.classList.add('d-none');
+        // Use grid layout for files
+        filesContainer.innerHTML = '<div class="cls-files-grid-view" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;"></div>';
+        const grid = filesContainer.querySelector('.cls-files-grid-view');
 
         files.forEach(f => {
-            // Grid Card
-            // Enhanced Grid Card
             const card = document.createElement('div');
-            card.className = 'cls-file-card';
+            card.className = 'cls-file-card position-relative p-2 border rounded bg-white shadow-sm';
             card.style.cursor = 'pointer';
             card.title = f.name;
 
-            // Icon logic
             const name = (f.name || '').toLowerCase();
             let iconSrc = '/images/file.png';
-            let bgClass = 'cls-file-icon-default';
+            let bgClass = 'bg-light';
+            let iconClass = 'bi-file-earmark-text';
 
-            if (/\.(pdf)$/i.test(name)) { bgClass = 'cls-file-icon-pdf'; }
-            else if (/\.(docx|doc)$/i.test(name)) { bgClass = 'cls-file-icon-word'; }
-            else if (/\.(png|jpg|jpeg|gif)$/i.test(name)) { bgClass = 'cls-file-icon-image'; }
+            if (/\.(pdf)$/i.test(name)) { bgClass = 'bg-danger-subtle text-danger'; iconClass = 'bi-file-earmark-pdf'; }
+            else if (/\.(docx|doc)$/i.test(name)) { bgClass = 'bg-primary-subtle text-primary'; iconClass = 'bi-file-earmark-word'; }
+            else if (/\.(xlsx|xls)$/i.test(name)) { bgClass = 'bg-success-subtle text-success'; iconClass = 'bi-file-earmark-spreadsheet'; }
+            else if (/\.(png|jpg|jpeg|gif)$/i.test(name)) { bgClass = 'bg-warning-subtle text-warning'; iconClass = 'bi-file-earmark-image'; }
 
             card.innerHTML = `
-                <div class="cls-file-icon-wrapper ${bgClass}">
-                    <img src="${iconSrc}" alt="file" style="width:32px; height:32px; object-fit:contain;" />
+                <div class="d-flex align-items-center justify-content-center mb-2 rounded ${bgClass}" style="height: 60px;">
+                     <i class="bi ${iconClass} fs-1"></i>
                 </div>
-                <div class="cls-file-name">${window.escapeHtml(f.name)}</div>
-                <div class="cls-file-size">${window.formatFileSize ? window.formatFileSize(f.size || 0) : '0 B'}</div>
-                
-                <div class="cls-file-download-overlay">
-                    <a href="${f.url}" target="_blank" class="btn-icon-soft" title="Download" onclick="event.stopPropagation();">
-                        <i class="bi bi-download"></i>
-                    </a>
-                </div>
-                
-                <!-- Make whole card clickable usually, but we have a download button now. 
-                     We can make the card open preview or just download. 
-                     For now, let's keep simple: card click => download/open -->
-                <a href="${f.url}" target="_blank" class="stretched-link" style="z-index:1;"></a>
+                <div class="text-truncate small fw-medium text-dark mb-1">${window.escapeHtml(f.name)}</div>
+                <div class="small text-muted" style="font-size: 0.75rem;">${window.formatFileSize ? window.formatFileSize(f.size || 0) : '0 B'}</div>
+                <a href="#" onclick="event.preventDefault(); window.openFile(null, '${(f.name || '').replace(/'/g, "\\'")}', '${f.url}');" class="stretched-link"></a>
             `;
-            // Ensure the specific download button is above the stretched link
-            // Actually stretched-link covers everything positioned relative.
-            // We need to set z-index of download-overlay higher AND make it relative/absolute properly.
-            // In CSS: .cls-file-download-overlay { z-index: 2; } 
-            // We need to update CSS for z-index or handle click differently.
-            // Adding onclick to card to open functionality is better if we want distinct actions.
-            // But for now, let's just let the stretched link handle it and the download button is visual sugar or quick action.
-            // If stretched-link is there, the download button inside might not be clickable separately unless z-indexed higher.
-
-            // Let's just fix the z-index via inline style in the HTML string above if needed or rely on CSS.
-            // The download button inside stretched-link container...
-            // If we want separate actions, we shouldn't use stretched-link over everything.
-            // But here, both actions are "Open/Download". So it's fine.
-
-            filesGrid.appendChild(card);
+            grid.appendChild(card);
         });
     } catch (e) {
         const errEl = document.getElementById('cls-files-error');

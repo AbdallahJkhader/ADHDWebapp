@@ -37,6 +37,20 @@ if (typeof originalTogglePanel === 'function') {
 // ===== Study Planner =====
 let studySessions = [];
 
+window.switchPlannerTab = function (tabName) {
+    const tabs = document.querySelectorAll('.tab-btn[data-planner-tab]');
+    tabs.forEach(t => {
+        if (t.getAttribute('data-planner-tab') === tabName) t.classList.add('active');
+        else t.classList.remove('active');
+    });
+
+    const panes = document.querySelectorAll('.planner-tab-content');
+    panes.forEach(p => p.classList.add('d-none'));
+
+    const activePane = document.getElementById(`planner-tab-${tabName}`);
+    if (activePane) activePane.classList.remove('d-none');
+};
+
 async function loadStudySessions() {
     try {
         const response = await fetch('/StudyPlanner/GetSessions');
@@ -58,17 +72,26 @@ function renderStudySessions() {
     if (!upcomingList || !completedList) return;
 
     const now = new Date();
+    // Assuming API returns 'startTime', 'isCompleted' etc.
     const upcoming = studySessions.filter(s => !s.isCompleted && new Date(s.endTime) > now);
     const completed = studySessions.filter(s => s.isCompleted);
 
+    // Render Upcoming
     if (upcoming.length === 0) {
-        upcomingList.innerHTML = '<div class="text-muted small text-center py-2">No upcoming sessions</div>';
+        upcomingList.innerHTML = `<div class="text-muted small text-center py-4">
+                                <i class="bi bi-calendar-event fs-4 d-block mb-2 opacity-50"></i>
+                                No upcoming sessions
+                            </div>`;
     } else {
         upcomingList.innerHTML = upcoming.map(session => createSessionCard(session, false)).join('');
     }
 
+    // Render Completed
     if (completed.length === 0) {
-        completedList.innerHTML = '<div class="text-muted small text-center py-2">No completed sessions</div>';
+        completedList.innerHTML = `<div class="text-muted small text-center py-4">
+                                <i class="bi bi-clipboard-check fs-4 d-block mb-2 opacity-50"></i>
+                                No completed sessions
+                            </div>`;
     } else {
         completedList.innerHTML = completed.map(session => createSessionCard(session, true)).join('');
     }
@@ -76,27 +99,30 @@ function renderStudySessions() {
 
 function createSessionCard(session, isCompleted) {
     const startDate = new Date(session.startTime);
-    const dateStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const dateStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-    const subjectHtml = session.subjectName ? `<div class="text-muted" style="font-size: 0.75rem;">${session.subjectName}</div>` : '';
+    // Subject Badge Color (random or hashed based on subject name could be cool, sticking to simple for now)
+    const subjectHtml = session.subjectName
+        ? `<span class="badge bg-light text-secondary border fw-normal me-2">${session.subjectName}</span>`
+        : '';
 
-    const completeButton = !isCompleted
-        ? `<button class="btn btn-sm btn-success p-1" onclick="markSessionComplete(${session.id}, true)" title="Mark complete"><i class="bi bi-check-lg"></i></button>`
-        : `<button class="btn btn-sm btn-secondary p-1" onclick="markSessionComplete(${session.id}, false)" title="Mark incomplete"><i class="bi bi-arrow-counterclockwise"></i></button>`;
+    const btnAction = !isCompleted
+        ? `<button class="btn btn-sm btn-light text-success border-0 rounded-circle" onclick="markSessionComplete(${session.id}, true)" title="Mark Done"><i class="bi bi-check-lg fs-5"></i></button>`
+        : `<button class="btn btn-sm btn-light text-secondary border-0 rounded-circle" onclick="markSessionComplete(${session.id}, false)" title="Undo"><i class="bi bi-arrow-counterclockwise"></i></button>`;
 
     return `
-        <div class="card card-sm p-2">
-            <div class="d-flex justify-content-between align-items-start">
-                <div class="flex-fill">
-                    <div class="fw-bold small">${session.title}</div>
-                    ${subjectHtml}
-                    <div class="text-muted" style="font-size: 0.7rem;">
-                        <i class="bi bi-calendar3"></i> ${dateStr}
+        <div class="planner-card p-3 mb-2 ${isCompleted ? 'completed' : ''}">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="d-flex align-items-center mb-1">
+                        ${subjectHtml}
+                        <span class="small text-muted"><i class="bi bi-clock me-1"></i>${dateStr}</span>
                     </div>
+                    <div class="fw-bold text-truncate">${session.title}</div>
                 </div>
-                <div class="d-flex gap-1">
-                    ${completeButton}
-                    <button class="btn btn-sm btn-danger p-1" onclick="deleteSession(${session.id})" title="Delete">
+                <div class="card-actions d-flex gap-1 ms-2">
+                    ${btnAction}
+                    <button class="btn btn-sm btn-light text-danger border-0 rounded-circle" onclick="deleteSession(${session.id})" title="Delete">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>

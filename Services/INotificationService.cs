@@ -10,5 +10,6 @@ namespace ADHDWebApp.Services
         Task<(bool Success, string Error, List<object>? Notifications)> GetUserNotificationsAsync(int userId, bool unreadOnly = false);
         Task<(bool Success, string Error)> MarkAsReadAsync(int notificationId, int userId);
         Task<(bool Success, string Error)> MarkAllAsReadAsync(int userId);
+        Task<(bool Success, string Error)> DeleteNotificationAsync(int notificationId, int userId);
     }
 }

@@ -21,9 +21,9 @@ function openPrivacyPanel(classId, joinCode, allowJoin) {
     if (errorDiv) errorDiv.style.display = 'none';
     if (successDiv) successDiv.style.display = 'none';
 
-    // Hide class details panel and show privacy panel
-    const detailsPanel = document.getElementById('class-details-panel');
-    if (detailsPanel) detailsPanel.classList.remove('show');
+    // Do not hide class details panel here; toggleInlinePanel handles it and needs it for positioning
+    // const detailsPanel = document.getElementById('class-details-panel');
+    // if (detailsPanel) detailsPanel.classList.remove('show');
 
     toggleInlinePanel('cls-privacy-panel', event);
 }
@@ -115,8 +115,8 @@ window.showOverallAnalytics = async function (classId) {
 
     try {
         // Hide class details and show analytics panel
-        const detailsPanel = document.getElementById('class-details-panel');
-        if (detailsPanel) detailsPanel.classList.remove('show');
+        // const detailsPanel = document.getElementById('class-details-panel');
+        // if (detailsPanel) detailsPanel.classList.remove('show');
         toggleInlinePanel('cls-analytics-panel', event);
 
         // Fetch analytics data
@@ -128,9 +128,14 @@ window.showOverallAnalytics = async function (classId) {
         if (!data.success) throw new Error(data.error || 'Failed to load analytics');
 
         // Update stats cards
-        document.getElementById('analytics-total-students').textContent = data.totalStudents || 0;
+        // document.getElementById('analytics-total-students').textContent = data.totalStudents || 0;
         document.getElementById('analytics-total-minutes').textContent = data.totalFocusMinutes || 0;
-        document.getElementById('analytics-total-sessions').textContent = data.totalSessions || 0;
+        // document.getElementById('analytics-total-sessions').textContent = data.totalSessions || 0;
+
+        // Populate Weekly Browsing Time (using totalFocusMinutes as proxy for now, or if we had a separate metric)
+        // Since we are replacing Sessions with Weekly Browsing Time, let's display focus minutes formatted
+        document.getElementById('analytics-weekly-browsing').textContent = (data.totalFocusMinutes || 0) + ' min';
+
         document.getElementById('analytics-avg-streak').textContent = data.avgStreak || 0;
 
         // Render student list
@@ -174,9 +179,9 @@ window.showClassInvite = function (joinCode) {
     if (!classId) return;
 
     // Hide class details and show invite panel
-    const detailsPanel = document.getElementById('class-details-panel');
-    if (detailsPanel) detailsPanel.classList.remove('show');
-    toggleInlinePanel('cls-invite-panel', event);
+    // const detailsPanel = document.getElementById('class-details-panel');
+    // if (detailsPanel) detailsPanel.classList.remove('show');
+    toggleInlinePanel('cls-invite-panel');
 
     // Clear previous state
     document.getElementById('invite-search-input').value = '';
@@ -188,7 +193,11 @@ window.showClassInvite = function (joinCode) {
     const searchBtn = document.getElementById('invite-search-btn');
     const searchInput = document.getElementById('invite-search-input');
 
-    searchBtn.onclick = async () => {
+    searchBtn.onclick = async (event) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         const email = searchInput.value.trim();
         if (!email) return;
 
@@ -216,14 +225,16 @@ window.showClassInvite = function (joinCode) {
                             <div class="fw-medium">${user.name}</div>
                             <small class="text-muted">${user.email}</small>
                         </div>
-                        <button class="btn btn-sm btn-primary" data-user-id="${user.id}">
+                        <button type="button" class="btn btn-sm btn-primary" data-user-id="${user.id}">
                             <i class="bi bi-send"></i> Invite
                         </button>
                     `;
 
                     // Add invite button handler
                     const inviteBtn = li.querySelector('button');
-                    inviteBtn.onclick = async () => {
+                    inviteBtn.onclick = async (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
                         try {
                             inviteBtn.disabled = true;
                             inviteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i>';

@@ -21,7 +21,7 @@ namespace ADHDWebApp.Models
         public string SubjectName { get; set; } // Optional subject/topic name
 
         [Required]
-        public DateTime Timestamp { get; set; } = DateTime.Now;
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
         // Navigation property
         public virtual User User { get; set; }

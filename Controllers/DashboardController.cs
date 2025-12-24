@@ -200,6 +200,23 @@ namespace ADHDWebApp.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> UpdateFullName(string fullName)
+        {
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return RedirectToAction("Login", "Account");
+
+            if (string.IsNullOrWhiteSpace(fullName))
+            {
+                TempData["Error"] = "Name cannot be empty.";
+                return RedirectToAction("Index");
+            }
+
+            await _dashboardService.UpdateFullNameAsync(sessionUserId.Value, fullName.Trim());
+            TempData["Success"] = "Name updated successfully.";
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
         [Route("Dashboard/DeleteFiles")]
         public async Task<IActionResult> DeleteFiles([FromBody] List<int> ids)
         {
@@ -340,6 +357,25 @@ namespace ADHDWebApp.Controllers
              catch(Exception ex) { return Json(new {success=false, error=ex.Message}); }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> RecordBrowsingSession([FromBody] RecordTimeDto model)
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null) return Json(new { success = false, error = "Not logged in" });
+
+            // model.Duration is in minutes
+            var (success, error) = await _dashboardService.RecordBrowsingSessionAsync(userId.Value, model.Duration, model.SubjectName);
+            if (!success) return Json(new { success = false, error });
+
+            return Json(new { success = true });
+        }
+
+        public class RecordTimeDto
+        {
+            public int Duration { get; set; }
+            public string SubjectName { get; set; }
+            public string ActivityType { get; set; } // Optional
+        }
         public class SaveAudioRequest { public string? FileName { get; set; } public string? AudioData { get; set; } public string? ContentType { get; set; } }
         
         [HttpPost]
@@ -398,18 +434,80 @@ namespace ADHDWebApp.Controllers
             var sessionUserId = HttpContext.Session.GetInt32("UserId");
             if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
 
-            var result = await _dashboardService.GetUserFilesByTypeAsync(sessionUserId.Value, "audio/");
-            if (!result.Success) return Json(new { success = false, error = result.Error });
-            
-            var audioFiles = result.Files.Select(f => new {
-                id = f.Id,
-                fileName = f.FileName,
-                filePath = f.FilePath,
-                contentType = f.ContentType,
-                fileSize = f.FileSize,
-                uploadedAt = f.UploadedAt
-            });
-            return Json(new { success = true, audios = audioFiles });
+            try
+            {
+                // Assuming GetUserFilesByTypeAsync can handle int? or has an overload for it
+                // The original code used "audio/", the new snippet used "audio". Sticking to original pattern.
+                var result = await _dashboardService.GetUserFilesByTypeAsync(sessionUserId.Value, "audio/");
+                if (!result.Success) return Json(new { success = false, error = result.Error });
+
+                var audioFiles = result.Files.Select(f => new {
+                    id = f.Id,
+                    fileName = f.FileName,
+                    filePath = f.FilePath, // Added back based on original structure
+                    contentType = f.ContentType, // Added back based on original structure
+                    fileSize = f.FileSize, // Added back based on original structure
+                    uploadedAt = f.UploadedAt // Added back based on original structure
+                });
+                return Json(new { success = true, audios = audioFiles }); // Changed 'files' to 'audios' for consistency
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        [Route("Dashboard/GetFileStats")] // Added route for consistency
+        public async Task<IActionResult> GetFileStats()
+        {
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
+
+            try
+            {
+                // Assuming GetUserFilesAsync and GetFileGroupsAsync can handle int userId
+                var filesResult = await _dashboardService.GetUserFilesAsync(sessionUserId.Value);
+                var groupsResult = await _dashboardService.GetFileGroupsAsync(sessionUserId.Value);
+                
+                if (!filesResult.Success) return Json(new { success = false, error = filesResult.Error });
+                if (!groupsResult.Success) return Json(new { success = false, error = groupsResult.Error });
+
+                return Json(new { 
+                    success = true, 
+                    filesCount = filesResult.Files.Count, 
+                    foldersCount = groupsResult.Groups.Count 
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        [Route("Dashboard/GetRecentFiles")] // Added route for consistency
+        public async Task<IActionResult> GetRecentFiles()
+        {
+            var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
+
+            try
+            {
+                // Assuming GetUserFilesAsync can handle int userId
+                var filesResult = await _dashboardService.GetUserFilesAsync(sessionUserId.Value);
+                if (!filesResult.Success) return Json(new { success = false, error = filesResult.Error });
+
+                // Assuming files have UploadedAt property (consistent with other file objects)
+                var recent = filesResult.Files.OrderByDescending(f => f.UploadedAt).Take(2)
+                    .Select(f => new { f.Id, f.FileName });
+
+                return Json(new { success = true, recentFiles = recent });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
         }
 
         // ===== Group Methods =====
@@ -495,6 +593,38 @@ namespace ADHDWebApp.Controllers
 
             var result = await _notificationService.MarkAsReadAsync(dto.NotificationId, userId.Value);
             return Json(new { success = result.Success, error = result.Error });
+        }
+
+        [HttpGet]
+        [Route("Dashboard/GetNotifications")]
+        public async Task<IActionResult> GetNotifications()
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null) return Json(new { success = false, error = "Not authenticated" });
+
+            var result = await _notificationService.GetUserNotificationsAsync(userId.Value);
+            if (!result.Success) return Json(new { success = false, error = result.Error });
+
+            return Json(new { success = true, notifications = result.Notifications });
+        }
+
+        [HttpGet]
+        [Route("Dashboard/Help")]
+        public IActionResult Help()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteNotification(int id)
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null) return Json(new { success = false, error = "Not authenticated" });
+
+            var result = await _notificationService.DeleteNotificationAsync(id, userId.Value);
+            if (!result.Success) return Json(new { success = false, error = result.Error });
+
+            return Json(new { success = true });
         }
 
         public class MarkNotificationDto { public int NotificationId { get; set; } }
