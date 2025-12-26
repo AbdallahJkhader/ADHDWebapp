@@ -375,7 +375,7 @@ namespace ADHDWebApp.Controllers
                 var totalFocusMinutes = activities.Where(a => a.ActivityType == "focus_session").Sum(a => a.Duration);
                 var totalSessions = activities.Count(a => a.ActivityType == "focus_session");
 
-                // Fetch users with their streaks
+                // Fetch users
                 var users = await _context.Users
                     .Where(u => memberIds.Contains(u.Id))
                     .ToListAsync();
@@ -386,11 +386,15 @@ namespace ADHDWebApp.Controllers
                     name = u.FullName,
                     email = u.Email,
                     focusMinutes = activities.Where(a => a.UserId == u.Id && a.ActivityType == "focus_session").Sum(a => a.Duration),
-                    streak = activities.Where(a => a.UserId == u.Id).Select(a => a.Timestamp.Date).Distinct().Count()
+                    streak = activities.Where(a => a.UserId == u.Id).Select(a => a.Timestamp.Date).Distinct().Count(),
+                    browsingMinutes = activities.Where(a => a.UserId == u.Id && a.ActivityType == "file_view").Sum(a => a.Duration),
+                    subjectsCount = activities.Where(a => a.UserId == u.Id && !string.IsNullOrEmpty(a.SubjectName)).Select(a => a.SubjectName).Distinct().Count()
                 }).ToList();
 
-                // Calculate average streak
+                // Calculate averages/totals
                 var avgStreak = studentStats.Any() ? (int)studentStats.Average(s => s.streak) : 0;
+                var avgSubjects = studentStats.Any() ? Math.Round(studentStats.Average(s => s.subjectsCount), 1) : 0;
+                var totalBrowsingMinutes = studentStats.Sum(s => s.browsingMinutes);
 
                 return Json(new
                 {
@@ -399,6 +403,8 @@ namespace ADHDWebApp.Controllers
                     totalFocusMinutes,
                     totalSessions,
                     avgStreak,
+                    avgSubjects,
+                    totalBrowsingMinutes,
                     students = studentStats
                 });
             }

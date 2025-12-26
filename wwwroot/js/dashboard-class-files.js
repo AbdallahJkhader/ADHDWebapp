@@ -104,7 +104,7 @@ function createFileItem(file) {
                 </div>
             </div>
             <div class="d-flex gap-2 flex-shrink-0">
-                <button class="btn btn-sm btn-outline-primary rounded-circle" title="View" onclick="event.stopPropagation(); openClassFile(${file.id}, '${escapeHtml(file.fileName)}')">
+                <button class="btn btn-sm btn-outline-primary rounded-circle" title="View" onclick="event.stopPropagation(); openClassFile(${file.id}, '${escapeHtml(file.fileName)}', true)">
                     <i class="bi bi-eye"></i>
                 </button>
                 <a href="${file.filePath}" download class="btn btn-sm btn-outline-secondary rounded-circle" title="Download" onclick="event.stopPropagation()">
@@ -122,7 +122,7 @@ function createFileItem(file) {
     div.addEventListener('click', (e) => {
         // Don't trigger if clicking on buttons or links
         if (!e.target.closest('button') && !e.target.closest('a')) {
-            openClassFile(file.id, file.fileName);
+            openClassFile(file.id, file.fileName, true);
         }
     });
 

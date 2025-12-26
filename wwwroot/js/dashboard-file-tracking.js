@@ -93,7 +93,8 @@ window.renderSharedFilesPanel = async function () {
                 div.className = 'activity-item border-bottom'; // Using activity-item style for list
                 div.style.cursor = 'pointer';
                 div.onclick = function () {
-                    if (window.openFile) window.openFile(file.id, file.fileName);
+                    // Use openClassFile with openInViewer=true for shared files
+                    if (window.openClassFile) window.openClassFile(file.id, file.fileName, true);
                     // Close panel
                     const panel = document.getElementById('shared-files-panel');
                     if (panel) panel.classList.remove('show');

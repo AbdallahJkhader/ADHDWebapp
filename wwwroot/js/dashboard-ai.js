@@ -1,4 +1,5 @@
 // AI Tools: Summary, Flashcards, Quizzes, Notes/Whiteboard, Translation
+console.log('dashboard-ai.js loaded v2');
 
 // ==========================================
 // AI SUMMARY
@@ -47,7 +48,10 @@ window.summarizeLeftToRight = async function () {
         window._summarizeInFlight = true;
         const contentDisplay = document.getElementById('content-display');
         const text = contentDisplay ? (contentDisplay.textContent || '').trim() : '';
-        if (!text) { alert('No text to summarize.'); return; }
+        if (!text) {
+            Swal.fire({ icon: 'warning', title: 'No Text', text: 'No text content found to summarize.', confirmButtonColor: '#0d6efd' });
+            return;
+        }
         // Open summary UI and show loading (match file-loading style)
         if (typeof window.openSummaryRight === 'function') window.openSummaryRight();
         const target = document.getElementById('summary-content-display');
@@ -160,6 +164,7 @@ window.backFromSummaryRight = window.backFromSummaryRight || function () {
 let flashcardsData = [];
 let currentFlashcardIndex = 0;
 let flashcardsLoadedOnce = false;
+let generatedFlashcardsForCurrentFile = false;
 
 async function loadFlashcardsData() {
     if (flashcardsLoadedOnce && Array.isArray(flashcardsData) && flashcardsData.length >= 0) {
@@ -222,76 +227,7 @@ function initFlashcardsUI() {
     toggleBtn.textContent = 'Show answer';
 }
 
-function bindFlashcardCreateForm() {
-    const btn = document.getElementById('flashcard-add-btn');
-    if (!btn) return;
-    const questionEl = document.getElementById('flashcard-new-question');
-    const answerEl = document.getElementById('flashcard-new-answer');
-    const errorEl = document.getElementById('flashcard-create-error');
 
-    if (!questionEl || !answerEl) return;
-
-    // Prevent binding multiple times
-    if (btn.dataset.bound === '1') return;
-    btn.dataset.bound = '1';
-
-    const toggleBtn = document.getElementById('flashcards-add-toggle');
-    const formContainer = document.getElementById('flashcard-create-container');
-    if (toggleBtn && formContainer && !toggleBtn.dataset.bound) {
-        toggleBtn.dataset.bound = '1';
-        toggleBtn.addEventListener('click', () => {
-            const isHidden = formContainer.style.display === 'none' || !formContainer.style.display;
-            formContainer.style.display = isHidden ? 'block' : 'none';
-
-            if (isHidden) {
-                toggleBtn.innerHTML = '<i class="bi bi-eye me-1"></i>View';
-            } else {
-                toggleBtn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add';
-            }
-        });
-    }
-
-    btn.addEventListener('click', async () => {
-        const question = (questionEl.value || '').trim();
-        const answer = (answerEl.value || '').trim();
-        if (!question || !answer) {
-            if (errorEl) errorEl.textContent = 'Question and answer are required.';
-            return;
-        }
-
-        if (errorEl) errorEl.textContent = '';
-        btn.disabled = true;
-
-        try {
-            const res = await fetch('/Flashcards/CreateFromDashboard', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ question, answer })
-            });
-
-            const data = await res.json().catch(() => null);
-            if (!res.ok || !data || data.success !== true) {
-                const msg = (data && data.error) ? data.error : 'Failed to create flashcard.';
-                if (errorEl) errorEl.textContent = msg;
-                return;
-            }
-
-            if (!Array.isArray(flashcardsData)) flashcardsData = [];
-            flashcardsData.push({ question: data.question || question, answer: data.answer || answer });
-            currentFlashcardIndex = flashcardsData.length - 1;
-            updateFlashcardsCount();
-            initFlashcardsUI();
-
-            questionEl.value = '';
-            answerEl.value = '';
-        } catch (e) {
-            if (errorEl) errorEl.textContent = e?.message || 'Error creating flashcard.';
-        } finally {
-            btn.disabled = false;
-        }
-    });
-}
 
 window.toggleFlashcardAnswer = function () {
     const answerEl = document.getElementById('flashcard-answer');
@@ -335,7 +271,14 @@ window.openFlashcardsRight = window.openFlashcardsRight || async function () {
 
     await loadFlashcardsData();
     initFlashcardsUI();
-    bindFlashcardCreateForm();
+
+    // Auto-generate if empty and not yet generated for this file
+    const contentDisplay = document.getElementById('content-display');
+    const text = contentDisplay ? (contentDisplay.textContent || '').trim() : '';
+    if ((!flashcardsData || flashcardsData.length === 0) && !generatedFlashcardsForCurrentFile && text) {
+        generatedFlashcardsForCurrentFile = true;
+        generateFlashcardsRight();
+    }
 
     const rightPane = flashcardsContainer.closest('.right-side');
     if (rightPane) {
@@ -362,6 +305,71 @@ window.backFromFlashcardsRight = window.backFromFlashcardsRight || function () {
     }
 };
 
+window.generateFlashcardsRight = async function () {
+    const btn = document.getElementById('flashcards-generate-btn');
+    const contentDisplay = document.getElementById('content-display');
+    const text = contentDisplay ? (contentDisplay.textContent || '').trim() : '';
+
+    if (!text) { alert('No text to generate flashcards from.'); return; }
+
+    if (btn) btn.disabled = true;
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
+
+    const card = document.getElementById('flashcard-card');
+    const emptyState = document.getElementById('flashcards-empty-state');
+    const questionEl = document.getElementById('flashcard-question');
+
+    if (emptyState) emptyState.classList.add('d-none');
+    if (card) {
+        card.classList.remove('d-none');
+        if (questionEl) questionEl.innerHTML = '<div class="text-center p-3"><span class="spinner-border text-primary"></span><p class="mt-2 text-muted">Generating flashcards...</p></div>';
+        document.getElementById('flashcard-answer').classList.add('d-none');
+    }
+
+    try {
+        const res = await fetch('/Dashboard/GenerateFlashcards', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+
+        if (data && data.success && data.flashcardsJson) {
+            let cards = [];
+            try {
+                cards = JSON.parse(data.flashcardsJson);
+            } catch (e) { console.error('JSON parse error', e); }
+
+            if (Array.isArray(cards) && cards.length > 0) {
+                if (!flashcardsData) flashcardsData = [];
+                flashcardsData = flashcardsData.concat(cards);
+
+                currentFlashcardIndex = flashcardsData.length - cards.length;
+                if (currentFlashcardIndex < 0) currentFlashcardIndex = 0;
+
+                initFlashcardsUI();
+                updateFlashcardsCount();
+            } else {
+                alert('AI generated invalid format.');
+                initFlashcardsUI();
+            }
+        } else {
+            alert(data.error || 'Failed to generate.');
+            initFlashcardsUI();
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+        initFlashcardsUI();
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+};
+
 
 // ==========================================
 // QUIZZES
@@ -370,6 +378,8 @@ let quizzesData = [];
 let currentQuizIndex = 0;
 let selectedQuizAnswer = null;
 let quizAnswered = false;
+let quizScore = 0; // Track score
+let generatedQuizzesForCurrentFile = false;
 
 window.openQuizzesRight = window.openQuizzesRight || async function () {
     const generateWrapper = document.getElementById('generate-wrapper');
@@ -400,6 +410,14 @@ window.openQuizzesRight = window.openQuizzesRight || async function () {
     }
 
     initQuizzesUI();
+
+    // Auto-generate if empty and not yet generated for this file
+    const contentDisplay = document.getElementById('content-display');
+    const text = contentDisplay ? (contentDisplay.textContent || '').trim() : '';
+    if ((!quizzesData || quizzesData.length === 0) && !generatedQuizzesForCurrentFile && text) {
+        generatedQuizzesForCurrentFile = true;
+        generateQuizzesRight();
+    }
 };
 
 window.backFromQuizzesRight = window.backFromQuizzesRight || function () {
@@ -417,17 +435,91 @@ window.backFromQuizzesRight = window.backFromQuizzesRight || function () {
     }
 };
 
+window.generateQuizzesRight = async function () {
+    const btn = document.getElementById('quizzes-generate-btn');
+    const contentDisplay = document.getElementById('content-display');
+    const text = contentDisplay ? (contentDisplay.textContent || '').trim() : '';
+
+    if (!text) { alert('No text to generate quiz from.'); return; }
+
+    if (btn) btn.disabled = true;
+    const originalText = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
+
+    const quizDisplay = document.getElementById('quiz-display');
+    const emptyState = document.getElementById('quizzes-empty-state');
+    const questionEl = document.getElementById('quiz-display-question');
+    const optionsEl = document.querySelector('.quiz-options');
+
+    if (emptyState) emptyState.classList.add('d-none');
+    if (quizDisplay) {
+        quizDisplay.classList.remove('d-none');
+        if (questionEl) questionEl.innerHTML = '<div class="text-center p-3"><span class="spinner-border text-primary"></span><p class="mt-2 text-muted">Generating quiz...</p></div>';
+        document.getElementById('quiz-current-number').textContent = '-';
+        document.getElementById('quiz-total-count').textContent = '-';
+        if (optionsEl) optionsEl.classList.add('d-none');
+    }
+
+    try {
+        const res = await fetch('/Dashboard/GenerateQuiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+
+        if (data && data.success && data.quizJson) {
+            let newQuizzes = [];
+            try {
+                newQuizzes = JSON.parse(data.quizJson);
+            } catch (e) { console.error(e); }
+
+            if (Array.isArray(newQuizzes) && newQuizzes.length > 0) {
+                newQuizzes = newQuizzes.map(q => ({ ...q, id: Date.now() + Math.random() }));
+
+                quizzesData = quizzesData.concat(newQuizzes);
+                localStorage.setItem('quizzesData', JSON.stringify(quizzesData));
+
+                currentQuizIndex = quizzesData.length - newQuizzes.length;
+                quizScore = 0; // Reset score for new batch if needed, or keep cumulative? Usually reset for new session.
+                // But if adding to existing, maybe we just set index. 
+                // Let's reset score for the "session" implies we might want a "start quiz" flow, but for now, 
+                // let's just ensure we track correct answers from this point.
+
+                if (currentQuizIndex < 0) currentQuizIndex = 0;
+
+                if (optionsEl) optionsEl.classList.remove('d-none');
+                displayCurrentQuiz();
+            } else {
+                alert('AI generated invalid format.');
+                if (optionsEl) optionsEl.classList.remove('d-none');
+                displayCurrentQuiz();
+            }
+        } else {
+            alert(data.error || 'Failed to generate.');
+            if (optionsEl) optionsEl.classList.remove('d-none');
+            displayCurrentQuiz();
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+        if (optionsEl) optionsEl.classList.remove('d-none');
+        displayCurrentQuiz();
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+};
+
 function initQuizzesUI() {
     const savedQuizzes = localStorage.getItem('quizzesData');
     if (savedQuizzes) {
         quizzesData = JSON.parse(savedQuizzes);
     }
 
-    const addBtn = document.getElementById('quizzes-add-toggle');
-    if (addBtn && !addBtn.dataset.bound) {
-        addBtn.dataset.bound = '1';
-        addBtn.addEventListener('click', toggleQuizCreationForm);
-    }
+
 
     if (quizzesData.length === 0) {
         showQuizzesEmptyState();
@@ -436,72 +528,17 @@ function initQuizzesUI() {
     }
 }
 
-function toggleQuizCreationForm() {
-    const form = document.getElementById('quiz-creation-form');
-    const display = document.getElementById('quiz-display');
 
-    if (form.classList.contains('d-none')) {
-        form.classList.remove('d-none');
-        display.classList.add('d-none');
-        clearQuizForm();
-    } else {
-        form.classList.add('d-none');
-        display.classList.remove('d-none');
-    }
-}
-
-function clearQuizForm() {
-    document.getElementById('quiz-question').value = '';
-    document.getElementById('quiz-option-a').value = '';
-    document.getElementById('quiz-option-b').value = '';
-    document.getElementById('quiz-option-c').value = '';
-    document.getElementById('quiz-option-d').value = '';
-    document.getElementById('quiz-correct-answer').value = '';
-}
-
-window.saveQuizQuestion = function () {
-    const question = document.getElementById('quiz-question').value.trim();
-    const optionA = document.getElementById('quiz-option-a').value.trim();
-    const optionB = document.getElementById('quiz-option-b').value.trim();
-    const optionC = document.getElementById('quiz-option-c').value.trim();
-    const optionD = document.getElementById('quiz-option-d').value.trim();
-    const correctAnswer = document.getElementById('quiz-correct-answer').value;
-
-    if (!question || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
-        alert('Please fill in all fields and select the correct answer.');
-        return;
-    }
-
-    const newQuiz = {
-        id: Date.now(),
-        question: question,
-        options: {
-            A: optionA,
-            B: optionB,
-            C: optionC,
-            D: optionD
-        },
-        correctAnswer: correctAnswer
-    };
-
-    quizzesData.push(newQuiz);
-    localStorage.setItem('quizzesData', JSON.stringify(quizzesData));
-
-    toggleQuizCreationForm();
-
-    currentQuizIndex = quizzesData.length - 1;
-    displayCurrentQuiz();
-};
-
-window.cancelQuizCreation = function () {
-    toggleQuizCreationForm();
-};
 
 function displayCurrentQuiz() {
     if (quizzesData.length === 0) {
         showQuizzesEmptyState();
         return;
     }
+
+    // Hide completion view if valid quiz
+    document.getElementById('quiz-completion-view').classList.add('d-none');
+    document.getElementById('quiz-display').classList.remove('d-none');
 
     const quiz = quizzesData[currentQuizIndex];
 
@@ -519,8 +556,14 @@ function displayCurrentQuiz() {
     resetQuizOptionsUI();
     hideQuizResult();
 
+    // Update button states
+    const submitBtn = document.getElementById('quiz-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = (currentQuizIndex === quizzesData.length - 1) ? 'Submit & Finish' : 'Submit Answer';
+    }
+
     document.getElementById('quizzes-empty-state').classList.add('d-none');
-    document.getElementById('quiz-display').classList.remove('d-none');
 }
 
 function resetQuizOptionsUI() {
@@ -528,6 +571,7 @@ function resetQuizOptionsUI() {
     options.forEach(option => {
         option.classList.remove('active', 'correct', 'incorrect');
         option.disabled = false;
+        option.style.pointerEvents = 'auto';
     });
 }
 
@@ -550,19 +594,83 @@ window.submitQuizAnswer = function () {
     const isCorrect = selectedQuizAnswer === quiz.correctAnswer;
 
     quizAnswered = true;
+    if (isCorrect) quizScore++;
 
     showQuizResult(isCorrect, quiz.correctAnswer);
 
     const options = document.querySelectorAll('.quiz-option');
     options.forEach(opt => {
         opt.disabled = true;
+        // Remove hover effects
+        opt.style.pointerEvents = 'none';
+
         if (opt.dataset.option === quiz.correctAnswer) {
             opt.classList.add('correct');
         } else if (opt.dataset.option === selectedQuizAnswer && !isCorrect) {
             opt.classList.add('incorrect');
         }
     });
+
+    // Disable submit button
+    document.getElementById('quiz-submit-btn').disabled = true;
+
+    // If it's the last question, show completion after a short delay or let user click next? 
+    // Usually user clicks next, but "Next" button might need to change to "Finish"
+    // We already updated the button text in displayCurrentQuiz
 };
+
+window.clearAIContent = function () {
+    // Clear Data
+    quizzesData = [];
+    currentQuizIndex = 0;
+    quizScore = 0;
+    generatedQuizzesForCurrentFile = false;
+    flashcardsData = [];
+    currentFlashcardIndex = 0;
+    flashcardsLoadedOnce = false; // Allow re-fetching of user flashcards
+    generatedFlashcardsForCurrentFile = false;
+
+    // Clear Storage
+    localStorage.removeItem('quizzesData');
+    localStorage.removeItem('flashcardsData');
+
+    // Reset UI - Quizzes
+    const quizDisplay = document.getElementById('quiz-display');
+    const quizEmpty = document.getElementById('quizzes-empty-state');
+    const quizCompletion = document.getElementById('quiz-completion-view');
+
+    if (quizDisplay) quizDisplay.classList.add('d-none');
+    if (quizCompletion) quizCompletion.classList.add('d-none');
+    if (quizEmpty) quizEmpty.classList.remove('d-none');
+
+    // Reset UI - Flashcards
+    const flashcardCard = document.getElementById('flashcard-card');
+    const flashcardEmpty = document.getElementById('flashcards-empty-state');
+
+    if (flashcardCard) flashcardCard.classList.add('d-none'); // Or verify how flashcards UI handles empty
+    // Actually initFlashcardsUI handles visibility based on data length
+
+    // Re-init UI to reflect empty state
+    if (typeof initFlashcardsUI === 'function') initFlashcardsUI();
+    // For quizzes, we manually toggled above, but let's be safe
+    if (typeof displayCurrentQuiz === 'function') {
+        // displayCurrentQuiz handles empty state check
+        displayCurrentQuiz();
+    }
+};
+
+function showQuizCompletion() {
+    document.getElementById('quiz-display').classList.add('d-none');
+    const completionView = document.getElementById('quiz-completion-view');
+    completionView.classList.remove('d-none');
+
+    // Calculate score percentage
+    const total = quizzesData.length;
+    const percent = Math.round((quizScore / total) * 100);
+    document.getElementById('quiz-final-score').textContent = percent;
+
+    // Confetti effect could be triggered here if we had a library
+}
 
 function showQuizResult(isCorrect, correctAnswer) {
     const resultDiv = document.getElementById('quiz-result');
@@ -592,7 +700,13 @@ window.previousQuiz = function () {
 
 window.nextQuiz = function () {
     if (quizzesData.length === 0) return;
-    currentQuizIndex = (currentQuizIndex + 1) % quizzesData.length;
+
+    if (currentQuizIndex >= quizzesData.length - 1) {
+        showQuizCompletion();
+        return;
+    }
+
+    currentQuizIndex++;
     displayCurrentQuiz();
 };
 
@@ -1115,11 +1229,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Helper to check if file is open
+    const isFileOpen = () => {
+        const content = document.getElementById('content-display')?.innerText?.trim();
+        if (!content || content.length === 0) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Open a File First',
+                text: 'Please open a document to use this study tool.',
+                confirmButtonColor: '#0d6efd'
+            });
+            return false;
+        }
+        return true;
+    };
+
     const summaryCard = document.getElementById('gen-opt-summary');
     if (summaryCard) {
         summaryCard.addEventListener('click', (e) => {
             e.preventDefault();
-            if (window.openSummaryRight) window.openSummaryRight();
+            if (isFileOpen()) {
+                if (window.summarizeLeftToRight) window.summarizeLeftToRight();
+            }
         });
     }
 
@@ -1127,7 +1258,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (workbookCard) {
         workbookCard.addEventListener('click', (e) => {
             e.preventDefault();
-            if (window.openFlashcardsRight) window.openFlashcardsRight();
+            if (isFileOpen()) {
+                if (window.openFlashcardsRight) window.openFlashcardsRight();
+            }
         });
     }
 
@@ -1151,7 +1284,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (quizzesCard) {
         quizzesCard.addEventListener('click', (e) => {
             e.preventDefault();
-            if (window.openQuizzesRight) window.openQuizzesRight();
+            if (isFileOpen()) {
+                if (window.openQuizzesRight) window.openQuizzesRight();
+            }
         });
     }
 });

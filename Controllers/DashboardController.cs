@@ -73,6 +73,93 @@ namespace ADHDWebApp.Controllers
         }
 
         [HttpPost]
+        [Route("Dashboard/GenerateQuiz")]
+        public async Task<IActionResult> GenerateQuiz([FromBody] SummarizeRequest req)
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail)) return Json(new { success = false, error = "Not logged in" });
+
+                if (req == null || string.IsNullOrWhiteSpace(req.Text))
+                    return Json(new { success = false, error = "No text provided" });
+
+                // Reuse logic for throttling or keep it separate? Let's implement basic throttling.
+                var now = DateTime.UtcNow;
+                var lastStr = HttpContext.Session.GetString("QuizLastAt");
+                if (DateTime.TryParse(lastStr, out var lastAt))
+                {
+                    if (lastAt.Kind == DateTimeKind.Local) lastAt = lastAt.ToUniversalTime();
+                    var diff = now - lastAt;
+                    if (diff.TotalSeconds >= 0 && diff.TotalSeconds < 5)
+                    {
+                         var remaining = Math.Ceiling(5 - diff.TotalSeconds);
+                         return Json(new { success = false, error = $"Please wait {remaining} seconds." });
+                    }
+                }
+                HttpContext.Session.SetString("QuizLastAt", now.ToString("o"));
+
+                var apiKey = _config["Groq:ApiKey"] ?? Environment.GetEnvironmentVariable("GROQ_API_KEY");
+                var model = _config["Groq:Model"];
+                var baseUrl = _config["Groq:BaseUrl"];
+
+                var result = await _dashboardService.GenerateQuizAsync(req.Text, apiKey, model, baseUrl);
+                
+                if (result.Success)
+                     return Json(new { success = true, quizJson = result.QuizJson });
+                
+                return Json(new { success = false, error = result.Error });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [Route("Dashboard/GenerateFlashcards")]
+        public async Task<IActionResult> GenerateFlashcards([FromBody] SummarizeRequest req)
+        {
+            try
+            {
+                var userEmail = HttpContext.Session.GetString("UserEmail");
+                if (string.IsNullOrEmpty(userEmail)) return Json(new { success = false, error = "Not logged in" });
+
+                if (req == null || string.IsNullOrWhiteSpace(req.Text))
+                    return Json(new { success = false, error = "No text provided" });
+
+                var now = DateTime.UtcNow;
+                var lastStr = HttpContext.Session.GetString("FlashcardsLastAt");
+                if (DateTime.TryParse(lastStr, out var lastAt))
+                {
+                     if (lastAt.Kind == DateTimeKind.Local) lastAt = lastAt.ToUniversalTime();
+                     var diff = now - lastAt;
+                     if (diff.TotalSeconds >= 0 && diff.TotalSeconds < 5)
+                     {
+                         var remaining = Math.Ceiling(5 - diff.TotalSeconds);
+                         return Json(new { success = false, error = $"Please wait {remaining} seconds." });
+                     }
+                }
+                HttpContext.Session.SetString("FlashcardsLastAt", now.ToString("o"));
+
+                var apiKey = _config["Groq:ApiKey"] ?? Environment.GetEnvironmentVariable("GROQ_API_KEY");
+                var model = _config["Groq:Model"];
+                var baseUrl = _config["Groq:BaseUrl"];
+
+                var result = await _dashboardService.GenerateFlashcardsAsync(req.Text, apiKey, model, baseUrl);
+                
+                if (result.Success)
+                     return Json(new { success = true, flashcardsJson = result.FlashcardsJson });
+                
+                return Json(new { success = false, error = result.Error });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> UploadAvatar(IFormFile avatar)
         {
             var sessionUserId = HttpContext.Session.GetInt32("UserId");
@@ -514,6 +601,7 @@ namespace ADHDWebApp.Controllers
 
         [HttpGet]
         [Route("Dashboard/GetGroups")]
+        [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
         public async Task<IActionResult> GetGroups()
         {
             var sessionUserId = HttpContext.Session.GetInt32("UserId");

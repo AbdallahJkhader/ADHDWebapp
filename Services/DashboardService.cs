@@ -265,6 +265,120 @@ namespace ADHDWebApp.Services
             }
         }
 
+        public async Task<(bool Success, string Error, string? QuizJson)> GenerateQuizAsync(string text, string apiKey, string? model = null, string? baseUrl = null)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(apiKey)) return (false, "API Key missing", null);
+
+                var http = new HttpClient();
+                http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+                const int MAX_CHARS = 12000;
+                if (text.Length > MAX_CHARS) text = text.Substring(0, MAX_CHARS);
+
+                var payload = new
+                {
+                    model = model ?? "llama-3.3-70b-versatile",
+                    temperature = 0.5,
+                    messages = new object[]
+                    {
+                        new { role = "system", content = "You are a helpful assistant that generates quizzes in JSON format." },
+                        new { role = "user", content = "Generate a quiz with 5 multiple-choice questions based on the following text. The output MUST be a valid JSON array of objects. Each object should have:\n- \"question\": string\n- \"options\": object with keys \"A\", \"B\", \"C\", \"D\" and string values\n- \"correctAnswer\": string (one of \"A\", \"B\", \"C\", or \"D\")\n\nDo NOT include any markdown formatting or explanation, just the raw JSON array.\n\nText:\n" + text }
+                    }
+                };
+
+                var json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var endpoint = baseUrl ?? "https://api.groq.com/openai/v1/chat/completions";
+
+                var resp = await http.PostAsync(endpoint, content);
+                var respBody = await resp.Content.ReadAsStringAsync();
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                     return (false, $"Groq error: {resp.StatusCode}", null);
+                }
+
+                using var doc = JsonDocument.Parse(respBody);
+                var result = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+
+                // Robust cleanup: find the first '[' and last ']'
+                if (!string.IsNullOrWhiteSpace(result))
+                {
+                    int start = result.IndexOf('[');
+                    int end = result.LastIndexOf(']');
+                    if (start >= 0 && end > start)
+                    {
+                        result = result.Substring(start, end - start + 1);
+                    }
+                }
+
+                return (true, string.Empty, result);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message, null);
+            }
+        }
+
+        public async Task<(bool Success, string Error, string? FlashcardsJson)> GenerateFlashcardsAsync(string text, string apiKey, string? model = null, string? baseUrl = null)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(apiKey)) return (false, "API Key missing", null);
+
+                var http = new HttpClient();
+                http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+                const int MAX_CHARS = 12000;
+                if (text.Length > MAX_CHARS) text = text.Substring(0, MAX_CHARS);
+
+                var payload = new
+                {
+                    model = model ?? "llama-3.3-70b-versatile",
+                    temperature = 0.5,
+                    messages = new object[]
+                    {
+                        new { role = "system", content = "You are a helpful assistant that generates flashcards in JSON format." },
+                        new { role = "user", content = "Generate 5 flashcards based on the following text. The output MUST be a valid JSON array of objects. Each object should have:\n- \"question\": string (front of card)\n- \"answer\": string (back of card)\n\nDo NOT include any markdown formatting or explanation, just the raw JSON array.\n\nText:\n" + text }
+                    }
+                };
+
+                var json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var endpoint = baseUrl ?? "https://api.groq.com/openai/v1/chat/completions";
+
+                var resp = await http.PostAsync(endpoint, content);
+                var respBody = await resp.Content.ReadAsStringAsync();
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                     return (false, $"Groq error: {resp.StatusCode}", null);
+                }
+
+                using var doc = JsonDocument.Parse(respBody);
+                var result = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+
+                // Robust cleanup: find the first '[' and last ']'
+                if (!string.IsNullOrWhiteSpace(result))
+                {
+                    int start = result.IndexOf('[');
+                    int end = result.LastIndexOf(']');
+                    if (start >= 0 && end > start)
+                    {
+                        result = result.Substring(start, end - start + 1);
+                    }
+                }
+
+                return (true, string.Empty, result);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message, null);
+            }
+        }
+
         public async Task<(bool Success, string Error)> UpdateAvatarAsync(int userId, string extension, Stream fileStream, string webRootPath)
         {
             try

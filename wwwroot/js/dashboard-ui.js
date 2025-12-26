@@ -270,6 +270,15 @@ window.hideAllRightContainers = function () {
     if (genOptions) genOptions.style.display = '';
 };
 
+window.closeFloatingPanels = function () {
+    // Close all floating panels except class details (where chat resides)
+    document.querySelectorAll('.dropdown-menu.show').forEach(p => {
+        if (p.id !== 'class-details-panel') {
+            p.classList.remove('show');
+        }
+    });
+};
+
 
 // ==========================================
 // CENTRAL LEFT VIEW MANAGER (Files)
@@ -294,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.fetchGroupsFromServer = async function () {
     try {
-        const res = await fetch('/Dashboard/GetGroups', { credentials: 'same-origin' });
+        const res = await fetch('/Dashboard/GetGroups?t=' + new Date().getTime(), { credentials: 'same-origin' });
         const data = await res.json();
         if (data.success) {
             window.FILE_GROUPS = data.groups || {};
@@ -398,6 +407,7 @@ window.resetUpload = function () {
     // Clear content first
     const contentDisplay = document.getElementById('content-display');
     if (contentDisplay) {
+        if (window.clearAIContent) window.clearAIContent();
         contentDisplay.innerHTML = '';
         contentDisplay.contentEditable = "false";
     }
@@ -851,6 +861,9 @@ window.startEmptyDocument = function () {
     console.log('startEmptyDocument called');
     window.__viewerSource = 'main'; // Track source
 
+    // Clear AI context
+    if (window.clearAIContent) window.clearAIContent();
+
     // Switch to viewer mode but prepare for editing
     window.setLeftView('write');
 
@@ -957,6 +970,17 @@ function getRemainingTimeEl() {
 window.updateTimerDisplay = function () {
     const el = getRemainingTimeEl();
     if (el) el.textContent = formatMMSS(TIMER.remainingMs);
+
+    // Live update of Focus Mins
+    if (TIMER.running) {
+        const focusEl = document.getElementById('progress-focus');
+        if (focusEl) {
+            const elapsedMs = TIMER.durationMs - TIMER.remainingMs;
+            const elapsedMins = Math.floor(elapsedMs / 60000);
+            const totalDisplay = (TIMER.baseFocusMinutes || 0) + elapsedMins;
+            focusEl.textContent = `${totalDisplay}m`;
+        }
+    }
 };
 
 window.stopTimerInterval = function () {
@@ -993,6 +1017,18 @@ window.startTimer = function () {
     if (TIMER.running) return;
     if (TIMER.remainingMs <= 0) TIMER.remainingMs = TIMER.durationMs;
     TIMER.running = true;
+
+    // Capture baseline focus minutes from UI
+    try {
+        const focusEl = document.getElementById('progress-focus');
+        if (focusEl) {
+            const currentText = focusEl.textContent || '0';
+            TIMER.baseFocusMinutes = parseInt(currentText.replace(/[^0-9]/g, '')) || 0;
+        } else {
+            TIMER.baseFocusMinutes = 0;
+        }
+    } catch { TIMER.baseFocusMinutes = 0; }
+
     TIMER.endTs = Date.now() + TIMER.remainingMs;
     stopTimerInterval();
     updateTimerButton('running'); // Update button
@@ -1370,7 +1406,10 @@ window.openFile = async function (fileId, fileNameOpt, fileUrlOpt) {
                 if (type === 'image') {
                     contentDisplay.innerHTML = `<div class="text-center h-100 d-flex align-items-center justify-content-center" style="background:#f8f9fa;"><img src="${fileUrlOpt}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /></div>`;
                 } else if (type === 'pdf') {
-                    contentDisplay.innerHTML = `<iframe src="${fileUrlOpt}" style="width:100%; height:100%; border:none;" title="PDF Viewer"></iframe>`;
+                    // Use object with iframe fallback for better PDF display
+                    contentDisplay.innerHTML = `<object data="${fileUrlOpt}" type="application/pdf" style="width:100%; height:100%; min-height:600px;"><iframe src="${fileUrlOpt}" style="width:100%; height:100%; min-height:600px; border:none;"></iframe></object>`;
+                    contentDisplay.style.height = '100%';
+                    contentDisplay.style.minHeight = '600px';
                 } else {
                     // Default to iframe for others
                     contentDisplay.innerHTML = `<iframe src="${fileUrlOpt}" style="width:100%; height:100%; border:none;"></iframe>`;
@@ -1396,8 +1435,11 @@ window.openFile = async function (fileId, fileNameOpt, fileUrlOpt) {
                 contentDisplay.innerHTML = `<div class="text-center h-100 d-flex align-items-center justify-content-center" style="background:#f8f9fa;"><img src="${data.content}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /></div>`;
                 contentDisplay.contentEditable = "false";
             } else if (data.displayType === 'pdf') {
-                contentDisplay.innerHTML = `<iframe src="${data.content}" style="width:100%; height:100%; border:none;" title="PDF Viewer"></iframe>`;
+                // Use object with iframe fallback for better PDF display
+                contentDisplay.innerHTML = `<object data="${data.content}" type="application/pdf" style="width:100%; height:100%; min-height:600px;"><iframe src="${data.content}" style="width:100%; height:100%; min-height:600px; border:none;"></iframe></object>`;
                 contentDisplay.contentEditable = "false";
+                contentDisplay.style.height = '100%';
+                contentDisplay.style.minHeight = '600px';
             } else {
                 const safeText = window.escapeHtml(data.content || '').replace(/\n/g, '<br>');
                 contentDisplay.innerHTML = safeText || '<div class="text-center text-muted py-5"><i>No content to display</i></div>';
@@ -1455,16 +1497,16 @@ window.renderMyFilesPanel = function (folderName) {
         const backDiv = document.createElement('div');
         backDiv.className = 'p-2 pb-3 border-bottom';
         backDiv.innerHTML = `
-            < button class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2" onclick = "event.stopPropagation(); renderMyFilesPanel(null)" >
+            <button class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center justify-content-center gap-2" onclick="event.stopPropagation(); renderMyFilesPanel(null)">
                 <i class="bi bi-arrow-left"></i> Back to My Files
-            </button >
-            `;
+            </button>
+        `;
         list.appendChild(backDiv);
 
         // Show folder name header
         const headerDiv = document.createElement('div');
         headerDiv.className = 'px-3 py-2 bg-light border-bottom';
-        headerDiv.innerHTML = `< small class="fw-bold text-muted" > <i class="bi bi-folder-fill me-1"></i> ${window.escapeHtml(window.__inlineFolderView)}</small > `;
+        headerDiv.innerHTML = `<small class="fw-bold text-muted"><i class="bi bi-folder-fill me-1"></i>${window.escapeHtml(window.__inlineFolderView)}</small>`;
         list.appendChild(headerDiv);
 
         // Get files in this folder
@@ -1491,9 +1533,9 @@ window.renderMyFilesPanel = function (folderName) {
             };
 
             div.innerHTML = `
-            < div class="me-3" style = "width:32px; text-align:center;" >
+            <div class="me-3" style="width:32px; text-align:center;">
                 ${iconHtml.replace('width: 36px', 'width: 24px').replace('height: 36px', 'height: 24px').replace('fs-1', 'fs-5')}
-                </div >
+            </div>
                 <div class="flex-grow-1 overflow-hidden">
                     <div class="fw-medium text-truncate" title="${fname}">${window.escapeHtml(fname)}</div>
                     <div class="small text-muted">File</div>

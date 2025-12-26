@@ -29,23 +29,29 @@ async function loadProgressPopup(userId, studentName) {
 
         // Create HTML Content
         const htmlContent = `
-            <div class="row g-3 text-center mb-3">
-                <div class="col-4">
-                    <div class="p-3 bg-light rounded-3">
-                        <div class="h4 text-primary mb-1">${streak}</div>
-                        <div class="small text-muted">Day Streak</div>
+            <div class="row g-2 text-center mb-3">
+                <div class="col-3">
+                    <div class="p-2 bg-light rounded-3">
+                        <div class="h5 text-primary mb-1">${streak}</div>
+                        <div class="small text-muted" style="font-size:0.75rem">Streak</div>
                     </div>
                 </div>
-                <div class="col-4">
-                    <div class="p-3 bg-light rounded-3">
-                        <div class="h4 text-primary mb-1">${focusText}</div>
-                        <div class="small text-muted">Focus Time</div>
+                <div class="col-3">
+                    <div class="p-2 bg-light rounded-3">
+                        <div class="h5 text-primary mb-1">${focusText}</div>
+                        <div class="small text-muted" style="font-size:0.75rem">Focus</div>
                     </div>
                 </div>
-                <div class="col-4">
-                    <div class="p-3 bg-light rounded-3">
-                        <div class="h4 text-primary mb-1">${subjects}</div>
-                        <div class="small text-muted">Subjects</div>
+                <div class="col-3">
+                    <div class="p-2 bg-light rounded-3">
+                        <div class="h5 text-primary mb-1">${subjects}</div>
+                        <div class="small text-muted" style="font-size:0.75rem">Subjects</div>
+                    </div>
+                </div>
+                 <div class="col-3">
+                    <div class="p-2 bg-light rounded-3">
+                        <div class="h5 text-primary mb-1">${data.browsingTime || '0m'}</div>
+                        <div class="small text-muted" style="font-size:0.75rem">Browsing</div>
                     </div>
                 </div>
             </div>

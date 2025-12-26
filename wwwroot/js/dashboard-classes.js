@@ -338,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (classSelect) {
         classSelect.addEventListener('change', async () => {
+            if (window.closeFloatingPanels) window.closeFloatingPanels();
             currentClassId = parseInt(classSelect.value || '0', 10) || 0;
             if (chatList) chatList.innerHTML = '';
             lastMsgId = 0;

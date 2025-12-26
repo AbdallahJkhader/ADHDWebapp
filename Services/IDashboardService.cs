@@ -17,6 +17,8 @@ namespace ADHDWebApp.Services
         
         // AI & Tools
         Task<(bool Success, string Error, string? Summary)> SummarizeTextAsync(string text, string apiKey, string? model = null, string? baseUrl = null);
+        Task<(bool Success, string Error, string? QuizJson)> GenerateQuizAsync(string text, string apiKey, string? model = null, string? baseUrl = null);
+        Task<(bool Success, string Error, string? FlashcardsJson)> GenerateFlashcardsAsync(string text, string apiKey, string? model = null, string? baseUrl = null);
         
         // Profile
         Task<(bool Success, string Error)> UpdateAvatarAsync(int userId, string extension, Stream fileStream, string webRootPath);

@@ -128,15 +128,13 @@ window.showOverallAnalytics = async function (classId) {
         if (!data.success) throw new Error(data.error || 'Failed to load analytics');
 
         // Update stats cards
-        // document.getElementById('analytics-total-students').textContent = data.totalStudents || 0;
         document.getElementById('analytics-total-minutes').textContent = data.totalFocusMinutes || 0;
-        // document.getElementById('analytics-total-sessions').textContent = data.totalSessions || 0;
 
-        // Populate Weekly Browsing Time (using totalFocusMinutes as proxy for now, or if we had a separate metric)
-        // Since we are replacing Sessions with Weekly Browsing Time, let's display focus minutes formatted
-        document.getElementById('analytics-weekly-browsing').textContent = (data.totalFocusMinutes || 0) + ' min';
+        // Populate Weekly Browsing Time
+        document.getElementById('analytics-weekly-browsing').textContent = (data.totalBrowsingMinutes || 0) + ' min';
 
         document.getElementById('analytics-avg-streak').textContent = data.avgStreak || 0;
+        document.getElementById('analytics-avg-subjects').textContent = data.avgSubjects || 0;
 
         // Render student list
         const studentsList = document.getElementById('analytics-students-list');
@@ -152,8 +150,9 @@ window.showOverallAnalytics = async function (classId) {
                         <small class="text-muted">${student.email}</small>
                     </div>
                     <div class="text-end">
-                        <div class="badge bg-success">${student.focusMinutes} mins</div>
-                        <div class="badge bg-warning mt-1">${student.streak} 🔥</div>
+                        <div class="badge bg-success" title="Focus Time">${student.focusMinutes}m</div>
+                        <div class="badge bg-info" title="Browsing Time">${student.browsingMinutes}m 🌐</div>
+                        <div class="badge bg-warning mt-1" title="Streak">${student.streak} 🔥</div>
                     </div>
                 `;
                 studentsList.appendChild(li);
