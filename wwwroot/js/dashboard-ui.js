@@ -1063,10 +1063,46 @@ window.startTimer = function () {
                 const audio = new Audio('/sounds/alarm.mp3');
                 audio.play().catch(() => { });
             } catch { }
-            alert("Time's up! Great focus session.");
+
+            // Show SweetAlert instead of browser alert
+            Swal.fire({
+                icon: 'success',
+                title: 'Time\'s Up!',
+                text: 'Great focus session! You did amazing.',
+                confirmButtonColor: '#0d6efd',
+                confirmButtonText: 'Done'
+            });
         }
     }, 250);
 };
+
+// Helper function to record partial focus sessions
+function recordPartialFocusSession() {
+    // Calculate elapsed time
+    const elapsedMs = TIMER.durationMs - TIMER.remainingMs;
+    const elapsedMinutes = Math.floor(elapsedMs / 60000);
+
+    // Only record if at least 1 minute elapsed
+    if (elapsedMinutes >= 1) {
+        fetch('/Dashboard/RecordFocusSession', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                duration: elapsedMinutes,
+                subjectName: 'Focus Session',
+                activityType: 'focus_session'
+            })
+        }).then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof loadProgressData === 'function') {
+                        loadProgressData();
+                    }
+                }
+            })
+            .catch(e => console.error('Failed to record focus session:', e));
+    }
+}
 
 window.pauseTimer = function () {
     if (!TIMER.running) return;
@@ -1074,10 +1110,18 @@ window.pauseTimer = function () {
     TIMER.running = false;
     TIMER.remainingMs = Math.max(0, TIMER.endTs - Date.now());
     updateTimerDisplay();
-    updateTimerButton('paused'); // Update button
+    updateTimerButton('paused');
+
+    // Record partial session on pause
+    recordPartialFocusSession(); // Update button
 };
 
 window.resetTimer = function () {
+    // Record partial session before reset (only if timer was used)
+    if (TIMER.durationMs !== TIMER.remainingMs) {
+        recordPartialFocusSession();
+    }
+
     stopTimerInterval();
     TIMER.running = false;
     TIMER.remainingMs = TIMER.durationMs;
@@ -1979,9 +2023,9 @@ window.renderRecentFilesPanel = function () {
         };
 
         div.innerHTML = `
-            < div class="me-3" style = "width:32px; text-align:center;" >
+            <div class="me-3" style="width:32px; text-align:center;">
                 ${iconHtml.replace('width: 36px', 'width: 24px').replace('height: 36px', 'height: 24px').replace('fs-1', 'fs-5')}
-            </div >
+            </div>
             <div class="flex-grow-1 overflow-hidden">
                 <div class="fw-medium text-truncate" title="${fname}">${window.escapeHtml(fname)}</div>
                 <div class="small text-muted">Recent</div>

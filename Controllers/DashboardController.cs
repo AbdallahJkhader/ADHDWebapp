@@ -716,5 +716,40 @@ namespace ADHDWebApp.Controllers
         }
 
         public class MarkNotificationDto { public int NotificationId { get; set; } }
+
+        [HttpPost]
+        [Route("Dashboard/BroadcastNotification")]
+        public async Task<IActionResult> BroadcastNotification([FromBody] BroadcastNotificationRequest req)
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (userId == null) return Json(new { success = false, error = "Not authenticated" });
+
+            // Only allow admin or specific role to broadcast (optional security check)
+            // var userRole = HttpContext.Session.GetString("Role");
+            // if (userRole != "Teacher") return Json(new { success = false, error = "Not authorized" });
+
+            if (req == null || string.IsNullOrWhiteSpace(req.Title) || string.IsNullOrWhiteSpace(req.Message))
+                return Json(new { success = false, error = "Title and message are required" });
+
+            var result = await _notificationService.CreateNotificationForAllUsersAsync(
+                req.Type ?? "announcement",
+                req.Title,
+                req.Message,
+                req.RelatedId
+            );
+
+            if (!result.Success)
+                return Json(new { success = false, error = result.Error });
+
+            return Json(new { success = true, count = result.NotificationCount, message = $"Notification sent to {result.NotificationCount} users" });
+        }
+
+        public class BroadcastNotificationRequest
+        {
+            public string? Type { get; set; }
+            public string? Title { get; set; }
+            public string? Message { get; set; }
+            public int? RelatedId { get; set; }
+        }
     }
 }

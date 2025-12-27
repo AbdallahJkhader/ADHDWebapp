@@ -343,16 +343,29 @@ window.generateFlashcardsRight = async function () {
             } catch (e) { console.error('JSON parse error', e); }
 
             if (Array.isArray(cards) && cards.length > 0) {
-                if (!flashcardsData) flashcardsData = [];
-                flashcardsData = flashcardsData.concat(cards);
+                // Validate each flashcard has required properties
+                const validCards = cards.filter(c =>
+                    c.question &&
+                    c.answer
+                );
 
-                currentFlashcardIndex = flashcardsData.length - cards.length;
-                if (currentFlashcardIndex < 0) currentFlashcardIndex = 0;
+                if (validCards.length > 0) {
+                    if (!flashcardsData) flashcardsData = [];
+                    flashcardsData = flashcardsData.concat(validCards);
 
-                initFlashcardsUI();
-                updateFlashcardsCount();
+                    currentFlashcardIndex = flashcardsData.length - validCards.length;
+                    if (currentFlashcardIndex < 0) currentFlashcardIndex = 0;
+
+                    initFlashcardsUI();
+                    updateFlashcardsCount();
+                } else {
+                    console.error('No valid flashcards in response:', cards);
+                    alert('Sorry, the AI response format was invalid. Please try again.');
+                    initFlashcardsUI();
+                }
             } else {
-                alert('AI generated invalid format.');
+                console.error('Invalid flashcards format received:', cards);
+                alert('Sorry, the AI response format was invalid. Please try again.');
                 initFlashcardsUI();
             }
         } else {
@@ -476,23 +489,45 @@ window.generateQuizzesRight = async function () {
             } catch (e) { console.error(e); }
 
             if (Array.isArray(newQuizzes) && newQuizzes.length > 0) {
-                newQuizzes = newQuizzes.map(q => ({ ...q, id: Date.now() + Math.random() }));
+                // Validate each quiz has required properties
+                const validQuizzes = newQuizzes.filter(q =>
+                    q.question &&
+                    q.options &&
+                    q.correctAnswer &&
+                    q.options.A &&
+                    q.options.B &&
+                    q.options.C &&
+                    q.options.D
+                );
 
-                quizzesData = quizzesData.concat(newQuizzes);
-                localStorage.setItem('quizzesData', JSON.stringify(quizzesData));
+                if (validQuizzes.length > 0) {
+                    validQuizzes.forEach(q => q.id = Date.now() + Math.random());
 
-                currentQuizIndex = quizzesData.length - newQuizzes.length;
-                quizScore = 0; // Reset score for new batch if needed, or keep cumulative? Usually reset for new session.
-                // But if adding to existing, maybe we just set index. 
-                // Let's reset score for the "session" implies we might want a "start quiz" flow, but for now, 
-                // let's just ensure we track correct answers from this point.
+                    quizzesData = quizzesData.concat(validQuizzes);
 
-                if (currentQuizIndex < 0) currentQuizIndex = 0;
+                    // Save to localStorage with error handling
+                    try {
+                        localStorage.setItem('quizzesData', JSON.stringify(quizzesData));
+                    } catch (e) {
+                        console.error('Failed to save quizzes to localStorage:', e);
+                    }
 
-                if (optionsEl) optionsEl.classList.remove('d-none');
-                displayCurrentQuiz();
+                    currentQuizIndex = quizzesData.length - validQuizzes.length;
+                    quizScore = 0;
+
+                    if (currentQuizIndex < 0) currentQuizIndex = 0;
+
+                    if (optionsEl) optionsEl.classList.remove('d-none');
+                    displayCurrentQuiz();
+                } else {
+                    console.error('No valid quizzes in response:', newQuizzes);
+                    alert('Sorry, the AI response format was invalid. Please try again.');
+                    if (optionsEl) optionsEl.classList.remove('d-none');
+                    displayCurrentQuiz();
+                }
             } else {
-                alert('AI generated invalid format.');
+                console.error('Invalid quiz format received:', newQuizzes);
+                alert('Sorry, the AI response format was invalid. Please try again.');
                 if (optionsEl) optionsEl.classList.remove('d-none');
                 displayCurrentQuiz();
             }
@@ -516,10 +551,47 @@ window.generateQuizzesRight = async function () {
 function initQuizzesUI() {
     const savedQuizzes = localStorage.getItem('quizzesData');
     if (savedQuizzes) {
-        quizzesData = JSON.parse(savedQuizzes);
+        try {
+            quizzesData = JSON.parse(savedQuizzes);
+
+            // Validate the parsed data
+            if (!Array.isArray(quizzesData)) {
+                console.warn('Invalid quizzes data format, resetting');
+                quizzesData = [];
+                localStorage.removeItem('quizzesData');
+            } else {
+                // Validate each quiz has required properties
+                const validQuizzes = quizzesData.filter(q =>
+                    q.question &&
+                    q.options &&
+                    q.correctAnswer &&
+                    q.options.A &&
+                    q.options.B &&
+                    q.options.C &&
+                    q.options.D
+                );
+
+                if (validQuizzes.length !== quizzesData.length) {
+                    console.warn(`Removed ${quizzesData.length - validQuizzes.length} invalid quizzes`);
+                    quizzesData = validQuizzes;
+
+                    if (quizzesData.length === 0) {
+                        localStorage.removeItem('quizzesData');
+                    } else {
+                        try {
+                            localStorage.setItem('quizzesData', JSON.stringify(quizzesData));
+                        } catch (e) {
+                            console.error('Failed to update quizzes in localStorage:', e);
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to parse saved quizzes:', e);
+            quizzesData = [];
+            localStorage.removeItem('quizzesData');
+        }
     }
-
-
 
     if (quizzesData.length === 0) {
         showQuizzesEmptyState();

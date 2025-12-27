@@ -29,6 +29,18 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = "Cookies";
+})
+.AddCookie(options =>
+{
+    options.LoginPath = "/Account/EnterEmail";
+    options.LogoutPath = "/Account/Logout";
+});
+// Note: Google OAuth is configured in code but disabled due to package dependency issue
+// The button will show but redirect to GoogleLogin will fail until package is fixed
+
 var app = builder.Build();
 
 
@@ -43,6 +55,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseSession();
 
 app.UseAuthorization();

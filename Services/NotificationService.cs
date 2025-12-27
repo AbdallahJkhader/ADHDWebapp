@@ -143,5 +143,38 @@ namespace ADHDWebApp.Services
                 return (false, ex.Message);
             }
         }
+
+        public async Task<(bool Success, string Error, int NotificationCount)> CreateNotificationForAllUsersAsync(
+            string type, string title, string message, int? relatedId = null)
+        {
+            try
+            {
+                var users = await _context.Users.ToListAsync();
+                var notifications = new List<Notification>();
+
+                foreach (var user in users)
+                {
+                    notifications.Add(new Notification
+                    {
+                        UserId = user.Id,
+                        Type = type,
+                        Title = title,
+                        Message = message,
+                        RelatedId = relatedId,
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+
+                _context.Notifications.AddRange(notifications);
+                await _context.SaveChangesAsync();
+
+                return (true, string.Empty, notifications.Count);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message, 0);
+            }
+        }
     }
 }
