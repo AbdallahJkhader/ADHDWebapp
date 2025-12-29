@@ -774,7 +774,19 @@ window.onFileCheckboxChange = function (cb) {
 
 window.deleteFile = async function (fileId, event) {
     if (event) event.stopPropagation();
-    if (!confirm("Are you sure you want to delete this file?")) return;
+
+    const result = await Swal.fire({
+        title: 'Delete File?',
+        text: 'Are you sure you want to delete this file? This action cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, delete it',
+        cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
         const res = await fetch('/Dashboard/DeleteFiles', {
@@ -785,6 +797,15 @@ window.deleteFile = async function (fileId, event) {
         });
         const data = await res.json();
         if (data.success) {
+            // Show success message
+            Swal.fire({
+                title: 'Deleted!',
+                text: 'Your file has been deleted successfully.',
+                icon: 'success',
+                confirmButtonColor: '#3085d6',
+                timer: 2000
+            });
+
             // Remove from UI
             const card = document.querySelector(`.file-card[data-file-id="${fileId}"]`);
             if (card) {
@@ -795,23 +816,28 @@ window.deleteFile = async function (fileId, event) {
             const grid = document.querySelector('#uploaded-files-section .files-grid');
             if (grid) {
                 const visibleFiles = Array.from(grid.children).filter(c => c.style.display !== 'none' && !c.classList.contains('folder-card'));
-                // Also check if there are any files at all (excluding folders if we want strictly empty state)
-                // or if we just removed the last one.
                 if (grid.children.length === 0) {
-                    // Reload to show empty state or manually adding empty state HTML
-                    // Simpler to just reload or re-render if we had a render function for this state
-                    // For now, let's just leave it empty or reload the page if it's the last one
                     location.reload();
                 }
             } else {
                 location.reload();
             }
         } else {
-            alert('Failed to delete file: ' + (data.error || 'Unknown error'));
+            Swal.fire({
+                title: 'Error!',
+                text: 'Failed to delete file: ' + (data.error || 'Unknown error'),
+                icon: 'error',
+                confirmButtonColor: '#d33'
+            });
         }
     } catch (e) {
         console.error('Delete error:', e);
-        alert('An error occurred while deleting the file.');
+        Swal.fire({
+            title: 'Error!',
+            text: 'An error occurred while deleting the file.',
+            icon: 'error',
+            confirmButtonColor: '#d33'
+        });
     }
 };
 
@@ -1444,8 +1470,22 @@ window.openFile = async function (fileId, fileNameOpt, fileUrlOpt) {
                 const ext = fname.split('.').pop().toLowerCase();
                 let type = 'unknown';
                 if (/^(png|jpg|jpeg|gif|webp)$/.test(ext)) type = 'image';
+                else if (/^(mp4|webm|ogg|mov|avi|mkv)$/.test(ext)) type = 'video';
                 else if (ext === 'pdf') type = 'pdf';
                 else if (/^(txt|md|js|css|html|xml|json|cs)$/.test(ext)) type = 'text';
+
+                if (type === 'video') {
+                    if (window.openVideoRight && window.playVideo) {
+                        window.openVideoRight();
+                        // Use 'saved' type to treat as direct source URL
+                        window.playVideo('saved', fileUrlOpt, fname);
+                    } else {
+                        alert("Video player not available.");
+                    }
+                    // Clear loading spinner in left pane logic if needed, or just leave it since we switched view
+                    if (contentDisplay) contentDisplay.innerHTML = '';
+                    return;
+                }
 
                 if (type === 'image') {
                     contentDisplay.innerHTML = `<div class="text-center h-100 d-flex align-items-center justify-content-center" style="background:#f8f9fa;"><img src="${fileUrlOpt}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /></div>`;
@@ -1473,6 +1513,18 @@ window.openFile = async function (fileId, fileNameOpt, fileUrlOpt) {
         }
 
         filenameDisplay.forEach(el => el.textContent = data.fileName);
+
+        // CHECK FOR VIDEO TO REDIRECT
+        const ext = data.fileName.split('.').pop().toLowerCase();
+        if (/^(mp4|webm|ogg|mov|avi|mkv)$/.test(ext)) {
+            if (window.openVideoRight && window.playVideo) {
+                window.openVideoRight();
+                // Backend now returns URL in data.content for video type
+                window.playVideo('saved', data.content, data.fileName);
+                if (contentDisplay) contentDisplay.innerHTML = '';
+                return;
+            }
+        }
 
         if (contentDisplay) {
             if (data.displayType === 'image') {

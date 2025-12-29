@@ -114,7 +114,18 @@ function renderSessionAudios() {
 
 window.deleteAudio = async function (type, id, element) {
     console.log('🗑️ DELETE AUDIO CALLED:', { type, id });
-    if (!confirm('Are you sure you want to delete this audio?')) return;
+
+    const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (!result.isConfirmed) return;
 
     if (type === 'saved') {
         try {
@@ -131,6 +142,12 @@ window.deleteAudio = async function (type, id, element) {
                 console.log('✅ Delete successful, removing element');
                 element.remove();
 
+                Swal.fire(
+                    'Deleted!',
+                    'Your audio has been deleted.',
+                    'success'
+                );
+
                 // Update empty state if needed
                 const container = document.getElementById('audio-list-container');
                 if (container && container.children.length === 0) {
@@ -142,11 +159,11 @@ window.deleteAudio = async function (type, id, element) {
                 }
             } else {
                 console.error('❌ Delete failed:', data.error);
-                alert('Failed to delete: ' + (data.error || 'Unknown error'));
+                Swal.fire('Error', 'Failed to delete: ' + (data.error || 'Unknown error'), 'error');
             }
         } catch (err) {
             console.error('💥 Exception during delete:', err);
-            alert('Error deleting file');
+            Swal.fire('Error', 'Error deleting file', 'error');
         }
     } else {
         // Session recording
@@ -154,6 +171,11 @@ window.deleteAudio = async function (type, id, element) {
         if (index > -1) {
             audioRecordings.splice(index, 1);
             element.remove();
+            Swal.fire(
+                'Deleted!',
+                'Recording deleted.',
+                'success'
+            );
             // Update empty state if needed
             const container = document.getElementById('audio-list-container');
             if (container && container.children.length === 0) {

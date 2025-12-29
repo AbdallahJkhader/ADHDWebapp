@@ -27,8 +27,22 @@ window.openClassFile = async function (fileId, fileName, openInViewer = false) {
                     const ext = fileName.split('.').pop().toLowerCase();
                     let type = 'unknown';
                     if (/^(png|jpg|jpeg|gif|webp)$/.test(ext)) type = 'image';
+                    else if (/^(mp4|webm|ogg|mov|avi|mkv)$/.test(ext)) type = 'video';
                     else if (ext === 'pdf') type = 'pdf';
                     else if (/^(txt|md|js|css|html|xml|json|cs)$/.test(ext)) type = 'text';
+
+                    if (type === 'video') {
+                        if (window.openVideoRight && window.playVideo) {
+                            window.openVideoRight();
+                            // Pass 'saved' type to treat URL as direct source
+                            window.playVideo('saved', data.filePath, fileName);
+                        } else {
+                            alert("Video player not available.");
+                        }
+                        // Clear loading spinner in left pane
+                        if (contentDisplay) contentDisplay.innerHTML = '';
+                        return;
+                    }
 
                     if (type === 'image') {
                         contentDisplay.innerHTML = `<div class="text-center h-100 d-flex align-items-center justify-content-center" style="background:#f8f9fa;"><img src="${data.filePath}" style="max-width:100%; max-height:100%; object-fit:contain; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" /></div>`;

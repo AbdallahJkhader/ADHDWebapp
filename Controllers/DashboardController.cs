@@ -352,13 +352,18 @@ namespace ADHDWebApp.Controllers
 
             var result = await _dashboardService.GetFileContentAsync(sessionUserId.Value, fileId, _env.WebRootPath);
 
-            if (!result.Success) return NotFound();
-
-            TempData["ShowLeftPanel"] = "true";
-            TempData["UploadedText"] = result.Content;
-            TempData["FileName"] = result.File!.FileName;
-            TempData["FileId"] = result.File.Id.ToString();
-
+            if (result.Success)
+            {
+                TempData["FileUploadSuccess"] = "File uploaded successfully!";
+                TempData["ShowLeftPanel"] = "true";
+                TempData["UploadedText"] = result.Content;
+                TempData["FileName"] = result.File!.FileName;
+                TempData["FileId"] = result.File.Id.ToString();
+            }
+            else
+            {
+                TempData["Error"] = result.Error; // Handle error case if GetFileContentAsync fails
+            }
             return RedirectToAction("Index");
         }
 
@@ -443,6 +448,28 @@ namespace ADHDWebApp.Controllers
              }
              catch(Exception ex) { return Json(new {success=false, error=ex.Message}); }
         }
+
+        public class SaveVideoLinkRequest { public string? Title { get; set; } public string? Url { get; set; } }
+
+        [HttpPost]
+        [Route("Dashboard/SaveVideoLink")]
+        public async Task<IActionResult> SaveVideoLink([FromBody] SaveVideoLinkRequest req)
+        {
+             var sessionUserId = HttpContext.Session.GetInt32("UserId");
+            if (sessionUserId == null) return Json(new { success = false, error = "Not logged in" });
+            
+             if (string.IsNullOrWhiteSpace(req.Url)) return Json(new { success = false, error = "No URL provided" });
+             
+             var title = string.IsNullOrWhiteSpace(req.Title) ? "YouTube Video" : req.Title;
+             
+             // Save as a "file" but with persistent Youtube link as path
+             var result = await _dashboardService.SaveUserFileAsync(sessionUserId.Value, title, req.Url, "video/youtube", 0);
+             
+             if (result.Success) return Json(new { success = true, fileId = result.FileId });
+             return Json(new { success = false, error = result.Error });
+        }
+
+
 
         [HttpPost]
         public async Task<IActionResult> RecordBrowsingSession([FromBody] RecordTimeDto model)

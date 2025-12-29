@@ -545,12 +545,22 @@ namespace ADHDWebApp.Services
                         break;
 
                     case ".png":
-                    case ".jpg":
-                    case ".jpeg":
-                    case ".gif":
-                        displayType = "image";
-                        contentText = file.FilePath; // Return path for Image viewer
-                        break;
+            case ".jpg":
+            case ".jpeg":
+            case ".gif":
+                displayType = "image";
+                contentText = file.FilePath; // Return path for Image viewer
+                break;
+
+            case ".mp4":
+            case ".webm":
+            case ".ogg":
+            case ".mov":
+            case ".avi":
+            case ".mkv":
+                displayType = "video";
+                contentText = file.FilePath; // Return path for Video viewer
+                break;        
 
                     default:
                         // Treat unknown as text (try to read) or binary

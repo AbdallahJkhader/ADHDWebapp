@@ -243,15 +243,40 @@ function createNotificationElement(notification) {
     return div;
 }
 
-// Update notification badge
+// Update badge count
 function updateNotificationBadge(count) {
+    console.log('🔔 Updating Notification Badge. Count:', count);
+
     const badge = document.getElementById('notification-badge');
+    const dropdownBadge = document.getElementById('dropdown-notification-badge');
+
+    // Update main badge
     if (badge) {
-        badge.textContent = count;
-        badge.style.display = count > 0 ? 'inline-block' : 'none';
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    } else {
+        console.warn('⚠️ Main notification badge element #notification-badge not found!');
+    }
+
+    // Update inner dropdown badge
+    if (dropdownBadge) {
+        console.log('✅ Found dropdown badge element #dropdown-notification-badge');
+        if (count > 0) {
+            dropdownBadge.textContent = count > 99 ? '99+' : count;
+            dropdownBadge.style.display = 'inline-block';
+            console.log('   -> Set dropdown badge text to:', dropdownBadge.textContent);
+        } else {
+            dropdownBadge.style.display = 'none';
+            console.log('   -> Hiding dropdown badge (count is 0)');
+        }
+    } else {
+        console.error('❌ Dropdown badge element #dropdown-notification-badge NOT FOUND in DOM.');
     }
 }
-
 // Format notification time
 function formatNotificationTime(timestamp) {
     const date = new Date(timestamp);

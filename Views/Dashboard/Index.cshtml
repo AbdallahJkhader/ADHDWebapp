@@ -411,7 +411,7 @@
                         <div class="notifications-header-icon shadow-sm d-flex align-items-center justify-content-center bg-white mb-3">
                             <img src="~/images/tools icon.png" alt="Tools" style="width: 32px; height: 32px; object-fit: contain;" />
                         </div>
-                        <h5 class="mb-3 fw-bold text-center">Study Tools</h5>
+                        <h5 class="mb-3 fw-bold text-center">Tools</h5>
 
                     <div class="activity-item" onclick="toggleInlinePanel('tools-calculator-panel', event, 'tools-dropdown')" style="cursor: pointer;">
                         <div class="activity-icon text-info">
@@ -706,6 +706,7 @@
                     }
                     <span>@ViewBag.FullName</span>
                     <i class="bi bi-chevron-down ms-1"></i>
+                    <span id="notification-badge" class="position-absolute translate-middle badge rounded-pill bg-danger" style="top: 5px; right: 0; display: none; font-size: 0.6rem;">0</span>
                 </button>
                 <div class="dropdown-menu enhanced-dropdown text-start p-0 overflow-auto" id="user-dropdown" data-user-id="@ViewBag.UserId" dir="ltr" style="direction:ltr; max-height: 85vh;">
                     <div class="notifications-banner" style="background: linear-gradient(135deg, #20c997 0%, #0dcaf0 100%); opacity:0.9;"></div>
@@ -744,14 +745,20 @@
                     </div>
 
                     <!-- Notifications Button -->
-                    <div class="activity-item" onclick="toggleNotificationsPanel(event)" style="cursor: pointer;">
-                        <div class="activity-icon text-warning">
-                            <img src="~/images/Notifications icon.png" alt="Notifications" style="width: 20px; height: 20px; object-fit: contain;" />
+                    <div class="activity-item d-flex align-items-center justify-content-between pe-3" onclick="toggleInlinePanel('notifications-panel', event)" style="cursor: pointer;">
+                        <div class="d-flex align-items-center">
+                            <div class="activity-icon text-warning me-3">
+                                <img src="~/images/Notifications icon.png" alt="Notifications" style="width: 20px; height: 20px; object-fit: contain;" />
+                            </div>
+                            <div class="activity-info">
+                                <div class="activity-title">Notifications</div>
+                                <div class="activity-desc">View your notifications</div>
+                            </div>
                         </div>
-                        <div class="activity-info">
-                            <div class="activity-title">Notifications</div>
-                            <div class="activity-desc">View your notifications</div>
-                        </div>
+                        <!-- Badge moved to right side for better visibility -->
+                        <span id="dropdown-notification-badge" class="badge rounded-pill bg-danger" style="font-size: 0.75rem; display: none;">
+                            0
+                        </span>
                     </div>
 
                     <!-- Messages Button -->
@@ -1378,7 +1385,14 @@
                             <div class="files-grid">
                                 @if (ViewBag.UserFiles != null && ((List<UserFile>)ViewBag.UserFiles).Any())
                                 {
-                                    @foreach (var file in ((List<UserFile>)ViewBag.UserFiles).OrderByDescending(f => f.UploadedAt))
+                                    @foreach (var file in ((List<UserFile>)ViewBag.UserFiles)
+                                        .Where(f => {
+                                            var ext = System.IO.Path.GetExtension(f.FileName ?? "").ToLower();
+                                            var isVideoExt = System.Text.RegularExpressions.Regex.IsMatch(ext, @"^\.(mp4|webm|ogg|mov|avi|mkv)$");
+                                            var isVideoType = (f.ContentType ?? "").StartsWith("video/", StringComparison.OrdinalIgnoreCase);
+                                            return !isVideoExt && !isVideoType;
+                                        })
+                                        .OrderByDescending(f => f.UploadedAt))
                                     {
                                         <div class="file-card" onclick="openFile(@file.Id)" data-file-id="@file.Id" data-file-name="@file.FileName" data-uploaded-at="@file.UploadedAt.Ticks">
                                             <div class="form-check" style="position: absolute; top: 8px; left: 8px; z-index: 2;">
@@ -2259,5 +2273,153 @@
     <script src="~/js/dashboard-file-tracking.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-timer.js" asp-append-version="true"></script>
     <script src="~/js/dashboard-breathing.js" asp-append-version="true"></script>
+    <script>
+        (function() {
+            let hasShownPopup = false; // Ensure popup only shows once per page load
+
+            const enhanceNotificationSystem = function() {
+                const originalLoadNotifications = window.loadNotifications;
+                
+                window.loadNotifications = async function() {
+                    // 1. Fetch Server Notifications
+                    if (originalLoadNotifications) {
+                        try {
+                            await originalLoadNotifications();
+                        } catch(e) { console.error(e); }
+                    }
+
+                    // 2. Christmas Logic (Inject into list)
+                    const now = new Date();
+                    const startMonth = 11; // Dec
+                    const startDate = 20;
+                    const endMonth = 0; // Jan
+                    const endDate = 7;
+                    const isDecemberInRange = now.getMonth() === startMonth && now.getDate() >= startDate;
+                    const isJanuaryInRange = now.getMonth() === endMonth && now.getDate() <= endDate;
+                    const isChristmas = isDecemberInRange || isJanuaryInRange;
+
+
+                    const container = document.getElementById('notification-dropdown-menu') || document.getElementById('notifications-list');
+                    
+                    if (isChristmas && container) {
+                        // Check if Christmas notification already exists to prevent duplicates
+                        const alreadyExists = container.querySelector('[data-is-christmas="true"]');
+                        
+                        if (!alreadyExists) {
+                            if (container.querySelector('.bi-bell-slash')) container.innerHTML = ''; 
+
+                            const christmasNotif = document.createElement('div');
+                            christmasNotif.className = 'list-group-item list-group-item-action bg-light'; 
+                            christmasNotif.style.cursor = 'pointer';
+                            christmasNotif.dataset.isChristmas = 'true';
+                            christmasNotif.innerHTML = `
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 text-danger">
+                                        <i class="bi bi-gift-fill me-2"></i>
+                                        Merry Christmas!
+                                    </h6>
+                                    <small class="text-muted">Just now</small>
+                                </div>
+                                <p class="mb-1 small">May this season bring you joy and success! 🎄</p>
+                            `;
+                            
+                            container.insertBefore(christmasNotif, container.firstChild);
+                            
+                            // Update badge count using the sync function ONLY if we added the notification
+                            const currentBadge = document.getElementById('notification-badge');
+                            const currentCount = parseInt(currentBadge?.textContent || '0');
+                            if (window.updateNotificationBadge) {
+                                window.updateNotificationBadge(currentCount + 1);
+                            }
+                        } else {
+                            console.log('🎄 Christmas notification already exists, skipping...');
+                        }
+                    }
+
+                    // 3. General Popup Logic (The "Latest" Popup)
+                    if (container && !hasShownPopup) {
+                        const items = container.querySelectorAll('.list-group-item');
+                        const count = items.length;
+
+                        if (count > 0) {
+                            const firstItem = items[0];
+                            let title = firstItem.querySelector('h6')?.innerText?.trim() || "New Notification";
+                            let body = firstItem.querySelector('p')?.innerText?.trim() || "";
+                            
+                            // Styling based on content
+                            let imageUrl = null;
+                            let imageWidth = null;
+                            let imageHeight = null;
+                            let backdrop = null;
+                            let confirmBtnText = 'OK';
+                            let icon = 'info';
+
+                            // If it's our Christmas notification
+                            if (firstItem.dataset.isChristmas === 'true') {
+                                 imageUrl = 'https://cdn-icons-png.flaticon.com/512/614/614131.png';
+                                 imageWidth = 100;
+                                 imageHeight = 100;
+                                 backdrop = `rgba(0,0,123,0.4)`;
+                                 confirmBtnText = 'Thank you!';
+                                 icon = null;
+                            }
+
+                            // Footer Logic
+                            let footer = null;
+                            if (count > 1) {
+                                 const otherCount = count - 1;
+                                 // We use a generic message as requested
+                                 footer = `And ${otherCount} more notification${otherCount > 1 ? 's' : ''}. Tap to view all.`;
+                            }
+
+                            Swal.fire({
+                                title: title,
+                                text: body,
+                                icon: icon,
+                                imageUrl: imageUrl,
+                                imageWidth: imageWidth,
+                                imageHeight: imageHeight,
+                                backdrop: backdrop,
+                                footer: footer,
+                                confirmButtonText: confirmBtnText,
+                                confirmButtonColor: '#3085d6',
+                                background: imageUrl ? '#fff url("https://www.transparenttextures.com/patterns/snow.png")' : '#fff'
+                            }).then(() => {
+                                // If they click OK, maybe we should open the dropdown?
+                                // User didn't strictly ask for it, but "Tap to view all" implies interaction.
+                                // Let's leave it as just acknowledgement for now.
+                            });
+
+                            hasShownPopup = true;
+                        }
+                    }
+                };
+            };
+
+            // Apply override
+            if (window.loadNotifications) {
+                enhanceNotificationSystem();
+            } else {
+                document.addEventListener('DOMContentLoaded', modifyNotifications => {
+                     enhanceNotificationSystem();
+                });
+            }
+        })();
+    </script>
+
+    @if (TempData["FileUploadSuccess"] != null)
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    title: 'Success!',
+                    text: '@TempData["FileUploadSuccess"]',
+                    icon: 'success',
+                    confirmButtonColor: '#3085d6',
+                    timer: 2500
+                });
+            });
+        </script>
+    }
 </body>
 </html>

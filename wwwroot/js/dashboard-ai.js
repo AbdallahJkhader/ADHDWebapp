@@ -1075,7 +1075,7 @@ window.toggleNotesMode = window.toggleNotesMode || function () {
 
     if (!textarea || !canvas || !toggleBtn) return;
 
-    const isWritingMode = textarea.style.pointerEvents === 'auto';
+    const isWritingMode = textarea.style.pointerEvents !== 'none';
 
     if (isWritingMode) {
         // Switch to drawing

@@ -42,6 +42,10 @@ window.loadFullClassFiles = async function (classId) {
             if (outsideBadge) outsideBadge.textContent = totalCount;
 
             data.files.forEach(file => {
+                // Filter out videos from this list
+                const ext = file.fileName.split('.').pop().toLowerCase();
+                if (/^(mp4|webm|ogg|mov|avi|mkv)$/.test(ext)) return;
+
                 const fileItem = createFileItem(file);
                 container.appendChild(fileItem);
             });
