@@ -35,7 +35,7 @@ To run this project locally, follow these steps:
 4.  Press **F5** in Visual Studio or run `dotnet run` in the terminal.
 
 ## 📬 Contact Me
-* **LinkedIn:** [Abdallah Khader](https://www.linkedin.com/in/abdallah-j-khader-b70739230)
+* **LinkedIn:**  [Abdallah J. Khader](https://www.linkedin.com/in/abdallah-j-khader-b70739230)
 * **Portfolio:** [abdallahjkhader-portfolio.netlify.app](https://abdallahjkhader-portfolio.netlify.app)
 * **Email:** abdallahjkhader@gmail.com
 
